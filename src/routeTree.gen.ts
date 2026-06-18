@@ -22,7 +22,6 @@ import { Route as SettingsExclusionsRouteImport } from './routes/settings.exclus
 import { Route as SettingsEquipmentRouteImport } from './routes/settings.equipment'
 import { Route as SettingsEmployeesRouteImport } from './routes/settings.employees'
 import { Route as SettingsDeliveryRouteImport } from './routes/settings.delivery'
-import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as PrintIdRouteImport } from './routes/print.$id'
 import { Route as ProjectsIdWizardRouteImport } from './routes/projects.$id.wizard'
 import { Route as ProjectsIdPreviewRouteImport } from './routes/projects.$id.preview'
@@ -92,11 +91,6 @@ const SettingsDeliveryRoute = SettingsDeliveryRouteImport.update({
   path: '/settings/delivery',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProjectsNewRoute = ProjectsNewRouteImport.update({
-  id: '/projects/new',
-  path: '/projects/new',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PrintIdRoute = PrintIdRouteImport.update({
   id: '/print/$id',
   path: '/print/$id',
@@ -116,7 +110,6 @@ const ProjectsIdPreviewRoute = ProjectsIdPreviewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/print/$id': typeof PrintIdRoute
-  '/projects/new': typeof ProjectsNewRoute
   '/settings/delivery': typeof SettingsDeliveryRoute
   '/settings/employees': typeof SettingsEmployeesRoute
   '/settings/equipment': typeof SettingsEquipmentRoute
@@ -135,7 +128,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/print/$id': typeof PrintIdRoute
-  '/projects/new': typeof ProjectsNewRoute
   '/settings/delivery': typeof SettingsDeliveryRoute
   '/settings/employees': typeof SettingsEmployeesRoute
   '/settings/equipment': typeof SettingsEquipmentRoute
@@ -155,7 +147,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/print/$id': typeof PrintIdRoute
-  '/projects/new': typeof ProjectsNewRoute
   '/settings/delivery': typeof SettingsDeliveryRoute
   '/settings/employees': typeof SettingsEmployeesRoute
   '/settings/equipment': typeof SettingsEquipmentRoute
@@ -176,7 +167,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/print/$id'
-    | '/projects/new'
     | '/settings/delivery'
     | '/settings/employees'
     | '/settings/equipment'
@@ -195,7 +185,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/print/$id'
-    | '/projects/new'
     | '/settings/delivery'
     | '/settings/employees'
     | '/settings/equipment'
@@ -214,7 +203,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/print/$id'
-    | '/projects/new'
     | '/settings/delivery'
     | '/settings/employees'
     | '/settings/equipment'
@@ -234,7 +222,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PrintIdRoute: typeof PrintIdRoute
-  ProjectsNewRoute: typeof ProjectsNewRoute
   SettingsDeliveryRoute: typeof SettingsDeliveryRoute
   SettingsEmployeesRoute: typeof SettingsEmployeesRoute
   SettingsEquipmentRoute: typeof SettingsEquipmentRoute
@@ -344,13 +331,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsDeliveryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/projects/new': {
-      id: '/projects/new'
-      path: '/projects/new'
-      fullPath: '/projects/new'
-      preLoaderRoute: typeof ProjectsNewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/print/$id': {
       id: '/print/$id'
       path: '/print/$id'
@@ -378,7 +358,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PrintIdRoute: PrintIdRoute,
-  ProjectsNewRoute: ProjectsNewRoute,
   SettingsDeliveryRoute: SettingsDeliveryRoute,
   SettingsEmployeesRoute: SettingsEmployeesRoute,
   SettingsEquipmentRoute: SettingsEquipmentRoute,

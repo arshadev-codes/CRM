@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Settings, FilePlus2, Cog, BookOpen, Users, Wrench, Boxes, ListChecks, Truck, CreditCard, ShieldOff, Tag, Layers } from "lucide-react";
+import { LayoutDashboard, Settings, Cog, BookOpen, Users, Wrench, Boxes, ListChecks, Truck, CreditCard, ShieldOff, Tag, Layers } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
