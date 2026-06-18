@@ -7,7 +7,6 @@ import {
 
 const main = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "New Project", url: "/projects/new", icon: FilePlus2 },
 ];
 
 const cms = [
