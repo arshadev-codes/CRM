@@ -183,41 +183,42 @@ export function Step4InstrumentsEquipment({ project, update }: { project: Projec
     <div className="space-y-6">
       <Section title="Instruments">
         <SpecTable
-          rows={instruments}
-          onChange={rows => update({ instruments: rows })}
+          rows={instruments as unknown as AnyRow[]}
+          onChange={rows => update({ instruments: rows as unknown as typeof instruments })}
           firstCol={{ key: "instrument", label: "Instrument" }}
           extraCols={[{ key: "make", label: "Make" }, { key: "model", label: "Model" }]}
-          library={instrumentsData}
+          library={instrumentsData as unknown as AnyRow[]}
         />
       </Section>
       <Section title="Equipment">
         <SpecTable
-          rows={equipment}
-          onChange={rows => update({ equipment: rows })}
+          rows={equipment as unknown as AnyRow[]}
+          onChange={rows => update({ equipment: rows as unknown as typeof equipment })}
           firstCol={{ key: "equipment", label: "Equipment" }}
           includedCol
-          library={equipmentData}
+          library={equipmentData as unknown as AnyRow[]}
         />
       </Section>
     </div>
   );
 }
 
-type Row = Record<string, unknown> & { id: string; qty: number; price: string; spec1: string; spec2: string; spec3: string; spec4: string; spec5: string };
-function SpecTable<T extends Row>({ rows, onChange, firstCol, extraCols = [], includedCol = false, library }: {
-  rows: T[]; onChange: (rows: T[]) => void;
-  firstCol: { key: keyof T & string; label: string };
-  extraCols?: { key: keyof T & string; label: string }[];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyRow = Record<string, any> & { id: string };
+function SpecTable({ rows, onChange, firstCol, extraCols = [], includedCol = false, library }: {
+  rows: AnyRow[]; onChange: (rows: AnyRow[]) => void;
+  firstCol: { key: string; label: string };
+  extraCols?: { key: string; label: string }[];
   includedCol?: boolean;
-  library: T[];
+  library: AnyRow[];
 }) {
-  const update = (i: number, patch: Partial<T>) => onChange(rows.map((r, idx) => idx === i ? { ...r, ...patch } : r));
+  const update = (i: number, patch: Partial<AnyRow>) => onChange(rows.map((r, idx) => idx === i ? { ...r, ...patch } : r));
   const remove = (i: number) => onChange(rows.filter((_, idx) => idx !== i));
   const addBlank = () => {
-    const blank: Row = { id: crypto.randomUUID(), qty: 1, price: "", spec1: "", spec2: "", spec3: "", spec4: "", spec5: "" };
+    const blank: AnyRow = { id: crypto.randomUUID(), qty: 1, price: "", spec1: "", spec2: "", spec3: "", spec4: "", spec5: "" };
     blank[firstCol.key] = ""; extraCols.forEach(c => (blank[c.key] = ""));
-    if (includedCol) (blank as Row & { included?: boolean }).included = true;
-    onChange([...rows, blank as T]);
+    if (includedCol) blank.included = true;
+    onChange([...rows, blank]);
   };
   const addFromLib = (id: string) => {
     const item = library.find(l => l.id === id);
@@ -240,19 +241,19 @@ function SpecTable<T extends Row>({ rows, onChange, firstCol, extraCols = [], in
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.id}>
-              <td className="border p-0.5"><Input className="h-7 text-xs" value={String(r[firstCol.key] ?? "")} onChange={e => update(i, { [firstCol.key]: e.target.value } as Partial<T>)} /></td>
+              <td className="border p-0.5"><Input className="h-7 text-xs" value={String(r[firstCol.key] ?? "")} onChange={e => update(i, { [firstCol.key]: e.target.value })} /></td>
               {includedCol && <td className="border p-0.5 text-center">
-                <Checkbox checked={!!(r as Row & { included?: boolean }).included} onCheckedChange={v => update(i, { included: !!v } as unknown as Partial<T>)} />
+                <Checkbox checked={!!r.included} onCheckedChange={v => update(i, { included: !!v })} />
               </td>}
               {extraCols.map(c => (
-                <td key={c.key} className="border p-0.5"><Input className="h-7 text-xs" value={String(r[c.key] ?? "")} onChange={e => update(i, { [c.key]: e.target.value } as Partial<T>)} /></td>
+                <td key={c.key} className="border p-0.5"><Input className="h-7 text-xs" value={String(r[c.key] ?? "")} onChange={e => update(i, { [c.key]: e.target.value })} /></td>
               ))}
-              {([1,2,3,4,5] as const).map(n => {
-                const key = `spec${n}` as keyof T & string;
-                return <td key={n} className="border p-0.5"><Input className="h-7 text-xs" value={String(r[key] ?? "")} onChange={e => update(i, { [key]: e.target.value } as Partial<T>)} /></td>;
+              {[1,2,3,4,5].map(n => {
+                const key = `spec${n}`;
+                return <td key={n} className="border p-0.5"><Input className="h-7 text-xs" value={String(r[key] ?? "")} onChange={e => update(i, { [key]: e.target.value })} /></td>;
               })}
-              <td className="border p-0.5"><Input type="number" className="h-7 text-xs" value={r.qty} onChange={e => update(i, { qty: Number(e.target.value) } as Partial<T>)} /></td>
-              <td className="border p-0.5"><Input className="h-7 text-xs" value={r.price} onChange={e => update(i, { price: e.target.value } as Partial<T>)} /></td>
+              <td className="border p-0.5"><Input type="number" className="h-7 text-xs" value={r.qty} onChange={e => update(i, { qty: Number(e.target.value) })} /></td>
+              <td className="border p-0.5"><Input className="h-7 text-xs" value={r.price} onChange={e => update(i, { price: e.target.value })} /></td>
               <td className="border p-0.5 text-center"><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => remove(i)}><Trash2 className="h-3 w-3" /></Button></td>
             </tr>
           ))}
