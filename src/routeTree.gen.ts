@@ -10,6 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as SettingsTestsRouteImport } from './routes/settings.tests'
+import { Route as SettingsSubsystemsRouteImport } from './routes/settings.subsystems'
+import { Route as SettingsScopeSupplyRouteImport } from './routes/settings.scope-supply'
+import { Route as SettingsScopeServicesRouteImport } from './routes/settings.scope-services'
+import { Route as SettingsPaymentRouteImport } from './routes/settings.payment'
+import { Route as SettingsMakesRouteImport } from './routes/settings.makes'
+import { Route as SettingsInstrumentsRouteImport } from './routes/settings.instruments'
+import { Route as SettingsExclusionsRouteImport } from './routes/settings.exclusions'
+import { Route as SettingsEquipmentRouteImport } from './routes/settings.equipment'
+import { Route as SettingsEmployeesRouteImport } from './routes/settings.employees'
+import { Route as SettingsDeliveryRouteImport } from './routes/settings.delivery'
 import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as PrintIdRouteImport } from './routes/print.$id'
 import { Route as ProjectsIdWizardRouteImport } from './routes/projects.$id.wizard'
@@ -18,6 +30,66 @@ import { Route as ProjectsIdPreviewRouteImport } from './routes/projects.$id.pre
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsTestsRoute = SettingsTestsRouteImport.update({
+  id: '/settings/tests',
+  path: '/settings/tests',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsSubsystemsRoute = SettingsSubsystemsRouteImport.update({
+  id: '/settings/subsystems',
+  path: '/settings/subsystems',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsScopeSupplyRoute = SettingsScopeSupplyRouteImport.update({
+  id: '/settings/scope-supply',
+  path: '/settings/scope-supply',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsScopeServicesRoute = SettingsScopeServicesRouteImport.update({
+  id: '/settings/scope-services',
+  path: '/settings/scope-services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsPaymentRoute = SettingsPaymentRouteImport.update({
+  id: '/settings/payment',
+  path: '/settings/payment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsMakesRoute = SettingsMakesRouteImport.update({
+  id: '/settings/makes',
+  path: '/settings/makes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsInstrumentsRoute = SettingsInstrumentsRouteImport.update({
+  id: '/settings/instruments',
+  path: '/settings/instruments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsExclusionsRoute = SettingsExclusionsRouteImport.update({
+  id: '/settings/exclusions',
+  path: '/settings/exclusions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsEquipmentRoute = SettingsEquipmentRouteImport.update({
+  id: '/settings/equipment',
+  path: '/settings/equipment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsEmployeesRoute = SettingsEmployeesRouteImport.update({
+  id: '/settings/employees',
+  path: '/settings/employees',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsDeliveryRoute = SettingsDeliveryRouteImport.update({
+  id: '/settings/delivery',
+  path: '/settings/delivery',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsNewRoute = ProjectsNewRouteImport.update({
@@ -45,6 +117,18 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/print/$id': typeof PrintIdRoute
   '/projects/new': typeof ProjectsNewRoute
+  '/settings/delivery': typeof SettingsDeliveryRoute
+  '/settings/employees': typeof SettingsEmployeesRoute
+  '/settings/equipment': typeof SettingsEquipmentRoute
+  '/settings/exclusions': typeof SettingsExclusionsRoute
+  '/settings/instruments': typeof SettingsInstrumentsRoute
+  '/settings/makes': typeof SettingsMakesRoute
+  '/settings/payment': typeof SettingsPaymentRoute
+  '/settings/scope-services': typeof SettingsScopeServicesRoute
+  '/settings/scope-supply': typeof SettingsScopeSupplyRoute
+  '/settings/subsystems': typeof SettingsSubsystemsRoute
+  '/settings/tests': typeof SettingsTestsRoute
+  '/settings/': typeof SettingsIndexRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
   '/projects/$id/wizard': typeof ProjectsIdWizardRoute
 }
@@ -52,6 +136,18 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/print/$id': typeof PrintIdRoute
   '/projects/new': typeof ProjectsNewRoute
+  '/settings/delivery': typeof SettingsDeliveryRoute
+  '/settings/employees': typeof SettingsEmployeesRoute
+  '/settings/equipment': typeof SettingsEquipmentRoute
+  '/settings/exclusions': typeof SettingsExclusionsRoute
+  '/settings/instruments': typeof SettingsInstrumentsRoute
+  '/settings/makes': typeof SettingsMakesRoute
+  '/settings/payment': typeof SettingsPaymentRoute
+  '/settings/scope-services': typeof SettingsScopeServicesRoute
+  '/settings/scope-supply': typeof SettingsScopeSupplyRoute
+  '/settings/subsystems': typeof SettingsSubsystemsRoute
+  '/settings/tests': typeof SettingsTestsRoute
+  '/settings': typeof SettingsIndexRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
   '/projects/$id/wizard': typeof ProjectsIdWizardRoute
 }
@@ -60,6 +156,18 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/print/$id': typeof PrintIdRoute
   '/projects/new': typeof ProjectsNewRoute
+  '/settings/delivery': typeof SettingsDeliveryRoute
+  '/settings/employees': typeof SettingsEmployeesRoute
+  '/settings/equipment': typeof SettingsEquipmentRoute
+  '/settings/exclusions': typeof SettingsExclusionsRoute
+  '/settings/instruments': typeof SettingsInstrumentsRoute
+  '/settings/makes': typeof SettingsMakesRoute
+  '/settings/payment': typeof SettingsPaymentRoute
+  '/settings/scope-services': typeof SettingsScopeServicesRoute
+  '/settings/scope-supply': typeof SettingsScopeSupplyRoute
+  '/settings/subsystems': typeof SettingsSubsystemsRoute
+  '/settings/tests': typeof SettingsTestsRoute
+  '/settings/': typeof SettingsIndexRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
   '/projects/$id/wizard': typeof ProjectsIdWizardRoute
 }
@@ -69,6 +177,18 @@ export interface FileRouteTypes {
     | '/'
     | '/print/$id'
     | '/projects/new'
+    | '/settings/delivery'
+    | '/settings/employees'
+    | '/settings/equipment'
+    | '/settings/exclusions'
+    | '/settings/instruments'
+    | '/settings/makes'
+    | '/settings/payment'
+    | '/settings/scope-services'
+    | '/settings/scope-supply'
+    | '/settings/subsystems'
+    | '/settings/tests'
+    | '/settings/'
     | '/projects/$id/preview'
     | '/projects/$id/wizard'
   fileRoutesByTo: FileRoutesByTo
@@ -76,6 +196,18 @@ export interface FileRouteTypes {
     | '/'
     | '/print/$id'
     | '/projects/new'
+    | '/settings/delivery'
+    | '/settings/employees'
+    | '/settings/equipment'
+    | '/settings/exclusions'
+    | '/settings/instruments'
+    | '/settings/makes'
+    | '/settings/payment'
+    | '/settings/scope-services'
+    | '/settings/scope-supply'
+    | '/settings/subsystems'
+    | '/settings/tests'
+    | '/settings'
     | '/projects/$id/preview'
     | '/projects/$id/wizard'
   id:
@@ -83,6 +215,18 @@ export interface FileRouteTypes {
     | '/'
     | '/print/$id'
     | '/projects/new'
+    | '/settings/delivery'
+    | '/settings/employees'
+    | '/settings/equipment'
+    | '/settings/exclusions'
+    | '/settings/instruments'
+    | '/settings/makes'
+    | '/settings/payment'
+    | '/settings/scope-services'
+    | '/settings/scope-supply'
+    | '/settings/subsystems'
+    | '/settings/tests'
+    | '/settings/'
     | '/projects/$id/preview'
     | '/projects/$id/wizard'
   fileRoutesById: FileRoutesById
@@ -91,6 +235,18 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PrintIdRoute: typeof PrintIdRoute
   ProjectsNewRoute: typeof ProjectsNewRoute
+  SettingsDeliveryRoute: typeof SettingsDeliveryRoute
+  SettingsEmployeesRoute: typeof SettingsEmployeesRoute
+  SettingsEquipmentRoute: typeof SettingsEquipmentRoute
+  SettingsExclusionsRoute: typeof SettingsExclusionsRoute
+  SettingsInstrumentsRoute: typeof SettingsInstrumentsRoute
+  SettingsMakesRoute: typeof SettingsMakesRoute
+  SettingsPaymentRoute: typeof SettingsPaymentRoute
+  SettingsScopeServicesRoute: typeof SettingsScopeServicesRoute
+  SettingsScopeSupplyRoute: typeof SettingsScopeSupplyRoute
+  SettingsSubsystemsRoute: typeof SettingsSubsystemsRoute
+  SettingsTestsRoute: typeof SettingsTestsRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
   ProjectsIdPreviewRoute: typeof ProjectsIdPreviewRoute
   ProjectsIdWizardRoute: typeof ProjectsIdWizardRoute
 }
@@ -102,6 +258,90 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/tests': {
+      id: '/settings/tests'
+      path: '/settings/tests'
+      fullPath: '/settings/tests'
+      preLoaderRoute: typeof SettingsTestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/subsystems': {
+      id: '/settings/subsystems'
+      path: '/settings/subsystems'
+      fullPath: '/settings/subsystems'
+      preLoaderRoute: typeof SettingsSubsystemsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/scope-supply': {
+      id: '/settings/scope-supply'
+      path: '/settings/scope-supply'
+      fullPath: '/settings/scope-supply'
+      preLoaderRoute: typeof SettingsScopeSupplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/scope-services': {
+      id: '/settings/scope-services'
+      path: '/settings/scope-services'
+      fullPath: '/settings/scope-services'
+      preLoaderRoute: typeof SettingsScopeServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/payment': {
+      id: '/settings/payment'
+      path: '/settings/payment'
+      fullPath: '/settings/payment'
+      preLoaderRoute: typeof SettingsPaymentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/makes': {
+      id: '/settings/makes'
+      path: '/settings/makes'
+      fullPath: '/settings/makes'
+      preLoaderRoute: typeof SettingsMakesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/instruments': {
+      id: '/settings/instruments'
+      path: '/settings/instruments'
+      fullPath: '/settings/instruments'
+      preLoaderRoute: typeof SettingsInstrumentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/exclusions': {
+      id: '/settings/exclusions'
+      path: '/settings/exclusions'
+      fullPath: '/settings/exclusions'
+      preLoaderRoute: typeof SettingsExclusionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/equipment': {
+      id: '/settings/equipment'
+      path: '/settings/equipment'
+      fullPath: '/settings/equipment'
+      preLoaderRoute: typeof SettingsEquipmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/employees': {
+      id: '/settings/employees'
+      path: '/settings/employees'
+      fullPath: '/settings/employees'
+      preLoaderRoute: typeof SettingsEmployeesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/delivery': {
+      id: '/settings/delivery'
+      path: '/settings/delivery'
+      fullPath: '/settings/delivery'
+      preLoaderRoute: typeof SettingsDeliveryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects/new': {
@@ -139,6 +379,18 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PrintIdRoute: PrintIdRoute,
   ProjectsNewRoute: ProjectsNewRoute,
+  SettingsDeliveryRoute: SettingsDeliveryRoute,
+  SettingsEmployeesRoute: SettingsEmployeesRoute,
+  SettingsEquipmentRoute: SettingsEquipmentRoute,
+  SettingsExclusionsRoute: SettingsExclusionsRoute,
+  SettingsInstrumentsRoute: SettingsInstrumentsRoute,
+  SettingsMakesRoute: SettingsMakesRoute,
+  SettingsPaymentRoute: SettingsPaymentRoute,
+  SettingsScopeServicesRoute: SettingsScopeServicesRoute,
+  SettingsScopeSupplyRoute: SettingsScopeSupplyRoute,
+  SettingsSubsystemsRoute: SettingsSubsystemsRoute,
+  SettingsTestsRoute: SettingsTestsRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
   ProjectsIdPreviewRoute: ProjectsIdPreviewRoute,
   ProjectsIdWizardRoute: ProjectsIdWizardRoute,
 }
