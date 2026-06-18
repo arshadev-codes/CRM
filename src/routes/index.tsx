@@ -14,7 +14,16 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const projects = useProposalStore(s => s.projects);
+  const createProject = useProposalStore(s => s.createProject);
   const duplicate = useProposalStore(s => s.duplicateProject);
+  const remove = useProposalStore(s => s.deleteProject);
+  const archive = useProposalStore(s => s.archiveProject);
+  const navigate = useNavigate();
+  const [q, setQ] = useState("");
+  const handleCreate = () => {
+    const p = createProject(`Proposal ${new Date().toLocaleDateString()}`);
+    navigate({ to: "/projects/$id/wizard", params: { id: p.id } });
+  };
   const remove = useProposalStore(s => s.deleteProject);
   const archive = useProposalStore(s => s.archiveProject);
   const navigate = useNavigate();
@@ -34,7 +43,7 @@ function Dashboard() {
           <h1 className="text-2xl font-bold text-slate-900">Projects</h1>
           <p className="text-sm text-muted-foreground">Create, manage and export techno-commercial proposals.</p>
         </div>
-        <Link to="/projects/new"><Button><Plus className="h-4 w-4 mr-1" />New Project</Button></Link>
+        <Button onClick={handleCreate}><Plus className="h-4 w-4 mr-1" />New Project</Button>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-6">
