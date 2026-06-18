@@ -24,10 +24,8 @@ function Dashboard() {
     const p = createProject(`Proposal ${new Date().toLocaleDateString()}`);
     navigate({ to: "/projects/$id/wizard", params: { id: p.id } });
   };
-  const remove = useProposalStore(s => s.deleteProject);
-  const archive = useProposalStore(s => s.archiveProject);
-  const navigate = useNavigate();
-  const [q, setQ] = useState("");
+
+
 
   const filtered = projects.filter(p => p.name.toLowerCase().includes(q.toLowerCase()));
   const counts = {
