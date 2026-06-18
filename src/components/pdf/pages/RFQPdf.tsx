@@ -1,4 +1,4 @@
-import { PdfPage } from "./PdfPage";
+import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
 import { employeesData } from "@/data/employeesData";
 
