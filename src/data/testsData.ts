@@ -1,0 +1,21 @@
+export interface TestItem { id: string; title: string; group: string; description?: string; }
+export const testsData: TestItem[] = [
+  { id: "winding-resistance", title: "Measurement of winding resistance at all taps", group: "Routine" },
+  { id: "voltage-ratio", title: "Measurement of voltage ratio at all taps", group: "Routine" },
+  { id: "vector-group", title: "Check of phase displacement and vector group", group: "Routine" },
+  { id: "no-load", title: "No-load loss and current at 90%, 100% & 110%", group: "Routine" },
+  { id: "mag-balance", title: "Magnetic balance and magnetizing current", group: "Routine" },
+  { id: "short-circuit", title: "Short-circuit impedance and load-loss", group: "Routine" },
+  { id: "ir-pi", title: "Insulation Resistance & Polarization Index", group: "Routine" },
+  { id: "av", title: "Applied Voltage Test (AV)", group: "Routine" },
+  { id: "ivw", title: "Induced Voltage Withstand Test (IVW)", group: "Routine" },
+  { id: "oltc", title: "OLTC testing (fully assembled)", group: "Routine" },
+  { id: "core-frame", title: "Core and frame insulation check", group: "Routine" },
+  { id: "leak", title: "Leak / tightness pressure test", group: "Routine" },
+  { id: "415v-method", title: "No-load & short-circuit using 415V, 50Hz AC", group: "Special" },
+  { id: "temp-rise", title: "Temperature rise test", group: "Type" },
+  { id: "li", title: "Full Wave Lightning Impulse Test (LI)", group: "Type" },
+  { id: "zero-seq", title: "Zero-sequence reactance measurement", group: "Special" },
+  { id: "harmonic", title: "Harmonic levels in no-load current", group: "Special" },
+  { id: "ivpd", title: "Induced Voltage with PD measurement (IVPD)", group: "Type" },
+];
