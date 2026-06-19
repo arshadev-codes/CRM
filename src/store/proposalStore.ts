@@ -8,6 +8,8 @@ import { deliveryDefaults, type DeliveryRow } from "@/data/deliveryData";
 import { paymentTemplatesData, type PaymentMilestone } from "@/data/paymentTermsData";
 import { makesOfSupplyData } from "@/data/makesOfSupplyData";
 import { exclusionsData } from "@/data/exclusionsData";
+import { getMajorSubsystems } from "@/data/proposalContent";
+
 
 export interface Customer {
   title: string; contactPerson: string; designation: string;
@@ -74,7 +76,7 @@ function defaultsForSystem(systemType: SystemType): ProposalData {
     meta: emptyMeta(),
     transformer: emptyTransformer(),
     selectedTests: [...cfg.defaultTests],
-    selectedSubsystems: [...cfg.defaultSubsystems],
+    selectedSubsystems: getMajorSubsystems(systemType).map(s => s.id),
     subsystemCustomizations: {},
     systemLayout: {},
     instruments: instrumentsData.filter(i => cfg.defaultInstruments.includes(i.id)).map(i => ({ ...i })),
