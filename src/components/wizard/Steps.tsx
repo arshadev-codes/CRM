@@ -1,9 +1,9 @@
-import type { Project, ProposalData } from "@/store/proposalStore";
+import type { Project, ProposalData, SubsystemCustomization, CustomizationItem } from "@/store/proposalStore";
 import { useProposalStore } from "@/store/proposalStore";
 import { systemTypesData, type SystemType } from "@/data/systemTypesData";
 import { employeesData } from "@/data/employeesData";
 import { testsData } from "@/data/testsData";
-import { subsystemsData } from "@/data/subsystemsData";
+import { getMajorSubsystems } from "@/data/proposalContent";
 import { instrumentsData } from "@/data/instrumentsData";
 import { equipmentData } from "@/data/equipmentData";
 import { proprietaryItemsData } from "@/data/proprietaryItemsData";
@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
+
 
 type Update = (patch: Partial<ProposalData>) => void;
 
@@ -150,32 +151,141 @@ export function Step2Tests({ project, update }: { project: Project; update: Upda
 }
 
 export function Step3Subsystems({ project, update }: { project: Project; update: Update }) {
-  const { selectedSubsystems, systemType } = project.data;
-  const items = subsystemsData.filter(s => s.systemTypes.includes(systemType));
-  const toggle = (id: string) => update({ selectedSubsystems: selectedSubsystems.includes(id) ? selectedSubsystems.filter(x => x !== id) : [...selectedSubsystems, id] });
+  const { selectedSubsystems, subsystemCustomizations, systemType } = project.data;
+  const items = getMajorSubsystems(systemType);
+  const toggle = (id: string) =>
+    update({ selectedSubsystems: selectedSubsystems.includes(id) ? selectedSubsystems.filter(x => x !== id) : [...selectedSubsystems, id] });
+
+  const setCust = (id: string, patch: Partial<SubsystemCustomization>) => {
+    const current = subsystemCustomizations[id] ?? { include: false, items: [] };
+    update({ subsystemCustomizations: { ...subsystemCustomizations, [id]: { ...current, ...patch } } });
+  };
+  const addCustItem = (id: string) => {
+    const current = subsystemCustomizations[id] ?? { include: true, items: [] };
+    setCust(id, { include: true, items: [...current.items, { id: crypto.randomUUID(), title: "", description: "" }] });
+  };
+  const updCustItem = (sid: string, iid: string, patch: Partial<CustomizationItem>) => {
+    const current = subsystemCustomizations[sid] ?? { include: true, items: [] };
+    setCust(sid, { items: current.items.map(it => it.id === iid ? { ...it, ...patch } : it) });
+  };
+  const removeCustItem = (sid: string, iid: string) => {
+    const current = subsystemCustomizations[sid] ?? { include: false, items: [] };
+    setCust(sid, { items: current.items.filter(it => it.id !== iid) });
+  };
+  const moveCustItem = (sid: string, idx: number, dir: -1 | 1) => {
+    const current = subsystemCustomizations[sid] ?? { include: false, items: [] };
+    const arr = [...current.items];
+    const ni = idx + dir;
+    if (ni < 0 || ni >= arr.length) return;
+    [arr[idx], arr[ni]] = [arr[ni], arr[idx]];
+    setCust(sid, { items: arr });
+  };
+
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">Pick the subsystems to include. Descriptions and images are pulled from the CMS at export time — manage them in <strong>Settings → Sub Systems</strong>.</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <p className="text-sm text-muted-foreground">
+        Select the subsystems to include. Titles, descriptions and images are managed in <strong>Settings → Major Sub Systems</strong>
+        {" "}and are inserted automatically into the PDF — you do not see or edit that content here.
+      </p>
+      <div className="space-y-2">
         {items.map(s => {
           const sel = selectedSubsystems.includes(s.id);
+          const cust = subsystemCustomizations[s.id] ?? { include: false, items: [] };
           return (
-            <button key={s.id} type="button" onClick={() => toggle(s.id)}
-              className={`text-left p-4 rounded border-2 transition ${sel ? "border-blue-600 bg-blue-50" : "border-slate-200 bg-white hover:border-blue-300"}`}>
-              <div className="flex items-start gap-3">
+            <div key={s.id} className={`rounded border-2 transition ${sel ? "border-blue-600 bg-blue-50/50" : "border-slate-200 bg-white"}`}>
+              <button type="button" onClick={() => toggle(s.id)} className="w-full text-left p-3 flex items-start gap-3">
                 <Checkbox checked={sel} onCheckedChange={() => toggle(s.id)} className="mt-1" />
                 <div>
                   <div className="font-semibold text-sm">{s.title}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">{s.preview}</div>
                 </div>
-              </div>
-            </button>
+              </button>
+
+              {sel && (
+                <div className="px-3 pb-3 border-t border-blue-100 pt-2">
+                  <label className="flex items-center gap-2 text-xs cursor-pointer">
+                    <Checkbox checked={cust.include} onCheckedChange={v => setCust(s.id, { include: !!v })} />
+                    <span>Include <strong>Proposed Customizations</strong> for this subsystem</span>
+                  </label>
+                  {cust.include && (
+                    <div className="mt-3 space-y-3 pl-5 border-l-2 border-blue-200">
+                      {cust.items.map((it, idx) => (
+                        <div key={it.id} className="rounded border bg-white p-2 space-y-2">
+                          <div className="flex gap-2">
+                            <Input placeholder="Customization title (e.g. Additional safety measures…)"
+                              value={it.title} onChange={e => updCustItem(s.id, it.id, { title: e.target.value })} />
+                            <Button size="icon" variant="ghost" onClick={() => moveCustItem(s.id, idx, -1)} disabled={idx === 0}>↑</Button>
+                            <Button size="icon" variant="ghost" onClick={() => moveCustItem(s.id, idx, 1)} disabled={idx === cust.items.length - 1}>↓</Button>
+                            <Button size="icon" variant="ghost" onClick={() => removeCustItem(s.id, it.id)}><Trash2 className="h-3 w-3" /></Button>
+                          </div>
+                          <Textarea rows={4} placeholder={"a. Description line one\nb. Description line two"}
+                            value={it.description} onChange={e => updCustItem(s.id, it.id, { description: e.target.value })} />
+                        </div>
+                      ))}
+                      <Button size="sm" variant="outline" onClick={() => addCustItem(s.id)}>
+                        <Plus className="h-3 w-3 mr-1" />Add customization
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
     </div>
   );
 }
+
+export function Step3bSystemLayout({ project, update }: { project: Project; update: Update }) {
+  const layout = project.data.systemLayout ?? {};
+  const onFile = (file: File | null, key: "imageUrl" | "designPdfUrl") => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => update({ systemLayout: { ...layout, [key]: String(reader.result) } });
+    reader.readAsDataURL(file);
+  };
+  return (
+    <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        The <strong>Schematic of Offered System</strong> page text is fixed and not editable. Only the layout image and the
+        design PDF link below appear on that page. Defaults can be set in Settings; replace them here for this specific project.
+      </p>
+
+      <Section title="Layout Image">
+        <div className="flex items-start gap-4">
+          <div className="w-64 h-48 border rounded grid place-items-center overflow-hidden bg-slate-50 shrink-0">
+            {layout.imageUrl
+              ? <img src={layout.imageUrl} alt="Layout" className="max-w-full max-h-full object-contain" />
+              : <span className="text-xs text-muted-foreground">No image uploaded</span>}
+          </div>
+          <div className="space-y-2">
+            <Input type="file" accept="image/*" onChange={e => onFile(e.target.files?.[0] ?? null, "imageUrl")} />
+            {layout.imageUrl && (
+              <Button size="sm" variant="ghost" onClick={() => update({ systemLayout: { ...layout, imageUrl: undefined } })}>
+                <Trash2 className="h-3 w-3 mr-1" />Remove image
+              </Button>
+            )}
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Design PDF">
+        <div className="space-y-2 max-w-xl">
+          <Input type="file" accept="application/pdf" onChange={e => onFile(e.target.files?.[0] ?? null, "designPdfUrl")} />
+          {layout.designPdfUrl && (
+            <div className="text-xs text-blue-700">
+              <a href={layout.designPdfUrl} target="_blank" rel="noreferrer" className="underline">Open uploaded design PDF</a>
+              {" · "}
+              <button className="underline" onClick={() => update({ systemLayout: { ...layout, designPdfUrl: undefined } })}>Remove</button>
+            </div>
+          )}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
 
 export function Step4InstrumentsEquipment({ project, update }: { project: Project; update: Update }) {
   const { instruments, equipment } = project.data;
