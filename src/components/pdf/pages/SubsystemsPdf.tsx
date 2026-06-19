@@ -59,7 +59,7 @@ export function SubsystemsPdf({ project, startPage = 4 }: { project: Project; st
                     <div className="text-[10.5px] font-semibold italic text-slate-800">
                       Proposed customizations:
                     </div>
-                    {cust.items.map(item => (
+                    {cust.items.map((item: { id: string; title: string; description: string }) => (
                       <div key={item.id} className="mt-2" style={{ breakInside: "avoid" }}>
                         <div className="text-[10px] font-semibold text-slate-900">{item.title}</div>
                         <p className="text-[10px] leading-relaxed mt-1 pl-3 whitespace-pre-line">

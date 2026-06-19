@@ -22,6 +22,10 @@ export interface Meta {
 export interface Transformer { rating: string; ratingUnit: "MVA"|"KVA"; voltage: string; voltageUnit: string; }
 export interface MakeSelection { id: string; enabled: boolean; make: string; custom?: string; }
 
+export interface CustomizationItem { id: string; title: string; description: string; }
+export interface SubsystemCustomization { include: boolean; items: CustomizationItem[]; }
+export interface SystemLayoutAssets { imageUrl?: string; designPdfUrl?: string; }
+
 export interface ProposalData {
   systemType: SystemType;
   customer: Customer;
@@ -29,6 +33,8 @@ export interface ProposalData {
   transformer: Transformer;
   selectedTests: string[];
   selectedSubsystems: string[];
+  subsystemCustomizations: Record<string, SubsystemCustomization>;
+  systemLayout: SystemLayoutAssets;
   instruments: InstrumentRow[];
   equipment: EquipmentRow[];
   proprietary: string[];
@@ -69,6 +75,8 @@ function defaultsForSystem(systemType: SystemType): ProposalData {
     transformer: emptyTransformer(),
     selectedTests: [...cfg.defaultTests],
     selectedSubsystems: [...cfg.defaultSubsystems],
+    subsystemCustomizations: {},
+    systemLayout: {},
     instruments: instrumentsData.filter(i => cfg.defaultInstruments.includes(i.id)).map(i => ({ ...i })),
     equipment: equipmentData.map(e => ({ ...e, included: cfg.defaultEquipment.includes(e.id) })),
     proprietary: [...cfg.defaultProprietary],
