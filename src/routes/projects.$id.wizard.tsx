@@ -1,12 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useProposalStore } from "@/store/proposalStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, Save, Eye, Printer } from "lucide-react";
 import {
-  Step1ProjectSetup, Step2Tests, Step3Subsystems, Step4InstrumentsEquipment,
+  Step1ProjectSetup, Step2Tests, Step3Subsystems, Step3bSystemLayout, Step4InstrumentsEquipment,
   Step5Proprietary, Step6Delivery, Step7ExclusionsMakes, Step8Payment, Step9Review,
 } from "@/components/wizard/Steps";
 import { toast } from "sonner";
@@ -19,6 +20,7 @@ const STEPS = [
   { key: "setup", label: "Project Setup", Comp: Step1ProjectSetup },
   { key: "tests", label: "Tests", Comp: Step2Tests },
   { key: "subsystems", label: "Major Sub Systems", Comp: Step3Subsystems },
+  { key: "layout", label: "System Layout", Comp: Step3bSystemLayout },
   { key: "inst-eq", label: "Instruments & Equipment", Comp: Step4InstrumentsEquipment },
   { key: "proprietary", label: "Proprietary Items", Comp: Step5Proprietary },
   { key: "delivery", label: "Delivery", Comp: Step6Delivery },
@@ -60,7 +62,9 @@ function Wizard() {
         </div>
       </div>
 
-      <Progress value={((step + 1) / STEPS.length) * 100} className="mb-3" />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
+        <Progress value={((step + 1) / STEPS.length) * 100} className="mb-3" />
+      </motion.div>
 
       <div className="flex flex-wrap gap-1 mb-6">
         {STEPS.map((s, i) => (
@@ -71,8 +75,18 @@ function Wizard() {
         ))}
       </div>
 
-      <div className="bg-white rounded-lg border p-6">
-        <Current project={project} update={update} />
+      <div className="bg-white rounded-lg border p-6 min-h-[400px] overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={STEPS[step].key}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            <Current project={project} update={update} />
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <div className="flex justify-between mt-4">

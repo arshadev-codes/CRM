@@ -4,6 +4,8 @@ import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
 } from "@/components/ui/sidebar";
+import logoUrl from "@/assets/electrosoft-logo.png";
+
 
 const main = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -34,12 +36,12 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarContent>
         <div className="px-3 py-4 border-b flex items-center gap-2">
-          <div className="w-8 h-8 rounded bg-blue-700 text-white grid place-items-center font-bold text-xs shrink-0">ES</div>
-          {!collapsed && <div className="leading-tight">
-            <div className="font-semibold text-sm">Electrosoft</div>
-            <div className="text-[10px] text-muted-foreground">Proposal Engine</div>
-          </div>}
+          {collapsed
+            ? <img src={logoUrl} alt="Electrosoft" className="w-8 h-8 object-contain" />
+            : <img src={logoUrl} alt="Electrosoft Automation Pvt. Ltd." className="h-8 w-auto object-contain" />}
+
         </div>
+
         <SidebarGroup>
           <SidebarGroupLabel>Main</SidebarGroupLabel>
           <SidebarGroupContent>
