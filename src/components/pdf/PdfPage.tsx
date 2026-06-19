@@ -35,7 +35,7 @@ export function PdfPage({ pageNumber, totalPages = 24, header, footer, children 
 export function PdfHeader({ children }: { children?: ReactNode }) {
   return (
     <div className="flex items-center justify-between border-b-2 border-blue-700 pb-2">
-      <img src={logoAsset.url} alt="Electrosoft Automation Pvt. Ltd." style={{ height: "12mm" }} />
+      <img src={logoUrl} alt="Electrosoft Automation Pvt. Ltd." style={{ height: "12mm" }} />
       <div className="text-right text-[10px] text-slate-700">
         {children ?? (
           <>

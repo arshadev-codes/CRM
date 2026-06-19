@@ -4,7 +4,7 @@ import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
 } from "@/components/ui/sidebar";
-import logoAsset from "@/assets/electrosoft-logo.png.asset.json";
+import logoUrl from "@/assets/electrosoft-logo.png";
 
 
 const main = [
@@ -37,8 +37,9 @@ export function AppSidebar() {
       <SidebarContent>
         <div className="px-3 py-4 border-b flex items-center gap-2">
           {collapsed
-            ? <img src={logoAsset.url} alt="Electrosoft" className="w-8 h-8 object-contain" />
-            : <img src={logoAsset.url} alt="Electrosoft Automation Pvt. Ltd." className="h-8 w-auto object-contain" />}
+            ? <img src={logoUrl} alt="Electrosoft" className="w-8 h-8 object-contain" />
+            : <img src={logoUrl} alt="Electrosoft Automation Pvt. Ltd." className="h-8 w-auto object-contain" />}
+
         </div>
 
         <SidebarGroup>
