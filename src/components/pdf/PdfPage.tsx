@@ -1,4 +1,4 @@
-import logoAsset from "@/assets/electrosoft-logo.png.asset.json";
+import logoUrl from "@/assets/electrosoft-logo.png";
 import type { ReactNode } from "react";
 
 interface Props {
