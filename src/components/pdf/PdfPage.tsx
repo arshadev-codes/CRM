@@ -1,5 +1,13 @@
 import logoUrl from "@/assets/electrosoft-logo.png";
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
+
+// Lets the top-level AllPages provider broadcast the final total page count
+// so every footer shows "Page X of <real total>" regardless of how many
+// dynamically-paginated sections (Subsystems, Scope of Supply, Terms) expand.
+const TotalPagesContext = createContext<number | undefined>(undefined);
+export function TotalPagesProvider({ value, children }: { value: number; children: ReactNode }) {
+  return <TotalPagesContext.Provider value={value}>{children}</TotalPagesContext.Provider>;
+}
 
 interface Props {
   pageNumber: number;
@@ -12,7 +20,9 @@ interface Props {
 // A4 page frame — 210mm × 297mm with internal padding matched to the Electrosoft proposal.
 // Every block inside should use `style={{ breakInside: 'avoid' }}` (or the .pdf-block class)
 // so Puppeteer never splits a logical unit across pages.
-export function PdfPage({ pageNumber, totalPages = 24, header, footer, children }: Props) {
+export function PdfPage({ pageNumber, totalPages, header, footer, children }: Props) {
+  const ctxTotal = useContext(TotalPagesContext);
+  const total = totalPages ?? ctxTotal ?? 24;
   return (
     <div
       className="pdf-page bg-white text-slate-900 mx-auto shadow-md print:shadow-none mb-6 print:mb-0 flex flex-col"
