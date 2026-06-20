@@ -1,4 +1,5 @@
 import type { Project } from "@/store/proposalStore";
+import { TotalPagesProvider } from "./PdfPage";
 import { RFQPdf } from "./pages/RFQPdf";
 import { IntroLetterPdf } from "./pages/IntroLetterPdf";
 import { RequirementPdf } from "./pages/RequirementPdf";
@@ -32,23 +33,26 @@ export function AllPages({ project }: { project: Project }) {
   const commercialPage = p++;
   const termsStart = p; p += termsPageCount();
 
+  const totalPages = p - 1;
+
   return (
-    <div className="proposal-print">
-      <RFQPdf project={project} />
-      <IntroLetterPdf project={project} />
-      <SystemIntroPdf project={project} pageNumber={systemPage} />
-      <RequirementPdf project={project} />
-      <SubsystemsPdf project={project} startPage={subsysStart} />
-      <ConnectionsTestsPdf project={project} pageNumber={connectionsPage} />
-      <SystemLayoutPdf project={project} pageNumber={layoutPage} />
-      <ScopeOfSupplyPdf project={project} startPage={scopeStart} />
-      <EquipmentInstrumentsPdf project={project} pageNumber={eqInsPage} />
-      <ScopeOfServicesPdf project={project} pageNumber={servicesPage} />
-      <ExclusionsMakesPdf project={project} pageNumber={exclusionsPage} />
-      <CommercialTermsPdf project={project} pageNumber={commercialPage} />
-      <TermsPdf startPage={termsStart} />
-      {/* unused vars suppression */}
-      <span className="hidden">{rfqPage}{introPage}{requirementPage}</span>
-    </div>
+    <TotalPagesProvider value={totalPages}>
+      <div className="proposal-print">
+        <RFQPdf project={project} />
+        <IntroLetterPdf project={project} />
+        <SystemIntroPdf project={project} pageNumber={systemPage} />
+        <RequirementPdf project={project} />
+        <SubsystemsPdf project={project} startPage={subsysStart} />
+        <ConnectionsTestsPdf project={project} pageNumber={connectionsPage} />
+        <SystemLayoutPdf project={project} pageNumber={layoutPage} />
+        <ScopeOfSupplyPdf project={project} startPage={scopeStart} />
+        <EquipmentInstrumentsPdf project={project} pageNumber={eqInsPage} />
+        <ScopeOfServicesPdf project={project} pageNumber={servicesPage} />
+        <ExclusionsMakesPdf project={project} pageNumber={exclusionsPage} />
+        <CommercialTermsPdf project={project} pageNumber={commercialPage} />
+        <TermsPdf startPage={termsStart} />
+        <span className="hidden">{rfqPage}{introPage}{requirementPage}</span>
+      </div>
+    </TotalPagesProvider>
   );
 }

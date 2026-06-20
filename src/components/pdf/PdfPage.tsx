@@ -37,7 +37,7 @@ export function PdfPage({ pageNumber, totalPages, header, footer, children }: Pr
     >
       <PdfHeader>{header}</PdfHeader>
       <div className="pt-3 flex-1 overflow-hidden">{children}</div>
-      <PdfFooter pageNumber={pageNumber} totalPages={totalPages}>{footer}</PdfFooter>
+      <PdfFooter pageNumber={pageNumber} totalPages={total}>{footer}</PdfFooter>
     </div>
   );
 }
