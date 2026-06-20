@@ -15,7 +15,7 @@ export function ExclusionsMakesPdf({
   const excl = exclusionsData.filter((e) => selectedExclusionIds.has(e.id));
   const makes = project.data.makes.filter((m) => m.enabled).map((m) => {
     const ref = makesOfSupplyData.find((d) => d.id === m.id);
-    return { item: ref?.label ?? m.id, make: m.custom || m.make || ref?.defaultMake || "—" };
+    return { item: ref?.item ?? m.id, make: m.custom || m.make || ref?.defaultMake || "—" };
   });
 
   return (
