@@ -1,3 +1,4 @@
+import type React from "react";
 import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
 import { getMajorSubsystems, type SubsystemContent } from "@/data/proposalContent";
@@ -16,7 +17,7 @@ export function SubsystemsPdf({
 }: {
   project: Project;
   startPage?: number;
-}): JSX.Element | null {
+}): React.ReactElement | null {
   const all = getMajorSubsystems(project.data.systemType);
   const selectedIds = new Set(project.data.selectedSubsystems);
   const blocks: SubsystemContent[] = all.filter(
