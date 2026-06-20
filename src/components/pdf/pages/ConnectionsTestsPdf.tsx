@@ -1,17 +1,19 @@
 import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
 import { testsData } from "@/data/testsData";
-import { testToConnection, connectionLabels, type ConnectionGroup } from "@/data/connectionsData";
+import { connectionLabels, type ConnectionGroup } from "@/data/connectionsData";
+import { useConnectionsMap } from "@/data/connectionsHelpers";
 
 // Auto-generated CONNECTIONS AND TESTS page.
-// Tests are grouped under A/B/C by `connectionsData`. Empty connections (and
-// their images) are hidden entirely. No manual editing allowed.
+// Tests are grouped under A/B/C using the CMS-managed mapping. Empty connections
+// (and their images) are hidden entirely. No manual editing in the wizard.
 export function ConnectionsTestsPdf({ project, pageNumber }: { project: Project; pageNumber: number }) {
   const selected = new Set(project.data.selectedTests);
+  const map = useConnectionsMap();
   const groups: Record<ConnectionGroup, { id: string; title: string }[]> = { A: [], B: [], C: [], Other: [] };
   for (const t of testsData) {
     if (!selected.has(t.id)) continue;
-    const g = testToConnection[t.id] ?? "Other";
+    const g = map[t.id] ?? "Other";
     groups[g].push({ id: t.id, title: t.title });
   }
   const activeGroups = (Object.keys(groups) as ConnectionGroup[]).filter(g => groups[g].length > 0);

@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Settings, Cog, BookOpen, Users, Wrench, Boxes, ListChecks, Truck, CreditCard, ShieldOff, Tag, Layers } from "lucide-react";
+import { LayoutDashboard, Settings, Cog, BookOpen, Users, Wrench, Boxes, ListChecks, Truck, CreditCard, ShieldOff, Tag, Layers, GitBranch } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
@@ -23,6 +23,7 @@ const cms = [
   { title: "Instruments", url: "/settings/instruments", icon: Wrench },
   { title: "Equipment", url: "/settings/equipment", icon: Boxes },
   { title: "Tests", url: "/settings/tests", icon: ListChecks },
+  { title: "Connections (A/B/C)", url: "/settings/connections", icon: GitBranch },
   { title: "Employees", url: "/settings/employees", icon: Users },
 ];
 
