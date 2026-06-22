@@ -16,11 +16,11 @@ export function CommercialTermsPdf({
 
   return (
     <PdfPage pageNumber={pageNumber}>
-      <h2 className="text-[12px] font-bold text-blue-800 uppercase tracking-wide">
+      <h2 className="text-[18px] font-bold text-blue-900 uppercase tracking-wide">
         Commercial Terms
       </h2>
 
-      <Section title="Pricing">
+      <Section  className="text-[13px]"  title="Pricing" >
         <p>All prices are quoted in INR, exclusive of GST and any other applicable statutory levies.</p>
         <p className="mt-1">Detailed price breakdown is shared separately as part of the commercial annexure.</p>
       </Section>

@@ -21,8 +21,8 @@ export function ConnectionsTestsPdf({ project, pageNumber }: { project: Project;
   return (
     <PdfPage pageNumber={pageNumber}>
       <div style={{ breakInside: "avoid" }}>
-        <h2 className="text-[13px] font-bold text-blue-800 uppercase tracking-wide">Connections and Tests</h2>
-        <p className="text-[10px] text-slate-600 mt-1">
+        <h2 className="text-[18px] font-bold text-blue-800 uppercase tracking-wide">Connections and Tests</h2>
+        <p className="text-[11.5px] text-slate-600 mt-1">
           Selected tests have been automatically grouped under the connection setups required to perform them.
           Connections without any selected tests are not shown.
         </p>
@@ -32,10 +32,10 @@ export function ConnectionsTestsPdf({ project, pageNumber }: { project: Project;
       <div className="mt-4 grid grid-cols-3 gap-3" style={{ breakInside: "avoid" }}>
         {activeGroups.filter(g => g !== "Other").map(g => (
           <div key={g} className="border border-slate-300 rounded">
-            <div className="aspect-[4/3] grid place-items-center text-[10px] text-slate-400 bg-slate-50">
+            <div className="aspect-[4/3] grid place-items-center text-[1px] text-slate-400 bg-slate-50">
               [{connectionLabels[g]} schematic]
             </div>
-            <div className="text-center text-[10px] font-semibold py-1 border-t border-slate-200">
+            <div className="text-center text-[13 px] font-semibold py-1 border-t border-slate-200">
               {connectionLabels[g]}
             </div>
           </div>
@@ -45,8 +45,8 @@ export function ConnectionsTestsPdf({ project, pageNumber }: { project: Project;
       <div className="mt-5 space-y-4">
         {activeGroups.map(g => (
           <div key={g} style={{ breakInside: "avoid" }}>
-            <div className="font-bold text-[11px] text-blue-800">{connectionLabels[g]}</div>
-            <ol className="mt-1 list-decimal pl-6 text-[10px] space-y-0.5">
+            <div className="font-bold text-[14px] text-blue-800">{connectionLabels[g]}</div>
+            <ol className="mt-1 list-decimal pl-6 text-[13px] space-y-0.5">
               {groups[g].map(t => <li key={t.id}>{t.title}</li>)}
             </ol>
           </div>

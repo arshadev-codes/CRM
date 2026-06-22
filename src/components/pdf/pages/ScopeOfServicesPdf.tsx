@@ -20,20 +20,20 @@ export function ScopeOfServicesPdf({
 
   return (
     <PdfPage pageNumber={pageNumber}>
-      <h2 className="text-[12px] font-bold text-blue-800 uppercase tracking-wide">
+      <h2 className="text-[18px] font-bold text-blue-800 uppercase tracking-wide">
         Electrosoft's Scope of Services
       </h2>
 
-      <ServiceTable title="OFF-SITE: DELIVERABLE DOCUMENTS" rows={offsite.map((s, i) => ({ sr: i + 1, desc: s.title }))} qty="1 set" />
+      <ServiceTable  title="OFF-SITE: DELIVERABLE DOCUMENTS" rows={offsite.map((s, i) => ({ sr: i + 1, desc: s.title }))} qty="1 set" />
       <div className="mt-4" />
       <ServiceTable title="ON-SITE" rows={onsite.map((s, i) => ({ sr: i + 1, desc: s.title.replace(/Buyer|Customer/g, buyer) }))} qty="1 set" />
 
       <div className="mt-5" style={{ breakInside: "avoid" }}>
-        <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[11px] text-slate-800">
+        <div className="bg-blue-900   border-l-4 border-blue-700 px-3 py-1 font-bold text-[14px] text-white">
           DELIVERY SCHEDULE
         </div>
-        <table className="w-full text-[10px] mt-2 border border-slate-300">
-          <thead className="bg-slate-50">
+        <table className="w-full text-[13px] border border-slate-300">
+          <thead className="bg-blue-100">
             <tr>
               <th className="border border-slate-300 p-1.5 text-left w-14">Sr. No.</th>
               <th className="border border-slate-300 p-1.5 text-left">Details</th>
@@ -50,7 +50,7 @@ export function ScopeOfServicesPdf({
             ))}
           </tbody>
         </table>
-        <div className="text-[9.5px] text-slate-700 mt-2">
+        <div className="text-[13.5px] text-black-700 mt-4">
           <div className="font-semibold">Note:</div>
           <ol className="list-decimal pl-5 mt-1 space-y-0.5">
             <li>Schedule is subject to timely purchase order, advance payment and approval of GA, Wiring diagram, technical specification of all items.</li>
@@ -73,11 +73,11 @@ function ServiceTable({
 }) {
   return (
     <div style={{ breakInside: "avoid" }}>
-      <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[11px] text-slate-800 mt-3">
+      <div className="bg-blue-900   border-l-4 border-blue-700 px-3 py-1 font-bold text-[14px] text-white    mt-3">
         {title}
       </div>
-      <table className="w-full text-[10px] mt-2 border border-slate-300">
-        <thead className="bg-slate-50">
+      <table className="w-full text-[13px]  border border-slate-300">
+        <thead className="bg-blue-100">
           <tr>
             <th className="border border-slate-300 p-1.5 text-left w-14">Sr. No.</th>
             <th className="border border-slate-300 p-1.5 text-left">Description</th>

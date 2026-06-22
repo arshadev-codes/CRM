@@ -9,23 +9,23 @@ export function SystemIntroPdf({ project, pageNumber = 3 }: { project: Project; 
   return (
     <PdfPage pageNumber={pageNumber}>
       <div style={{ breakInside: "avoid" }}>
-        <h1 className="text-[15px] font-bold text-blue-800 tracking-wide uppercase">{intro.title}</h1>
-        <div className="text-[11px] italic text-slate-600 mt-0.5">{intro.subtitle}</div>
+        <h1 className="text-[18px] font-bold text-blue-900 tracking-wide uppercase">{intro.title}</h1>
+        <div className="text-[14px]  font-bold  italic text-black-900 mt-3.5">{intro.subtitle}</div>
       </div>
 
-      <p className="text-[10px] leading-relaxed mt-4">{intro.body}</p>
+      <p className="text-[13px] leading-relaxed mt-4">{intro.body}</p>
 
       <div className="mt-4" style={{ breakInside: "avoid" }}>
-        <div className="font-bold text-[11px] text-slate-800">{intro.realWorld.heading}</div>
-        <p className="text-[10px] leading-relaxed mt-1">{intro.realWorld.body}</p>
+        <div className="font-bold text-[14px] text-black-800">{intro.realWorld.heading}</div>
+        <p className="text-[13px] leading-relaxed mt-1">{intro.realWorld.body}</p>
       </div>
 
-      <div className="mt-4 font-bold text-[11px] text-slate-800">{intro.highlightsHeading}</div>
-      <div className="mt-2 space-y-3">
+      <div className="mt-6 font-bold text-[14px] ital text-black-900">{intro.highlightsHeading}</div>
+      <div className="mt-6 space-y-3">
         {intro.highlights.map(h => (
           <div key={h.n} style={{ breakInside: "avoid" }}>
-            <div className="font-semibold text-[10.5px] text-slate-900">{h.n}. {h.title}</div>
-            <p className="text-[10px] leading-relaxed mt-0.5">{h.body}</p>
+            <div className="font-bold text-[14px] text-black-900">{h.n}. {h.title}</div>
+            <p className="text-[13px] leading-relaxed mt-0.5">{h.body}</p>
           </div>
         ))}
       </div>

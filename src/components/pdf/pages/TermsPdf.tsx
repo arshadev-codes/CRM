@@ -17,31 +17,31 @@ export function TermsPdf({ startPage }: { startPage: number }): React.ReactEleme
           <PdfPage key={pageIdx} pageNumber={startPage + pageIdx}>
             {isFirst && (
               <div style={{ breakInside: "avoid" }}>
-                <h1 className="text-[14px] font-bold text-blue-800 tracking-wide text-center">
+                <h1 className="text-[18px] font-bold text-blue-900 tracking-wide text-center">
                   GENERAL TERMS &amp; CONDITIONS
                 </h1>
-                <div className="text-[10px] text-slate-600 text-center mt-1">
+                <div className="text-[14px] text-black-600 text-center mt-1">
                   Effective date: {termsEffectiveDate}
                 </div>
-                <p className="text-[10px] leading-relaxed mt-3 whitespace-pre-line">{termsIntro}</p>
+                <p className="text-[13px] leading-relaxed mt-3 whitespace-pre-line">{termsIntro}</p>
               </div>
             )}
             <div className={`${isFirst ? "mt-4" : ""} space-y-2.5`}>
               {clauses.map((c) => (
                 <div key={c.n} style={{ breakInside: "avoid" }}>
                   {c.title && (
-                    <div className="font-bold text-[10.5px] text-slate-900">
+                    <div className="font-bold text-[14px] text-slate-900">
                       {c.n}. {c.title}
                     </div>
                   )}
                   {c.body && (
-                    <p className="text-[10px] leading-relaxed mt-0.5">
+                    <p className="text-[13px] leading-relaxed mt-0.5">
                       {!c.title && <span className="font-semibold">{c.n}. </span>}
                       {c.body}
                     </p>
                   )}
                   {c.bullets && (
-                    <ul className="mt-1 list-disc pl-6 text-[10px] space-y-0.5">
+                    <ul className="mt-1 list-disc pl-6 text-[13px] space-y-0.5">
                       {c.bullets.map((b, i) => <li key={i}>{b}</li>)}
                     </ul>
                   )}

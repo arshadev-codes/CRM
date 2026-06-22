@@ -25,7 +25,7 @@ export function EquipmentInstrumentsPdf({
 
   return (
     <PdfPage pageNumber={pageNumber}>
-      <h2 className="text-[12px] font-bold text-blue-800 uppercase tracking-wide">
+      <h2 className="text-[18px] font-bold text-blue-800 uppercase tracking-wide">
         Electrosoft's Scope of Supply
       </h2>
 
@@ -47,11 +47,11 @@ function SectionTable({
 }) {
   return (
     <div style={{ breakInside: "avoid" }}>
-      <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[11px] text-slate-800 mt-3">
+      <div className="bg-green-900   border-l-4 border-blue-700 px-3 py-1 font-bold text-[14px] text-white    mt-3">
         {title}
       </div>
-      <table className="w-full text-[10px] mt-2 border border-slate-300">
-        <thead className="bg-slate-50">
+      <table className="w-full text-[13px]  border border-slate-300">
+        <thead className="bg-blue-100">
           <tr>
             <th className="border border-slate-300 p-1.5 text-left w-14">Sr. No.</th>
             <th className="border border-slate-300 p-1.5 text-left">Description</th>

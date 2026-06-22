@@ -21,13 +21,13 @@ export function ExclusionsMakesPdf({
   return (
     <PdfPage pageNumber={pageNumber}>
       <div style={{ breakInside: "avoid" }}>
-        <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[11px] text-slate-800">
+        <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[18px] text-blue-900">
           LIST OF EXCLUSIONS
         </div>
-        <p className="text-[10px] text-slate-700 mt-2">
+        <p className="text-[13px] text-slate-700 mt-2">
           The following items are explicitly excluded from Electrosoft's scope of supply unless agreed in writing:
         </p>
-        <ol className="mt-2 list-decimal pl-6 text-[10px] space-y-0.5">
+        <ol className="mt-2 list-decimal pl-6 text-[13px] space-y-0.5">
           {excl.length === 0 ? (
             <li className="italic text-slate-400">No exclusions selected.</li>
           ) : excl.map((e) => <li key={e.id}>{e.title}</li>)}
@@ -35,15 +35,15 @@ export function ExclusionsMakesPdf({
       </div>
 
       <div className="mt-5" style={{ breakInside: "avoid" }}>
-        <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[11px] text-slate-800">
+        <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[18px] text-blue-900">
           MAKES OF SUPPLY
         </div>
-        <table className="w-full text-[10px] mt-2 border border-slate-300">
+        <table className="w-full text-[13px] mt-2 border border-slate-300">
           <thead className="bg-slate-50">
             <tr>
-              <th className="border border-slate-300 p-1.5 text-left w-14">Sr. No.</th>
-              <th className="border border-slate-300 p-1.5 text-left">Item</th>
-              <th className="border border-slate-300 p-1.5 text-left w-56">Make</th>
+              <th className="border border-slate-300 p-1.5 text-left w-14 bg-blue-100">Sr. No.</th>
+              <th className="border border-slate-300 p-1.5 text-left bg-blue-100">Item</th>
+              <th className="border border-slate-300 p-1.5 text-left w-56 bg-blue-100">Make</th>
             </tr>
           </thead>
           <tbody>

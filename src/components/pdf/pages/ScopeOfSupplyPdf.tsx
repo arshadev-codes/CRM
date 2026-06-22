@@ -42,15 +42,15 @@ export function ScopeOfSupplyPdf({
           <PdfPage key={idx} pageNumber={startPage + idx}>
             {isFirst && (
               <div style={{ breakInside: "avoid" }}>
-                <h2 className="text-[12px] font-bold text-blue-800 uppercase tracking-wide">
+                <h2 className="text-[18px] font-bold text-blue-600 uppercase tracking-wide">
                   Electrosoft's Scope of Supply
                 </h2>
-                <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[11px] text-slate-800 mt-2">
+                <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[14px] text-slate-800 mt-2">
                   MAJOR SUBSYSTEMS
                 </div>
               </div>
             )}
-            <table className="w-full text-[10px] mt-3 border border-slate-300">
+            <table className="w-full text-[13px] mt-3 border border-slate-300">
               {isFirst && (
                 <thead className="bg-slate-50">
                   <tr>
@@ -73,7 +73,7 @@ export function ScopeOfSupplyPdf({
               </tbody>
             </table>
             {isLast && (
-              <p className="text-[9.5px] italic text-slate-500 mt-2">
+              <p className="text-[12.5px] italic text-slate-500 mt-2">
                 Itemised pricing is shared separately as part of the commercial annexure.
               </p>
             )}
