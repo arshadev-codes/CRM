@@ -1,7 +1,6 @@
 import type { Project, ProposalData, SubsystemCustomization, CustomizationItem } from "@/store/proposalStore";
 import { useProposalStore } from "@/store/proposalStore";
 import { systemTypesData, type SystemType } from "@/data/systemTypesData";
-import { employeesData } from "@/data/employeesData";
 import { testsData } from "@/data/testsData";
 import { getMajorSubsystems } from "@/data/proposalContent";
 import { instrumentsData } from "@/data/instrumentsData";
@@ -10,6 +9,7 @@ import { proprietaryItemsData } from "@/data/proprietaryItemsData";
 import { deliveryDurationOptions, deliveryDefaults } from "@/data/deliveryData";
 import { exclusionsData } from "@/data/exclusionsData";
 import { makesOfSupplyData } from "@/data/makesOfSupplyData";
+import { CompanyAutocomplete } from "@/components/wizard/CompanyAutocomplete";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,6 +20,8 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "@tanstack/react-router";
+
 
 
 type Update = (patch: Partial<ProposalData>) => void;

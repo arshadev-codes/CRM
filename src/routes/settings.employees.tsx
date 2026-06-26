@@ -94,5 +94,3 @@ function EmployeesSettings() {
   );
 }
 
-// keep alias for older imports
-export { Input };

@@ -23,6 +23,7 @@ import { Route as SettingsEquipmentRouteImport } from './routes/settings.equipme
 import { Route as SettingsEmployeesRouteImport } from './routes/settings.employees'
 import { Route as SettingsDeliveryRouteImport } from './routes/settings.delivery'
 import { Route as SettingsConnectionsRouteImport } from './routes/settings.connections'
+import { Route as SettingsCompaniesRouteImport } from './routes/settings.companies'
 import { Route as PrintIdRouteImport } from './routes/print.$id'
 import { Route as ProjectsIdWizardRouteImport } from './routes/projects.$id.wizard'
 import { Route as ProjectsIdPreviewRouteImport } from './routes/projects.$id.preview'
@@ -97,6 +98,11 @@ const SettingsConnectionsRoute = SettingsConnectionsRouteImport.update({
   path: '/settings/connections',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsCompaniesRoute = SettingsCompaniesRouteImport.update({
+  id: '/settings/companies',
+  path: '/settings/companies',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrintIdRoute = PrintIdRouteImport.update({
   id: '/print/$id',
   path: '/print/$id',
@@ -116,6 +122,7 @@ const ProjectsIdPreviewRoute = ProjectsIdPreviewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/print/$id': typeof PrintIdRoute
+  '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/delivery': typeof SettingsDeliveryRoute
   '/settings/employees': typeof SettingsEmployeesRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/print/$id': typeof PrintIdRoute
+  '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/delivery': typeof SettingsDeliveryRoute
   '/settings/employees': typeof SettingsEmployeesRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/print/$id': typeof PrintIdRoute
+  '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/delivery': typeof SettingsDeliveryRoute
   '/settings/employees': typeof SettingsEmployeesRoute
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/print/$id'
+    | '/settings/companies'
     | '/settings/connections'
     | '/settings/delivery'
     | '/settings/employees'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/print/$id'
+    | '/settings/companies'
     | '/settings/connections'
     | '/settings/delivery'
     | '/settings/employees'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/print/$id'
+    | '/settings/companies'
     | '/settings/connections'
     | '/settings/delivery'
     | '/settings/employees'
@@ -234,6 +246,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PrintIdRoute: typeof PrintIdRoute
+  SettingsCompaniesRoute: typeof SettingsCompaniesRoute
   SettingsConnectionsRoute: typeof SettingsConnectionsRoute
   SettingsDeliveryRoute: typeof SettingsDeliveryRoute
   SettingsEmployeesRoute: typeof SettingsEmployeesRoute
@@ -351,6 +364,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsConnectionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/companies': {
+      id: '/settings/companies'
+      path: '/settings/companies'
+      fullPath: '/settings/companies'
+      preLoaderRoute: typeof SettingsCompaniesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/print/$id': {
       id: '/print/$id'
       path: '/print/$id'
@@ -378,6 +398,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PrintIdRoute: PrintIdRoute,
+  SettingsCompaniesRoute: SettingsCompaniesRoute,
   SettingsConnectionsRoute: SettingsConnectionsRoute,
   SettingsDeliveryRoute: SettingsDeliveryRoute,
   SettingsEmployeesRoute: SettingsEmployeesRoute,
