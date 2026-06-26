@@ -133,9 +133,10 @@ function SubsystemForm({ initial, onSave, onCancel }: {
   const onFile = (file: File | null) => {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => setS(prev => ({ ...prev, image: String(reader.result) }));
+    reader.onload = () => setS(prev => ({ ...prev, images: [String(reader.result)] }));
     reader.readAsDataURL(file);
   };
+  const firstImage = s.images?.[0];
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
@@ -155,11 +156,12 @@ function SubsystemForm({ initial, onSave, onCancel }: {
       <div>
         <label className="text-xs font-medium">Image</label>
         <div className="flex items-center gap-3">
-          {s.image && <img src={s.image} alt="" className="w-24 h-16 object-contain border rounded" />}
+          {firstImage && <img src={firstImage} alt="" className="w-24 h-16 object-contain border rounded" />}
           <Input type="file" accept="image/*" onChange={e => onFile(e.target.files?.[0] ?? null)} />
-          {s.image && <Button size="sm" variant="ghost" onClick={() => setS({ ...s, image: undefined })}>Remove</Button>}
+          {firstImage && <Button size="sm" variant="ghost" onClick={() => setS({ ...s, images: undefined })}>Remove</Button>}
         </div>
       </div>
+
       <div className="flex gap-2 justify-end">
         <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
         <Button size="sm" onClick={() => onSave(s)}>Save</Button>
