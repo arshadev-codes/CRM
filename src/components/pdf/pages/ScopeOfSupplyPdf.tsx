@@ -1,20 +1,22 @@
 import type React from "react";
+import { useEffect } from "react";
 import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
 import { getMajorSubsystems } from "@/data/proposalContent";
-import { paginateBlocks } from "@/data/paginationHelpers";
+import { paginateByHeights } from "@/data/paginationHelpers";
+import { useBlockHeights } from "@/hooks/useBlockHeights";
 
-// ELECTROSOFT'S SCOPE OF SUPPLY — paginated table of all major subsystems
-// included in the project. Mirrors pages 13–15 of the reference proposal.
 interface Row { sr: number; description: string; qty: string; price: string }
 
 export function ScopeOfSupplyPdf({
   project,
   startPage,
+  onPageCountKnown,
 }: {
   project: Project;
   startPage: number;
-}): React.ReactElement {
+  onPageCountKnown?: (count: number) => void;
+}): React.ReactElement | null {
   const all = getMajorSubsystems(project.data.systemType);
   const selectedIds = new Set(project.data.selectedSubsystems);
   const subs = all.filter((s) => selectedIds.has(s.id) || selectedIds.has(s.title));
@@ -27,11 +29,31 @@ export function ScopeOfSupplyPdf({
     price: "---",
   }));
 
-  // Heuristic row weight ≈ vertical space in mm. Two-line title rows weigh more.
-  const weightRow = (r: Row) => 8 + Math.ceil(r.description.length / 75) * 4;
+  // Phase 1: measure each row's real rendered height.
+  // MeasurementPortal MUST be rendered in the return below — without it
+  // React never commits the hidden blocks, blockDivRefs stay null, and
+  // measuring never flips to false.
+  const { heightsMm, measuring, MeasurementPortal } = useBlockHeights(
+    rows,
+    (r) => <ScopeRowBody row={r} />,
+    182,
+  );
 
-  // First page reserves room for headings.
-  const pages = paginateBlocks<Row>(rows, weightRow, [200, 245]);
+  // Phase 2: pack using real heights.
+  const pages = measuring ? [] : paginateByHeights(rows, heightsMm, [200, 245]);
+
+  useEffect(() => {
+    if (!measuring && onPageCountKnown) {
+      onPageCountKnown(Math.max(1, pages.length));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measuring, pages.length]);
+
+  // While measuring: render nothing visible, but keep MeasurementPortal
+  // in the tree so React can commit and measure the hidden blocks.
+  if (measuring) {
+    return <>{MeasurementPortal}</>;
+  }
 
   return (
     <>
@@ -42,10 +64,10 @@ export function ScopeOfSupplyPdf({
           <PdfPage key={idx} pageNumber={startPage + idx}>
             {isFirst && (
               <div style={{ breakInside: "avoid" }}>
-                <h2 className="text-[18px] font-bold text-blue-600 uppercase tracking-wide">
+                <h2 className="text-[18px] font-bold text-blue-900 uppercase tracking-wide">
                   Electrosoft's Scope of Supply
                 </h2>
-                <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[14px] text-slate-800 mt-2">
+                <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[14px] text-blue-900 mt-2">
                   MAJOR SUBSYSTEMS
                 </div>
               </div>
@@ -63,12 +85,7 @@ export function ScopeOfSupplyPdf({
               )}
               <tbody>
                 {pageRows.map((r) => (
-                  <tr key={r.sr} style={{ breakInside: "avoid" }}>
-                    <td className="border border-slate-300 p-1.5 align-top">{r.sr}</td>
-                    <td className="border border-slate-300 p-1.5 whitespace-pre-line">{r.description}</td>
-                    <td className="border border-slate-300 p-1.5 text-center align-top">{r.qty}</td>
-                    <td className="border border-slate-300 p-1.5 text-right align-top">{r.price}</td>
-                  </tr>
+                  <ScopeRow key={r.sr} row={r} />
                 ))}
               </tbody>
             </table>
@@ -80,20 +97,31 @@ export function ScopeOfSupplyPdf({
           </PdfPage>
         );
       })}
+      {/* Portal must stay mounted after measurement too — unmounting it would
+          trigger a re-measure on the next render cycle. */}
+      {MeasurementPortal}
     </>
   );
 }
 
-export function scopeOfSupplyPageCount(project: Project): number {
-  const all = getMajorSubsystems(project.data.systemType);
-  const selectedIds = new Set(project.data.selectedSubsystems);
-  const subs = all.filter((s) => selectedIds.has(s.id) || selectedIds.has(s.title));
-  const list = subs.length ? subs : all;
-  const rows: Row[] = list.map((s, i) => ({
-    sr: i + 1,
-    description: `${s.title}\n${s.preview ?? ""}`.trim(),
-    qty: "1",
-    price: "---",
-  }));
-  return paginateBlocks<Row>(rows, (r) => 8 + Math.ceil(r.description.length / 75) * 4, [200, 245]).length;
+function ScopeRow({ row }: { row: Row }) {
+  return (
+    <tr style={{ breakInside: "avoid" }}>
+      <td className="border border-slate-300 p-1.5 align-top">{row.sr}</td>
+      <td className="border border-slate-300 p-1.5 whitespace-pre-line">{row.description}</td>
+      <td className="border border-slate-300 p-1.5 text-center align-top">{row.qty}</td>
+      <td className="border border-slate-300 p-1.5 text-right align-top">{row.price}</td>
+    </tr>
+  );
+}
+
+function ScopeRowBody({ row }: { row: Row }) {
+  return (
+    <div
+      className="border border-slate-300 p-1.5 whitespace-pre-line text-[13px]"
+      style={{ boxSizing: "border-box" }}
+    >
+      {row.description}
+    </div>
+  );
 }

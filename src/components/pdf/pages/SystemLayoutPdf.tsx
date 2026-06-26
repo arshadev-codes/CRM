@@ -7,10 +7,10 @@ export function SystemLayoutPdf({ project, pageNumber }: { project: Project; pag
   return (
     <PdfPage pageNumber={pageNumber}>
       <div style={{ breakInside: "avoid" }}>
-        <h2 className="text-[13px] font-bold text-blue-800 uppercase tracking-wide">
+        <h2 className="text-[18px] font-bold text-blue-900 uppercase tracking-wide">
           Schematic of Offered System
         </h2>
-        <p className="text-[10px] mt-2 leading-relaxed">
+        <p className="text-[13px] mt-2 leading-relaxed">
           The proposed transformer testing system has been designed with optimal placement of all major subsystems
           to ensure safe, efficient and ergonomic operation. The layout shown below reflects the recommended
           installation plan for the customer site. Detailed engineering drawings are provided separately as part of
@@ -22,13 +22,13 @@ export function SystemLayoutPdf({ project, pageNumber }: { project: Project; pag
         {layout.imageUrl ? (
           <img src={layout.imageUrl} alt="System Layout" className="w-full" style={{ maxHeight: "180mm", objectFit: "contain" }} />
         ) : (
-          <div className="aspect-[4/3] grid place-items-center text-slate-400 text-[10px] bg-slate-50">
+          <div className="aspect-[4/3] grid place-items-center text-slate-400 text-[13px] bg-slate-50">
             [Layout image — upload in wizard → System Layout]
           </div>
         )}
       </div>
 
-      <div className="mt-3 text-[10px]" style={{ breakInside: "avoid" }}>
+      <div className="mt-3 text-[13px]" style={{ breakInside: "avoid" }}>
         <span className="font-semibold">Design PDF: </span>
         {layout.designPdfUrl
           ? <a href={layout.designPdfUrl} className="text-blue-700 underline" target="_blank" rel="noreferrer">Open detailed design drawing</a>

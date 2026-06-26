@@ -47,7 +47,7 @@ function SectionTable({
 }) {
   return (
     <div style={{ breakInside: "avoid" }}>
-      <div className="bg-green-900   border-l-4 border-blue-700 px-3 py-1 font-bold text-[14px] text-white    mt-3">
+      <div className="bg-blue-900   border-l-4 border-blue-700 px-3 py-1 font-bold text-[14px] text-white    mt-3">
         {title}
       </div>
       <table className="w-full text-[13px]  border border-slate-300">

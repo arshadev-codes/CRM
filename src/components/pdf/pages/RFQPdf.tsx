@@ -37,18 +37,18 @@ export function RFQPdf({ project }: { project: Project }) {
     <PdfPage pageNumber={1}>
       <table className="w-full text-[13px] border border-black mt-2" style={{ borderCollapse: "collapse" }}>
         <tbody>
-          <Row label="To" value={`${customer.title} ${customer.contactPerson || "—"}`} italic />
-          <Row label="Name of the company" value={customer.companyFullName ? `M/s ${customer.companyFullName}` : "—"} italic />
-          <Row label="Subject" value={subject} italic />
-          <Row label="Our reference" value={meta.offerNumber} italic />
-          <Row label="Date" value={formatOrdinalDate(meta.date)} italic />
+          <Row label="To" value={`${customer.title} ${customer.contactPerson || "—"}`}  />
+          <Row label="Name of the company" value={customer.companyFullName ? `M/s ${customer.companyFullName}` : "—"}  />
+          <Row label="Subject" value={subject}  />
+          <Row label="Our reference" value={meta.offerNumber}  />
+          <Row label="Date" value={formatOrdinalDate(meta.date)}  />
         </tbody>
       </table>
 
       <table className="w-full text-[13px] border border-black mt-5" style={{ borderCollapse: "collapse" }}>
         <tbody>
-          <Row label="Prepared by" value={prep} italic />
-          <Row label="Checked by" value={chk} italic />
+          <Row label="Prepared by" value={prep}  />
+          <Row label="Checked by" value={chk}  />
           <tr>
             <td className="font-bold p-1.5 w-44 align-top border border-black">Revision no. &amp; date</td>
             <td className="p-1.5 align-top border border-black w-32">Rev. {revisionNum}</td>

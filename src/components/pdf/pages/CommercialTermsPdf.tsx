@@ -20,7 +20,7 @@ export function CommercialTermsPdf({
         Commercial Terms
       </h2>
 
-      <Section  className="text-[13px]"  title="Pricing" >
+      <Section className="text-[13.5px]"  title="Pricing" >
         <p>All prices are quoted in INR, exclusive of GST and any other applicable statutory levies.</p>
         <p className="mt-1">Detailed price breakdown is shared separately as part of the commercial annexure.</p>
       </Section>
@@ -31,7 +31,7 @@ export function CommercialTermsPdf({
         <KV k="Mode of Transport" v="By Road" />
         <KV k="Incoterms" v="CFR (Cost &amp; Freight)" />
         <KV k="Transit Insurance" v={`Not in our scope. ${buyer} may insure the shipment at their discretion if desired.`} />
-        <p className="text-[10px] mt-1">Our liability ends once the goods leave our factory premises.</p>
+        <p className="text-[13px] mt-1">Our liability ends once the goods leave our factory premises.</p>
       </Section>
 
       <Section title="Offer Validity">
@@ -64,10 +64,10 @@ export function CommercialTermsPdf({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mt-4" style={{ breakInside: "avoid" }}>
-      <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[11px] text-slate-800">
+      <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[13.5px] text-slate-800">
         {title}
       </div>
-      <div className="text-[10px] mt-2 leading-relaxed">{children}</div>
+      <div className="text-[13px] mt-2 leading-relaxed">{children}</div>
     </div>
   );
 }
