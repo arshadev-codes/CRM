@@ -1,7 +1,6 @@
 import type { Project, ProposalData, SubsystemCustomization, CustomizationItem } from "@/store/proposalStore";
 import { useProposalStore } from "@/store/proposalStore";
 import { systemTypesData, type SystemType } from "@/data/systemTypesData";
-import { employeesData } from "@/data/employeesData";
 import { testsData } from "@/data/testsData";
 import { getMajorSubsystems } from "@/data/proposalContent";
 import { instrumentsData } from "@/data/instrumentsData";
@@ -10,6 +9,7 @@ import { proprietaryItemsData } from "@/data/proprietaryItemsData";
 import { deliveryDurationOptions, deliveryDefaults } from "@/data/deliveryData";
 import { exclusionsData } from "@/data/exclusionsData";
 import { makesOfSupplyData } from "@/data/makesOfSupplyData";
+import { CompanyAutocomplete } from "@/components/wizard/CompanyAutocomplete";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,95 +20,137 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "@tanstack/react-router";
+
 
 
 type Update = (patch: Partial<ProposalData>) => void;
 
 export function Step1ProjectSetup({ project, update }: { project: Project; update: Update }) {
   const setSystemType = useProposalStore(s => s.setSystemType);
+  const employees = useProposalStore(s => s.employees);
   const { customer, meta, transformer, systemType } = project.data;
   const c = (patch: Partial<typeof customer>) => update({ customer: { ...customer, ...patch } });
   const m = (patch: Partial<typeof meta>) => update({ meta: { ...meta, ...patch } });
   const t = (patch: Partial<typeof transformer>) => update({ transformer: { ...transformer, ...patch } });
 
   return (
-    <div className="space-y-6">
-      <Section title="Customer Details">
-        <div className="grid grid-cols-12 gap-3">
+    <div className="space-y-8 p-2">
+      {/* COMPANY NAME — TOP / FIRST FIELD with autocomplete */}
+      <NeoSection title="Company">
+        <div className="grid grid-cols-12 gap-4">
+          <Field className="col-span-12 md:col-span-8" label="Company Name (start typing to search)">
+            <CompanyAutocomplete
+              value={customer.companyFullName}
+              onChange={(v) => c({ companyFullName: v })}
+              onPick={(co) => c({
+                companyFullName: co.companyFullName,
+                companyShortName: co.companyShortName,
+                address: co.address,
+                city: co.city,
+                state: co.state,
+                country: co.country,
+                gst: co.gst,
+                contactPerson: co.contactPerson ?? customer.contactPerson,
+                designation: co.designation ?? customer.designation,
+                mobile: co.mobile ?? customer.mobile,
+                email: co.email ?? customer.email,
+              })}
+            />
+          </Field>
+          <Field className="col-span-12 md:col-span-4" label="Short Name">
+            <NeoInput value={customer.companyShortName} onChange={e => c({ companyShortName: e.target.value })} placeholder="e.g. PGCIL" />
+          </Field>
+          <div className="col-span-12 -mt-1 text-[11px] text-slate-500">
+            Don't see your company? <Link to="/settings/companies" className="text-blue-700 underline font-medium">Add it in Settings → Companies</Link>
+          </div>
+        </div>
+      </NeoSection>
+
+      <NeoSection title="Customer Details">
+        <div className="grid grid-cols-12 gap-4">
           <Field className="col-span-2" label="Title">
             <Select value={customer.title} onValueChange={v => c({ title: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="neo-inset !shadow-none border-0 h-[42px]"><SelectValue /></SelectTrigger>
               <SelectContent>{["Mr.","Ms.","Mrs.","Dr."].map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
-          <Field className="col-span-5" label="Contact Person"><Input value={customer.contactPerson} onChange={e => c({ contactPerson: e.target.value })} /></Field>
-          <Field className="col-span-5" label="Designation"><Input value={customer.designation} onChange={e => c({ designation: e.target.value })} /></Field>
-          <Field className="col-span-4" label="Mobile"><Input value={customer.mobile} onChange={e => c({ mobile: e.target.value })} /></Field>
-          <Field className="col-span-4" label="Alternate Mobile"><Input value={customer.altMobile} onChange={e => c({ altMobile: e.target.value })} /></Field>
-          <Field className="col-span-4" label="Email"><Input type="email" value={customer.email} onChange={e => c({ email: e.target.value })} /></Field>
-          <Field className="col-span-7" label="Company Full Name"><Input value={customer.companyFullName} onChange={e => c({ companyFullName: e.target.value })} /></Field>
-          <Field className="col-span-5" label="Short Name"><Input value={customer.companyShortName} onChange={e => c({ companyShortName: e.target.value })} /></Field>
-          <Field className="col-span-12" label="Address"><Textarea rows={2} value={customer.address} onChange={e => c({ address: e.target.value })} /></Field>
-          <Field className="col-span-4" label="City"><Input value={customer.city} onChange={e => c({ city: e.target.value })} /></Field>
-          <Field className="col-span-3" label="State"><Input value={customer.state} onChange={e => c({ state: e.target.value })} /></Field>
-          <Field className="col-span-2" label="Country"><Input value={customer.country} onChange={e => c({ country: e.target.value })} /></Field>
-          <Field className="col-span-3" label="GST Number"><Input value={customer.gst} onChange={e => c({ gst: e.target.value })} /></Field>
+          <Field className="col-span-5" label="Contact Person"><NeoInput value={customer.contactPerson} onChange={e => c({ contactPerson: e.target.value })} /></Field>
+          <Field className="col-span-5" label="Designation"><NeoInput value={customer.designation} onChange={e => c({ designation: e.target.value })} /></Field>
+          <Field className="col-span-4" label="Mobile"><NeoInput value={customer.mobile} onChange={e => c({ mobile: e.target.value })} /></Field>
+          <Field className="col-span-4" label="Alternate Mobile"><NeoInput value={customer.altMobile} onChange={e => c({ altMobile: e.target.value })} /></Field>
+          <Field className="col-span-4" label="Email"><NeoInput type="email" value={customer.email} onChange={e => c({ email: e.target.value })} /></Field>
+          <Field className="col-span-12" label="Address">
+            <textarea rows={2} className="neo-inset w-full px-3 py-2 text-sm outline-none resize-y"
+              value={customer.address} onChange={e => c({ address: e.target.value })} />
+          </Field>
+          <Field className="col-span-4" label="City"><NeoInput value={customer.city} onChange={e => c({ city: e.target.value })} /></Field>
+          <Field className="col-span-3" label="State"><NeoInput value={customer.state} onChange={e => c({ state: e.target.value })} /></Field>
+          <Field className="col-span-2" label="Country"><NeoInput value={customer.country} onChange={e => c({ country: e.target.value })} /></Field>
+          <Field className="col-span-3" label="GST Number"><NeoInput value={customer.gst} onChange={e => c({ gst: e.target.value })} /></Field>
         </div>
-      </Section>
+      </NeoSection>
 
-      <Section title="Proposal Details">
-        <div className="grid grid-cols-12 gap-3">
+      <NeoSection title="Proposal Details">
+        <div className="grid grid-cols-12 gap-4">
           <Field className="col-span-3" label="Prepared By">
             <Select value={meta.preparedBy} onValueChange={v => m({ preparedBy: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{employeesData.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
+              <SelectTrigger className="neo-inset !shadow-none border-0 h-[42px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}{e.designation ? ` — ${e.designation}` : ""}</SelectItem>)}
+              </SelectContent>
             </Select>
           </Field>
           <Field className="col-span-3" label="Checked By">
             <Select value={meta.checkedBy} onValueChange={v => m({ checkedBy: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{employeesData.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
+              <SelectTrigger className="neo-inset !shadow-none border-0 h-[42px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}{e.designation ? ` — ${e.designation}` : ""}</SelectItem>)}
+              </SelectContent>
             </Select>
           </Field>
-          <Field className="col-span-3" label="Offer Number"><Input value={meta.offerNumber} onChange={e => m({ offerNumber: e.target.value })} /></Field>
+          <Field className="col-span-3" label="Offer Number"><NeoInput value={meta.offerNumber} onChange={e => m({ offerNumber: e.target.value })} /></Field>
           <Field className="col-span-1" label="Revision">
             <Select value={meta.revision} onValueChange={v => m({ revision: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="neo-inset !shadow-none border-0 h-[42px]"><SelectValue /></SelectTrigger>
               <SelectContent>{Array.from({length: 11}).map((_, i) => <SelectItem key={i} value={`R${i}`}>R{i}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
-          <Field className="col-span-2" label="Date"><Input type="date" value={meta.date} onChange={e => m({ date: e.target.value })} /></Field>
+          <Field className="col-span-2" label="Date"><NeoInput type="date" value={meta.date} onChange={e => m({ date: e.target.value })} /></Field>
+          <div className="col-span-12 -mt-1 text-[11px] text-slate-500">
+            Need to add or change an employee? <Link to="/settings/employees" className="text-blue-700 underline font-medium">Manage in Settings → Employees</Link>
+          </div>
         </div>
-      </Section>
+      </NeoSection>
 
-      <Section title="Transformer Details">
-        <div className="grid grid-cols-12 gap-3">
-          <Field className="col-span-3" label="Rating"><Input value={transformer.rating} onChange={e => t({ rating: e.target.value })} /></Field>
+      <NeoSection title="Transformer Details">
+        <div className="grid grid-cols-12 gap-4">
+          <Field className="col-span-3" label="Rating"><NeoInput value={transformer.rating} onChange={e => t({ rating: e.target.value })} /></Field>
           <Field className="col-span-2" label="Unit">
             <Select value={transformer.ratingUnit} onValueChange={v => t({ ratingUnit: v as "MVA"|"KVA" })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="neo-inset !shadow-none border-0 h-[42px]"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="MVA">MVA</SelectItem><SelectItem value="KVA">KVA</SelectItem></SelectContent>
             </Select>
           </Field>
-          <Field className="col-span-3" label="Voltage"><Input value={transformer.voltage} onChange={e => t({ voltage: e.target.value })} /></Field>
+          <Field className="col-span-3" label="Voltage"><NeoInput value={transformer.voltage} onChange={e => t({ voltage: e.target.value })} /></Field>
           <Field className="col-span-2" label="Voltage Unit">
             <Select value={transformer.voltageUnit} onValueChange={v => t({ voltageUnit: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="neo-inset !shadow-none border-0 h-[42px]"><SelectValue /></SelectTrigger>
               <SelectContent>{["kV","V"].map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
         </div>
-      </Section>
+      </NeoSection>
 
-      <Section title="System Type">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <NeoSection title="System Type">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {systemTypesData.map(st => {
             const active = systemType === st.id;
             return (
               <button key={st.id} type="button" onClick={() => { setSystemType(project.id, st.id as SystemType); toast.success(`Switched to ${st.label}`); }}
-                className={`text-left p-4 rounded-lg border-2 transition ${active ? "border-blue-600 bg-blue-50 ring-2 ring-blue-200" : "border-slate-200 bg-white hover:border-blue-300"}`}>
+                className={`text-left p-4 rounded-2xl transition ${active ? "neo-inset ring-2 ring-blue-400/60" : "neo-pop"}`}>
                 <Badge variant="outline" className="mb-2">{st.badge}</Badge>
-                <div className="font-semibold text-slate-900">{st.label}</div>
+                <div className="font-semibold text-slate-800">{st.label}</div>
                 <div className="text-xs text-muted-foreground mt-1">{st.tagline}</div>
                 <p className="text-[11px] text-slate-600 mt-2">{st.description}</p>
               </button>
@@ -116,10 +158,26 @@ export function Step1ProjectSetup({ project, update }: { project: Project; updat
           })}
         </div>
         <p className="text-xs text-muted-foreground mt-3">⚠ Changing system type resets test/instrument/equipment/subsystem defaults (customer info preserved).</p>
-      </Section>
+      </NeoSection>
     </div>
   );
 }
+
+function NeoSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="neo-surface p-5">
+      <h3 className="text-sm font-bold text-blue-800 mb-4 uppercase tracking-wider">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function NeoInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  const { className = "", ...rest } = props;
+  return <input {...rest} className={`neo-inset w-full px-3 py-2 text-sm outline-none ${className}`} />;
+}
+
+
 
 export function Step2Tests({ project, update }: { project: Project; update: Update }) {
   const { selectedTests } = project.data;

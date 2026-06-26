@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Layers, BookOpen, ShieldOff, Tag, Truck, CreditCard, Wrench, Boxes, ListChecks, Users } from "lucide-react";
+import { Layers, BookOpen, ShieldOff, Tag, Truck, CreditCard, Wrench, Boxes, ListChecks, Users, Building2 } from "lucide-react";
 
 export const Route = createFileRoute("/settings/")({
   component: SettingsHome,
@@ -18,6 +18,7 @@ const sections = [
   { url: "/settings/equipment", title: "Equipment", desc: "Master equipment library.", icon: Boxes },
   { url: "/settings/tests", title: "Tests", desc: "Available tests catalogue.", icon: ListChecks },
   { url: "/settings/employees", title: "Employees", desc: "Prepared/checked-by master.", icon: Users },
+  { url: "/settings/companies", title: "Companies", desc: "Auto-complete company database used in the wizard.", icon: Building2 },
 ];
 
 function SettingsHome() {

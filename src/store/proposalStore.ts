@@ -9,6 +9,8 @@ import { paymentTemplatesData, type PaymentMilestone } from "@/data/paymentTerms
 import { makesOfSupplyData } from "@/data/makesOfSupplyData";
 import { exclusionsData } from "@/data/exclusionsData";
 import { getMajorSubsystems } from "@/data/proposalContent";
+import { employeesData, type Employee } from "@/data/employeesData";
+import { companiesData, type Company } from "@/data/companiesData";
 
 
 export interface Customer {
@@ -99,6 +101,8 @@ interface ProposalStore {
   projects: Project[];
   cmsOverrides: Record<string, unknown>;
   paymentTemplates: typeof paymentTemplatesData;
+  employees: Employee[];
+  companies: Company[];
   createProject: (name?: string) => Project;
   updateProject: (id: string, patch: Partial<Project>) => void;
   updateProjectData: (id: string, patch: Partial<ProposalData>) => void;
@@ -109,6 +113,12 @@ interface ProposalStore {
   getProject: (id: string) => Project | undefined;
   setCms: (key: string, value: unknown) => void;
   savePaymentTemplate: (name: string, milestones: PaymentMilestone[]) => void;
+  addEmployee: (emp: Omit<Employee, "id"> & { id?: string }) => Employee;
+  updateEmployee: (id: string, patch: Partial<Employee>) => void;
+  deleteEmployee: (id: string) => void;
+  addCompany: (c: Omit<Company, "id"> & { id?: string }) => Company;
+  updateCompany: (id: string, patch: Partial<Company>) => void;
+  deleteCompany: (id: string) => void;
   serialize: (id: string) => unknown;
 }
 
@@ -118,6 +128,8 @@ export const useProposalStore = create<ProposalStore>()(
       projects: [],
       cmsOverrides: {},
       paymentTemplates: paymentTemplatesData,
+      employees: employeesData,
+      companies: companiesData,
       createProject: (name) => {
         const p = newProject(name);
         set(s => ({ projects: [p, ...s.projects] }));
@@ -154,6 +166,24 @@ export const useProposalStore = create<ProposalStore>()(
       setCms: (key, value) => set(s => ({ cmsOverrides: { ...s.cmsOverrides, [key]: value } })),
       savePaymentTemplate: (name, milestones) =>
         set(s => ({ paymentTemplates: [...s.paymentTemplates, { id: crypto.randomUUID(), name, milestones }] })),
+      addEmployee: (emp) => {
+        const e: Employee = { id: emp.id ?? crypto.randomUUID(), name: emp.name, designation: emp.designation };
+        set(s => ({ employees: [...s.employees, e] }));
+        return e;
+      },
+      updateEmployee: (id, patch) =>
+        set(s => ({ employees: s.employees.map(e => e.id === id ? { ...e, ...patch } : e) })),
+      deleteEmployee: (id) =>
+        set(s => ({ employees: s.employees.filter(e => e.id !== id) })),
+      addCompany: (c) => {
+        const co: Company = { ...c, id: c.id ?? crypto.randomUUID() } as Company;
+        set(s => ({ companies: [...s.companies, co] }));
+        return co;
+      },
+      updateCompany: (id, patch) =>
+        set(s => ({ companies: s.companies.map(c => c.id === id ? { ...c, ...patch } : c) })),
+      deleteCompany: (id) =>
+        set(s => ({ companies: s.companies.filter(c => c.id !== id) })),
       serialize: (id) => {
         const p = get().getProject(id);
         if (!p) return null;

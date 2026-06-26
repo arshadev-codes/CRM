@@ -142,3 +142,29 @@
     color: var(--color-foreground);
   }
 }
+
+/* ===== Neomorphism utilities ===== */
+@utility neo-surface {
+  background: #eef1f6;
+  border-radius: 1rem;
+  box-shadow: 8px 8px 20px rgba(163,177,198,0.55), -8px -8px 20px rgba(255,255,255,0.9);
+}
+@utility neo-inset {
+  background: #eef1f6;
+  border-radius: 0.65rem;
+  box-shadow: inset 4px 4px 8px rgba(163,177,198,0.55), inset -4px -4px 8px rgba(255,255,255,0.95);
+  border: 1px solid transparent;
+  transition: box-shadow 180ms ease;
+  &:focus, &:focus-within, &:focus-visible {
+    box-shadow: inset 5px 5px 10px rgba(163,177,198,0.6), inset -5px -5px 10px rgba(255,255,255,1);
+    outline: none;
+  }
+}
+@utility neo-pop {
+  background: #eef1f6;
+  border-radius: 0.65rem;
+  box-shadow: 4px 4px 10px rgba(163,177,198,0.55), -4px -4px 10px rgba(255,255,255,0.9);
+  transition: box-shadow 180ms ease;
+  &:hover { box-shadow: 6px 6px 14px rgba(163,177,198,0.6), -6px -6px 14px rgba(255,255,255,0.95); }
+  &:active { box-shadow: inset 3px 3px 6px rgba(163,177,198,0.55), inset -3px -3px 6px rgba(255,255,255,0.95); }
+}
