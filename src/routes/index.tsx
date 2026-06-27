@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Copy, Trash2, Archive, FileText, Plus, Eye, Printer } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
+import gsap from "gsap";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "Dashboard — Electrosoft Proposal Engine" }] }),
