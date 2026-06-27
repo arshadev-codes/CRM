@@ -4,20 +4,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/*
- * Design system definition.
- *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
- */
-
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -63,6 +49,10 @@
 
 :root {
   --radius: 0.875rem;
+  --neo-bg: #eef1f6;
+  --neo-shadow-dark: rgba(163,177,198,0.55);
+  --neo-shadow-light: rgba(255,255,255,0.95);
+
   --background: oklch(0.965 0.005 250);
   --foreground: oklch(0.27 0.04 260);
   --card: oklch(0.965 0.005 250);
@@ -98,44 +88,9 @@
 }
 
 
-.dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
-}
-
 @layer base {
   * {
-    border-color: var(--color-border);
+    border-color: transparent;
   }
 
   body {
@@ -144,7 +99,7 @@
       radial-gradient(1200px 800px at 10% -10%, oklch(0.92 0.04 250 / 0.9), transparent 60%),
       radial-gradient(900px 700px at 110% 10%, oklch(0.9 0.06 290 / 0.8), transparent 55%),
       radial-gradient(1000px 800px at 50% 120%, oklch(0.93 0.05 200 / 0.85), transparent 60%),
-      #eef1f6;
+      var(--neo-bg);
     background-attachment: fixed;
     min-height: 100vh;
   }
@@ -152,35 +107,236 @@
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: #eef1f6;
+    background: var(--neo-bg);
     border-radius: 999px;
-    box-shadow: inset 2px 2px 4px rgba(163,177,198,0.55), inset -2px -2px 4px rgba(255,255,255,0.9);
+    box-shadow: inset 2px 2px 4px var(--neo-shadow-dark), inset -2px -2px 4px var(--neo-shadow-light);
   }
 }
 
 
 /* ===== Neomorphism utilities ===== */
 @utility neo-surface {
-  background: #eef1f6;
+  background: var(--neo-bg);
   border-radius: 1rem;
-  box-shadow: 8px 8px 20px rgba(163,177,198,0.55), -8px -8px 20px rgba(255,255,255,0.9);
+  box-shadow: 8px 8px 20px var(--neo-shadow-dark), -8px -8px 20px var(--neo-shadow-light);
 }
 @utility neo-inset {
-  background: #eef1f6;
-  border-radius: 0.65rem;
-  box-shadow: inset 4px 4px 8px rgba(163,177,198,0.55), inset -4px -4px 8px rgba(255,255,255,0.95);
+  background: var(--neo-bg);
+  border-radius: 0.75rem;
+  box-shadow: inset 4px 4px 8px var(--neo-shadow-dark), inset -4px -4px 8px var(--neo-shadow-light);
   border: 1px solid transparent;
   transition: box-shadow 180ms ease;
   &:focus, &:focus-within, &:focus-visible {
-    box-shadow: inset 5px 5px 10px rgba(163,177,198,0.6), inset -5px -5px 10px rgba(255,255,255,1);
+    box-shadow: inset 5px 5px 10px var(--neo-shadow-dark), inset -5px -5px 10px var(--neo-shadow-light), 0 0 0 2px oklch(0.65 0.12 255 / 0.35);
     outline: none;
   }
 }
 @utility neo-pop {
-  background: #eef1f6;
-  border-radius: 0.65rem;
-  box-shadow: 4px 4px 10px rgba(163,177,198,0.55), -4px -4px 10px rgba(255,255,255,0.9);
+  background: var(--neo-bg);
+  border-radius: 0.75rem;
+  box-shadow: 4px 4px 10px var(--neo-shadow-dark), -4px -4px 10px var(--neo-shadow-light);
+  transition: box-shadow 180ms ease, transform 180ms ease;
+  &:hover { box-shadow: 6px 6px 14px var(--neo-shadow-dark), -6px -6px 14px var(--neo-shadow-light); transform: translateY(-1px); }
+  &:active { box-shadow: inset 3px 3px 6px var(--neo-shadow-dark), inset -3px -3px 6px var(--neo-shadow-light); transform: translateY(0); }
+}
+@utility neo-pressed {
+  background: var(--neo-bg);
+  border-radius: 0.75rem;
+  box-shadow: inset 3px 3px 6px var(--neo-shadow-dark), inset -3px -3px 6px var(--neo-shadow-light);
+}
+
+/* ===== Global neomorphic skin for shadcn primitives ===== */
+
+/* Cards - any element with bg-card becomes a soft floating surface */
+.bg-card {
+  background: var(--neo-bg) !important;
+  border: 0 !important;
+  box-shadow: 8px 8px 22px var(--neo-shadow-dark), -8px -8px 22px var(--neo-shadow-light);
+  border-radius: 1.25rem !important;
+}
+
+/* Popovers, dropdowns, dialogs */
+.bg-popover,
+[role="menu"].bg-popover,
+[role="listbox"] {
+  background: var(--neo-bg) !important;
+  border: 0 !important;
+  box-shadow: 10px 10px 30px var(--neo-shadow-dark), -10px -10px 30px var(--neo-shadow-light) !important;
+  border-radius: 1rem !important;
+}
+
+/* Dialog content */
+[role="dialog"] {
+  background: var(--neo-bg) !important;
+  border: 0 !important;
+  box-shadow: 14px 14px 40px var(--neo-shadow-dark), -14px -14px 40px var(--neo-shadow-light) !important;
+  border-radius: 1.25rem !important;
+  backdrop-filter: blur(2px);
+}
+
+/* Inputs, textareas, selects - inset look */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([data-no-neo]),
+textarea:not([data-no-neo]),
+[role="combobox"]:not([data-no-neo]) {
+  background: var(--neo-bg) !important;
+  border: 0 !important;
+  box-shadow: inset 4px 4px 8px var(--neo-shadow-dark), inset -4px -4px 8px var(--neo-shadow-light);
+  border-radius: 0.75rem !important;
   transition: box-shadow 180ms ease;
-  &:hover { box-shadow: 6px 6px 14px rgba(163,177,198,0.6), -6px -6px 14px rgba(255,255,255,0.95); }
-  &:active { box-shadow: inset 3px 3px 6px rgba(163,177,198,0.55), inset -3px -3px 6px rgba(255,255,255,0.95); }
+}
+input:focus, input:focus-visible,
+textarea:focus, textarea:focus-visible,
+[role="combobox"]:focus, [role="combobox"]:focus-visible {
+  box-shadow: inset 5px 5px 10px var(--neo-shadow-dark), inset -5px -5px 10px var(--neo-shadow-light), 0 0 0 2px oklch(0.65 0.12 255 / 0.35) !important;
+  outline: none !important;
+}
+
+/* Tables: floating container, soft rows */
+table {
+  border-collapse: separate !important;
+  border-spacing: 0;
+}
+table thead th {
+  background: transparent;
+  color: var(--muted-foreground);
+  border-bottom: 1px solid oklch(0.85 0.012 250) !important;
+}
+table tbody tr {
+  border-bottom: 1px solid oklch(0.9 0.01 250) !important;
+  transition: background-color 160ms ease;
+}
+table tbody tr:hover {
+  background: oklch(0.94 0.012 250) !important;
+}
+table tbody tr:nth-child(even) {
+  background: oklch(0.955 0.008 250);
+}
+
+/* Wrap raw scrollable table containers */
+.relative.w-full.overflow-auto:has(> table) {
+  background: var(--neo-bg);
+  border-radius: 1rem;
+  padding: 0.5rem;
+  box-shadow: 8px 8px 22px var(--neo-shadow-dark), -8px -8px 22px var(--neo-shadow-light);
+}
+
+/* Tabs */
+[role="tablist"] {
+  background: var(--neo-bg) !important;
+  box-shadow: inset 3px 3px 6px var(--neo-shadow-dark), inset -3px -3px 6px var(--neo-shadow-light) !important;
+  border-radius: 999px !important;
+  padding: 4px !important;
+  gap: 4px;
+  display: inline-flex;
+  height: auto !important;
+}
+[role="tab"] {
+  border-radius: 999px !important;
+  padding: 6px 14px !important;
+  background: transparent !important;
+  color: var(--muted-foreground) !important;
+  transition: all 180ms ease !important;
+}
+[role="tab"][data-state="active"] {
+  background: var(--neo-bg) !important;
+  color: oklch(0.55 0.16 255) !important;
+  box-shadow: 3px 3px 8px var(--neo-shadow-dark), -3px -3px 8px var(--neo-shadow-light) !important;
+}
+
+/* Badges - keep colorful, but soft */
+.inline-flex.items-center.rounded-md.border {
+  border: 0 !important;
+  box-shadow: 2px 2px 5px var(--neo-shadow-dark), -2px -2px 5px var(--neo-shadow-light);
+  border-radius: 999px !important;
+}
+
+/* Progress */
+[role="progressbar"] {
+  background: var(--neo-bg) !important;
+  box-shadow: inset 3px 3px 6px var(--neo-shadow-dark), inset -3px -3px 6px var(--neo-shadow-light) !important;
+  height: 10px !important;
+  overflow: hidden;
+}
+[role="progressbar"] > * {
+  background: linear-gradient(90deg, oklch(0.6 0.16 255), oklch(0.7 0.14 235)) !important;
+  border-radius: 999px;
+}
+
+/* Switch */
+[role="switch"] {
+  background: var(--neo-bg) !important;
+  box-shadow: inset 3px 3px 6px var(--neo-shadow-dark), inset -3px -3px 6px var(--neo-shadow-light) !important;
+  border: 0 !important;
+}
+[role="switch"][data-state="checked"] {
+  background: linear-gradient(135deg, oklch(0.6 0.16 255), oklch(0.7 0.14 235)) !important;
+  box-shadow: inset 2px 2px 4px oklch(0.45 0.16 255 / 0.5), inset -2px -2px 4px oklch(0.85 0.1 255 / 0.5) !important;
+}
+[role="switch"] > * {
+  background: var(--neo-bg) !important;
+  box-shadow: 2px 2px 4px var(--neo-shadow-dark), -2px -2px 4px var(--neo-shadow-light) !important;
+}
+
+/* Checkbox & Radio */
+[role="checkbox"], [role="radio"] {
+  background: var(--neo-bg) !important;
+  border: 0 !important;
+  box-shadow: inset 2px 2px 4px var(--neo-shadow-dark), inset -2px -2px 4px var(--neo-shadow-light) !important;
+}
+[role="checkbox"][data-state="checked"], [role="radio"][data-state="checked"] {
+  background: linear-gradient(135deg, oklch(0.6 0.16 255), oklch(0.7 0.14 235)) !important;
+  color: white !important;
+  box-shadow: 2px 2px 5px var(--neo-shadow-dark), -2px -2px 5px var(--neo-shadow-light) !important;
+}
+
+/* Sidebar surfaces */
+[data-sidebar="sidebar"] {
+  background: var(--neo-bg) !important;
+  margin: 12px 0 12px 12px;
+  border-radius: 1.25rem !important;
+  box-shadow: 10px 10px 28px var(--neo-shadow-dark), -10px -10px 28px var(--neo-shadow-light);
+  border: 0 !important;
+  overflow: hidden;
+}
+[data-sidebar="menu-button"] {
+  border-radius: 0.85rem !important;
+  transition: all 180ms ease;
+}
+[data-sidebar="menu-button"]:hover {
+  background: var(--neo-bg) !important;
+  box-shadow: 4px 4px 10px var(--neo-shadow-dark), -4px -4px 10px var(--neo-shadow-light);
+}
+[data-sidebar="menu-button"][data-active="true"],
+[data-sidebar="menu-button"].bg-sidebar-accent {
+  background: var(--neo-bg) !important;
+  color: oklch(0.55 0.16 255) !important;
+  box-shadow: inset 3px 3px 7px var(--neo-shadow-dark), inset -3px -3px 7px var(--neo-shadow-light) !important;
+  font-weight: 600;
+}
+[data-sidebar="group-label"] {
+  color: var(--muted-foreground) !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 10px !important;
+}
+
+/* Sonner toasts */
+[data-sonner-toast] {
+  background: var(--neo-bg) !important;
+  border: 0 !important;
+  box-shadow: 8px 8px 22px var(--neo-shadow-dark), -8px -8px 22px var(--neo-shadow-light) !important;
+  border-radius: 1rem !important;
+}
+
+/* Separator softening */
+[data-orientation="horizontal"][role="separator"],
+[data-orientation="vertical"][role="separator"] {
+  background: linear-gradient(90deg, transparent, oklch(0.85 0.012 250), transparent) !important;
+}
+
+/* Skeleton */
+.animate-pulse {
+  background: var(--neo-bg) !important;
+  box-shadow: inset 2px 2px 5px var(--neo-shadow-dark), inset -2px -2px 5px var(--neo-shadow-light) !important;
+  border-radius: 0.75rem;
 }
