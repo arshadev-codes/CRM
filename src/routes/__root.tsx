@@ -10,6 +10,9 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { NeoBackground } from "@/components/NeoBackground";
+import { PageTransition } from "@/components/PageTransition";
+
 
 function NotFoundComponent() {
   return (
