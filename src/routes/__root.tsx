@@ -78,19 +78,25 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {isPrint ? <Outlet /> : (
         <SidebarProvider>
-          <div className="min-h-screen flex w-full bg-slate-50">
+          <NeoBackground />
+          <div className="min-h-screen flex w-full">
             <AppSidebar />
             <div className="flex-1 flex flex-col min-w-0">
-              <header className="h-12 flex items-center border-b bg-white shrink-0">
-                <SidebarTrigger className="ml-2" />
-                <div className="ml-3 font-semibold text-sm text-blue-800">Proposal Engine</div>
+              <header className="h-14 mx-3 mt-3 rounded-2xl flex items-center neo-surface shrink-0 px-2">
+                <SidebarTrigger className="ml-1 neo-pop !h-9 !w-9 rounded-xl" />
+                <div className="ml-3 font-semibold text-sm bg-gradient-to-r from-indigo-600 to-sky-500 bg-clip-text text-transparent tracking-wide">
+                  Electrosoft · Proposal Engine
+                </div>
               </header>
-              <main className="flex-1 overflow-auto"><Outlet /></main>
+              <main className="flex-1 overflow-auto">
+                <PageTransition><Outlet /></PageTransition>
+              </main>
             </div>
           </div>
           <Toaster />
         </SidebarProvider>
       )}
+
     </QueryClientProvider>
   );
 }
