@@ -139,10 +139,25 @@
   }
 
   body {
-    background-color: var(--color-background);
     color: var(--color-foreground);
+    background:
+      radial-gradient(1200px 800px at 10% -10%, oklch(0.92 0.04 250 / 0.9), transparent 60%),
+      radial-gradient(900px 700px at 110% 10%, oklch(0.9 0.06 290 / 0.8), transparent 55%),
+      radial-gradient(1000px 800px at 50% 120%, oklch(0.93 0.05 200 / 0.85), transparent 60%),
+      #eef1f6;
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: #eef1f6;
+    border-radius: 999px;
+    box-shadow: inset 2px 2px 4px rgba(163,177,198,0.55), inset -2px -2px 4px rgba(255,255,255,0.9);
   }
 }
+
 
 /* ===== Neomorphism utilities ===== */
 @utility neo-surface {
