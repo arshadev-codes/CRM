@@ -86,7 +86,7 @@ export function ConnectionsTestsPdf({
                 alt={connectionLabels[g]}
                 style={{ width: "100%", height: "auto", objectFit: "contain" }}
               />
-              <div className="text-[11px] italic text-slate-600 mt-1">
+              <div className="text-[14px] italic text-slate-600 mt-1">
                 {connectionLabels[g]}
               </div>
             </div>
@@ -104,7 +104,7 @@ export function ConnectionsTestsPdf({
                 alt={connectionLabels[g]}
                 style={{ width: "100%", height: "auto", objectFit: "contain" }}
               />
-              <div className="text-[11px] italic text-slate-600 mt-1">
+              <div className="text-[14px] italic text-slate-600 mt-1">
                 {connectionLabels[g]}
               </div>
             </div>
@@ -116,7 +116,7 @@ export function ConnectionsTestsPdf({
       <div className="mt-5 space-y-3">
         {mainGroups.map((g) => (
           <div key={g} style={{ breakInside: "avoid" }}>
-            <div className="font-bold text-[13px] text-slate-900 italic">
+            <div className="font-bold text-[14px] text-slate-900 ">
               {connectionLabels[g]}
             </div>
             <ol className="mt-0.5 list-decimal pl-6 text-[13px] space-y-0.5 text-slate-800">

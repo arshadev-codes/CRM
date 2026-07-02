@@ -28,6 +28,25 @@ import { createPortal } from "react-dom";
 //    3. The reset effect (on items.length change) flips measuredRef back to
 //       false so the next change triggers a fresh measurement pass.
 //
+//  HYDRATION-MISMATCH FIX:
+//  getOrCreateHost() used to be called directly inside the useState
+//  initializer — i.e. during the render phase. That calls
+//  document.body.appendChild() before React has finished reconciling /
+//  hydrating the rest of the tree, which can desync React's hydration walk
+//  for *unrelated* sibling subtrees lower in <body> (symptom: "A tree
+//  hydrated but some attributes ... didn't match" on a completely different
+//  component). DOM mutations outside React's own tree must only happen
+//  after mount, inside an effect — never during render. Fixed by:
+//    1. useState now starts as `null` on both server and client — no DOM
+//       access during render, so server and first-client-render markup
+//       are identical (host div doesn't exist in either yet).
+//    2. A `useEffect` (not the render body) creates/attaches the host on
+//       mount and calls setHost(...), which is the React-sanctioned way to
+//       perform a DOM side effect in response to mounting.
+//    3. Because the host doesn't exist for that one extra commit, every
+//       effect/measurement step below already guards on `if (!host) return`,
+//       so nothing else needed to change — they simply run one tick later.
+//
 //  Public API — unchanged:
 //    items          – array of data items to measure
 //    renderItem     – (item, index) => ReactElement
@@ -80,11 +99,10 @@ export function useBlockHeights<T>(
 ): BlockHeightsResult {
   const widthPx = (contentWidthMm / 25.4) * 96;
 
-  // Create host eagerly in useState initializer so it exists on render #1.
-  // On the server isClient is false → null (safe, no document access).
-  const [host] = useState<HTMLDivElement | null>(() =>
-    isClient ? getOrCreateHost(widthPx) : null,
-  );
+  // Always starts as null — identical on server and on the very first
+  // client render, so hydration has nothing to mismatch on. The real host
+  // div is created post-mount, below, inside a useEffect.
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
 
   const [heightsMm, setHeightsMm] = useState<number[]>([]);
   const [measuring, setMeasuring] = useState(items.length > 0);
@@ -101,14 +119,36 @@ export function useBlockHeights<T>(
   const renderItemRef = useRef(renderItem);
   renderItemRef.current = renderItem;
 
+  // ── Create the host AFTER mount, never during render ──────────────────────
+  // This is the one-time DOM side effect (document.body.appendChild) that
+  // previously ran inside the useState initializer during render. Moving it
+  // here means it only ever runs once hydration of the surrounding tree has
+  // already completed, so it can no longer desync React's hydration walk.
+  useEffect(() => {
+    if (!isClient) return;
+    const h = getOrCreateHost(widthPx);
+    setHost(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Sync host width ────────────────────────────────────────────────────────
   useEffect(() => {
     if (host) host.style.width = `${widthPx}px`;
   }, [host, widthPx]);
 
   // ── Reset when items list length changes ───────────────────────────────────
+  // Deliberately depends on [items.length] ONLY — not [items.length, host].
+  // host transitions once from null -> div shortly after mount (see the
+  // host-creation effect above). If this reset effect also depended on
+  // `host`, it would fire again in that same transition and wipe out
+  // (setMeasuring(true) / setHeightsMm([])) whatever the measurement
+  // useLayoutEffect had just computed in that very same commit — putting
+  // measuring into a permanent true/[] state with no further trigger to
+  // ever re-measure (items.length never changes again on its own). Keying
+  // only on items.length avoids that race: this effect runs once on mount
+  // (items.length state already reflects the initial array) and again only
+  // when the actual list length changes later.
   useEffect(() => {
-    if (!host) return;
     measuredRef.current = false;
     blockDivRefs.current = new Array(items.length).fill(null);
     if (items.length === 0) {

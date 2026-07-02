@@ -2,6 +2,7 @@ import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
 import { equipmentData } from "@/data/equipmentData";
 import { instrumentsData } from "@/data/instrumentsData";
+import { getEntry, lineTotal } from "@/data/pricingHelpers";
 
 // Pages dedicated to OTHER EQUIPMENT and TESTING INSTRUMENTS — formatted as
 // in the reference proposal (Sr. No / Description / Quantity / Price).
@@ -14,6 +15,8 @@ export function EquipmentInstrumentsPdf({
 }) {
   const eq = (project.data.equipment ?? equipmentData).filter((e) => e.included);
   const ins = project.data.instruments ?? instrumentsData;
+  const eqPricing = project.data.pricing?.equipment;
+  const insPricing = project.data.pricing?.instruments;
 
   const describeEq = (e: typeof equipmentData[number]) =>
     [e.equipment, e.spec1, e.spec2, e.spec3, e.spec4, e.spec5]
@@ -29,10 +32,22 @@ export function EquipmentInstrumentsPdf({
         Electrosoft's Scope of Supply
       </h2>
 
-      <SectionTable title="OTHER EQUIPMENT" rows={eq.map((e, i) => ({ sr: i + 1, desc: describeEq(e), qty: String(e.qty), price: e.price || "---" }))} />
+      <SectionTable
+        title="OTHER EQUIPMENT"
+        rows={eq.map((e, i) => {
+          const entry = getEntry(eqPricing, e.id);
+          return { sr: i + 1, desc: describeEq(e), qty: entry.qty || "1", price: lineTotal(entry) };
+        })}
+      />
 
       <div className="mt-5">
-        <SectionTable title="TESTING INSTRUMENTS" rows={ins.map((i, idx) => ({ sr: idx + 1, desc: describeIns(i), qty: String(i.qty), price: i.price || "---" }))} />
+        <SectionTable
+          title="TESTING INSTRUMENTS"
+          rows={ins.map((i, idx) => {
+            const entry = getEntry(insPricing, i.id);
+            return { sr: idx + 1, desc: describeIns(i), qty: entry.qty || "1", price: lineTotal(entry) };
+          })}
+        />
       </div>
     </PdfPage>
   );

@@ -5,8 +5,10 @@ import type { Project } from "@/store/proposalStore";
 import { getMajorSubsystems } from "@/data/proposalContent";
 import { paginateByHeights } from "@/data/paginationHelpers";
 import { useBlockHeights } from "@/hooks/useBlockHeights";
+import { proprietaryItemsData } from "@/data/proprietaryItemsData";
+import { getEntry, lineTotal } from "@/data/pricingHelpers";
 
-interface Row { sr: number; description: string; qty: string; price: string }
+interface Row { sr: number; description: string; qty: string; unitPrice: string; price: string }
 
 export function ScopeOfSupplyPdf({
   project,
@@ -17,29 +19,71 @@ export function ScopeOfSupplyPdf({
   startPage: number;
   onPageCountKnown?: (count: number) => void;
 }): React.ReactElement | null {
+  const scopePricing = project.data.pricing?.scopeOfSupply;
+
+  // ── Subsystem rows ──────────────────────────────────────────────────────────
   const all = getMajorSubsystems(project.data.systemType);
   const selectedIds = new Set(project.data.selectedSubsystems);
   const subs = all.filter((s) => selectedIds.has(s.id) || selectedIds.has(s.title));
   const list = subs.length ? subs : all;
 
-  const rows: Row[] = list.map((s, i) => ({
-    sr: i + 1,
-    description: `${s.title}\n${s.preview ?? ""}`.trim(),
-    qty: "1",
-    price: "---",
-  }));
+  const subsystemRows: Row[] = list.map((s, i) => {
+    const entry = getEntry(scopePricing, s.id);
+    return {
+      sr: i + 1,
+      description: `${s.title}\n${s.preview ?? ""}`.trim(),
+      qty: entry.qty || "1",
+      unitPrice: entry.unitPrice,
+      price: lineTotal(entry),
+    };
+  });
 
-  // Phase 1: measure each row's real rendered height.
-  // MeasurementPortal MUST be rendered in the return below — without it
-  // React never commits the hidden blocks, blockDivRefs stay null, and
-  // measuring never flips to false.
+  // ── Proprietary item rows — ONLY items flagged inScopeOfSupply (Power Panel,
+  //    LV Test Trolley). Every other selected proprietary item is rendered
+  //    instead in ScopeOfServicesPdf's on-site table. ────────────────────────
+  const selectedProprietaryIds = new Set(project.data.proprietary);
+
+  const proprietaryLibraryRows: Row[] = proprietaryItemsData
+    .filter((p) => p.inScopeOfSupply && selectedProprietaryIds.has(p.id))
+    .map((p, i) => {
+      const entry = getEntry(scopePricing, p.id);
+      return {
+        sr: subsystemRows.length + i + 1,
+        description: `${p.title}\n${p.scopeSummary ?? p.description}`.trim(),
+        qty: entry.qty || "1",
+        unitPrice: entry.unitPrice,
+        price: lineTotal(entry),
+      };
+    });
+
+  const installationRow: Row[] =
+  project.data.installationType
+    ? [
+        (() => {
+          const entry = getEntry(scopePricing, "installation");
+          return {
+            sr: subsystemRows.length + proprietaryLibraryRows.length + 1,
+            description:
+              project.data.installationType === "full"
+                ? "Full Installation\nComplete on-site installation of all supplied equipment and subsystems by Electrosoft's certified engineers, including mechanical mounting, electrical wiring, earthing, and final alignment."
+                : "Supervision Installation\nElectrosoft's engineers will supervise the customer's team during installation, providing technical guidance, inspection, and sign-off at each stage to ensure compliance with design specifications.",
+            qty: entry.qty || "1",
+            unitPrice: entry.unitPrice,
+            price: lineTotal(entry),
+          };
+        })(),
+      ]
+    : [];
+
+  const rows: Row[] = [...subsystemRows, ...proprietaryLibraryRows, ...installationRow];
+
+  // ── Measure & paginate ──────────────────────────────────────────────────────
   const { heightsMm, measuring, MeasurementPortal } = useBlockHeights(
     rows,
     (r) => <ScopeRowBody row={r} />,
     182,
   );
 
-  // Phase 2: pack using real heights.
   const pages = measuring ? [] : paginateByHeights(rows, heightsMm, [200, 245]);
 
   useEffect(() => {
@@ -49,8 +93,6 @@ export function ScopeOfSupplyPdf({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [measuring, pages.length]);
 
-  // While measuring: render nothing visible, but keep MeasurementPortal
-  // in the tree so React can commit and measure the hidden blocks.
   if (measuring) {
     return <>{MeasurementPortal}</>;
   }
@@ -62,6 +104,7 @@ export function ScopeOfSupplyPdf({
         const isLast = idx === pages.length - 1;
         return (
           <PdfPage key={idx} pageNumber={startPage + idx}>
+            {/* Section heading only on first page */}
             {isFirst && (
               <div style={{ breakInside: "avoid" }}>
                 <h2 className="text-[18px] font-bold text-blue-900 uppercase tracking-wide">
@@ -72,23 +115,25 @@ export function ScopeOfSupplyPdf({
                 </div>
               </div>
             )}
+
+            {/* Table — thead on EVERY page so continued pages aren't headerless */}
             <table className="w-full text-[13px] mt-3 border border-slate-300">
-              {isFirst && (
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="border border-slate-300 p-1.5 text-left w-14">Sr. No.</th>
-                    <th className="border border-slate-300 p-1.5 text-left">Description</th>
-                    <th className="border border-slate-300 p-1.5 text-center w-16">Quantity</th>
-                    <th className="border border-slate-300 p-1.5 text-right w-24">Price (INR)</th>
-                  </tr>
-                </thead>
-              )}
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="border border-slate-300 p-1.5 text-left w-14">Sr. No.</th>
+                  <th className="border border-slate-300 p-1.5 text-left">Description</th>
+                  <th className="border border-slate-300 p-1.5 text-center w-16">Quantity</th>
+                  <th className="border border-slate-300 p-1.5 text-right w-24">Unit Price (INR)</th>
+                  <th className="border border-slate-300 p-1.5 text-right w-24">Price (INR)</th>
+                </tr>
+              </thead>
               <tbody>
                 {pageRows.map((r) => (
                   <ScopeRow key={r.sr} row={r} />
                 ))}
               </tbody>
             </table>
+
             {isLast && (
               <p className="text-[12.5px] italic text-slate-500 mt-2">
                 Itemised pricing is shared separately as part of the commercial annexure.
@@ -97,31 +142,38 @@ export function ScopeOfSupplyPdf({
           </PdfPage>
         );
       })}
-      {/* Portal must stay mounted after measurement too — unmounting it would
-          trigger a re-measure on the next render cycle. */}
       {MeasurementPortal}
     </>
   );
 }
 
 function ScopeRow({ row }: { row: Row }) {
+  const [title, ...rest] = row.description.split("\n");
+  const subtitle = rest.join("\n");
   return (
     <tr style={{ breakInside: "avoid" }}>
       <td className="border border-slate-300 p-1.5 align-top">{row.sr}</td>
-      <td className="border border-slate-300 p-1.5 whitespace-pre-line">{row.description}</td>
+      <td className="border border-slate-300 p-1.5 whitespace-pre-line">
+        <span className="font-semibold">{title}</span>
+        {subtitle && <span className="block text-slate-600">{subtitle}</span>}
+      </td>
       <td className="border border-slate-300 p-1.5 text-center align-top">{row.qty}</td>
+      <td className="border border-slate-300 p-1.5 text-right align-top">{row.unitPrice ? `₹${Number(row.unitPrice).toLocaleString("en-IN")}` : "---"}</td>
       <td className="border border-slate-300 p-1.5 text-right align-top">{row.price}</td>
     </tr>
   );
 }
 
 function ScopeRowBody({ row }: { row: Row }) {
+  const [title, ...rest] = row.description.split("\n");
+  const subtitle = rest.join("\n");
   return (
     <div
-      className="border border-slate-300 p-1.5 whitespace-pre-line text-[13px]"
+      className="border border-slate-300 p-1.5 text-[13px]"
       style={{ boxSizing: "border-box" }}
     >
-      {row.description}
+      <span className="font-semibold">{title}</span>
+      {subtitle && <span className="block text-slate-600 whitespace-pre-line">{subtitle}</span>}
     </div>
   );
 }

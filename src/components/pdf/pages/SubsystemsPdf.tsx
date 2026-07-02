@@ -1,6 +1,6 @@
 import type React from "react";
 import { PdfPage } from "../PdfPage";
-import type { Project } from "@/store/proposalStore";
+import type { Project, CustomizationItem } from "@/store/proposalStore";
 import { getMajorSubsystems, type SubsystemContent } from "@/data/proposalContent";
 import { paginateByHeights } from "@/data/paginationHelpers";
 import { useBlockHeights } from "@/hooks/useBlockHeights";
@@ -29,6 +29,16 @@ const MM_TO_PX = 96 / 25.4;
 const SINGLE_IMAGE_HEIGHT_PX = Math.round(SINGLE_IMAGE_HEIGHT_MM * MM_TO_PX); // ≈ 378px
 const MULTI_IMAGE_HEIGHT_PX  = Math.round(MULTI_IMAGE_HEIGHT_MM  * MM_TO_PX); // ≈ 340px
 
+// A renderable entry in the Major Subsystems flow. Either an actual
+// subsystem block, or the single general "Proposed Customizations" block
+// that appears once at the end. Using a discriminated union lets both kinds
+// of block flow through the same measurement + pagination pipeline, so
+// "Proposed Customizations" paginates naturally with everything else
+// instead of needing special-cased layout logic.
+type FlowItem =
+  | { kind: "subsystem"; id: string; subsystem: SubsystemContent }
+  | { kind: "customizations"; id: "__proposal_customizations__"; items: CustomizationItem[] };
+
 export function SubsystemsPdf({
   project,
   startPage = 4,
@@ -43,16 +53,29 @@ export function SubsystemsPdf({
   const blocks: SubsystemContent[] = all.filter(
     (s) => selectedIds.has(s.id) || selectedIds.has(s.title),
   );
-  const list = blocks.length ? blocks : all;
-  const cust = project.data.subsystemCustomizations ?? {};
+  const subsystemList = blocks.length ? blocks : all;
+  // Per-subsystem selected variant key (e.g. "manual", "pneumatic"). Falls
+  // back to each subsystem's own variants.default inside SubsystemBlockBody
+  // when a given id isn't present here — same fallback rule used in the wizard.
+  const variants = project.data.subsystemVariants ?? {};
+  // General "Proposed Customizations" — a single flat list, not tied to any
+  // specific subsystem. Rendered as its own block at the end of this section.
+  const proposalCustomizations = project.data.proposalCustomizations ?? [];
+
+  const flow: FlowItem[] = [
+    ...subsystemList.map((s): FlowItem => ({ kind: "subsystem", id: s.id, subsystem: s })),
+    ...(proposalCustomizations.length
+      ? [{ kind: "customizations", id: "__proposal_customizations__", items: proposalCustomizations } as FlowItem]
+      : []),
+  ];
 
   const { heightsMm, measuring, MeasurementPortal } = useBlockHeights(
-    list,
-    (s, i) => <SubsystemBlockBody s={s} cust={cust[s.id]} index={i} />,
+    flow,
+    (item, i) => <FlowBlockBody item={item} variantKey={item.kind === "subsystem" ? variants[item.id] : undefined} index={i} />,
     182,
   );
 
-  const pages = measuring ? [] : paginateByHeights(list, heightsMm, [185, 240]);
+  const pages = measuring ? [] : paginateByHeights(flow, heightsMm, [185, 240]);
 
   useEffect(() => {
     if (!measuring && onPageCountKnown) {
@@ -61,13 +84,13 @@ export function SubsystemsPdf({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [measuring, pages.length]);
 
-  if (list.length === 0) return null;
+  if (flow.length === 0) return null;
 
   if (measuring) {
     return <>{MeasurementPortal}</>;
   }
 
-  let counter = -1;
+  let subsystemCounter = -1;
 
   return (
     <>
@@ -90,14 +113,16 @@ export function SubsystemsPdf({
               </div>
             )}
             <div className={`${isFirst ? "mt-4" : ""} space-y-4`}>
-              {pageBlocks.map((s) => {
-                counter += 1;
+              {pageBlocks.map((item) => {
+                // Only subsystem blocks are numbered ("1.", "2.", ...); the
+                // trailing customizations block has its own heading instead.
+                const index = item.kind === "subsystem" ? ++subsystemCounter : -1;
                 return (
-                  <SubsystemBlockBody
-                    key={s.id}
-                    s={s}
-                    cust={cust[s.id]}
-                    index={counter}
+                  <FlowBlockBody
+                    key={item.id}
+                    item={item}
+                    variantKey={item.kind === "subsystem" ? variants[item.id] : undefined}
+                    index={index}
                   />
                 );
               })}
@@ -110,39 +135,65 @@ export function SubsystemsPdf({
   );
 }
 
+function FlowBlockBody({
+  item,
+  variantKey,
+  index,
+}: {
+  item: FlowItem;
+  variantKey?: string;
+  index: number;
+}) {
+  if (item.kind === "customizations") {
+    return <ProposalCustomizationsBlock items={item.items} />;
+  }
+  return <SubsystemBlockBody s={item.subsystem} variantKey={variantKey} index={index} />;
+}
+
+function ProposalCustomizationsBlock({ items }: { items: CustomizationItem[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <section className="pdf-block" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
+      <h3 className="text-[14px] font-bold text-slate-900 italic">Proposed Customizations</h3>
+      {items.map((item) => (
+        <div key={item.id} className="mt-2" style={{ breakInside: "avoid" }}>
+          <div className="text-[14px] font-semibold text-slate-900">{item.title}</div>
+          <p className="text-[13px] leading-relaxed mt-1 pl-3 whitespace-pre-line">
+            {item.description}
+          </p>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function SubsystemBlockBody({
   s,
-  cust,
+  variantKey,
   index,
 }: {
   s: SubsystemContent;
-  cust?: { include: boolean; items: { id: string; title: string; description: string }[] };
+  variantKey?: string;
   index: number;
 }) {
+  // Resolve which variant option is active. If the project has no explicit
+  // selection (variantKey is undefined — e.g. older saved projects, or this
+  // subsystem just got added to the wizard), fall back to the subsystem's
+  // own default option. If the subsystem has no `variants` at all, both are
+  // undefined and we fall straight through to the static title/description.
+  const activeKey = variantKey ?? s.variants?.default;
+  const activeVariant = s.variants?.options.find((o) => o.key === activeKey);
+  const title = activeVariant?.title ?? s.title;
+  const description = activeVariant?.description ?? s.description;
+
   return (
     <section className="pdf-block" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
       <h3 className="text-[14px] font-bold text-slate-900">
-        {index + 1}. {s.title}
+        {index + 1}. {title}
       </h3>
-      <p className="text-[13px] leading-relaxed mt-1.5 text-justify">{s.description}</p>
+      <p className="text-[13px] leading-relaxed mt-1.5 text-justify">{description}</p>
 
-      <SubsystemImages images={s.images} title={s.title} />
-
-      {cust?.include && cust.items && cust.items.length > 0 && (
-        <div className="mt-3" style={{ breakInside: "avoid" }}>
-          <div className="text-[14px] font-semibold italic text-slate-800">
-            Proposed customizations:
-          </div>
-          {cust.items.map((item) => (
-            <div key={item.id} className="mt-2" style={{ breakInside: "avoid" }}>
-              <div className="text-[14px] font-semibold text-slate-900">{item.title}</div>
-              <p className="text-[13px] leading-relaxed mt-1 pl-3 whitespace-pre-line">
-                {item.description}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
+      <SubsystemImages images={s.images} title={title} />
     </section>
   );
 }

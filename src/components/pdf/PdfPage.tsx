@@ -1,9 +1,6 @@
 import logoUrl from "@/assets/electrosoft-logo.png";
 import { createContext, useContext, type ReactNode } from "react";
 
-// Lets the top-level AllPages provider broadcast the final total page count
-// so every footer shows "Page X of <real total>" regardless of how many
-// dynamically-paginated sections (Subsystems, Scope of Supply, Terms) expand.
 const TotalPagesContext = createContext<number | undefined>(undefined);
 export function TotalPagesProvider({ value, children }: { value: number; children: ReactNode }) {
   return <TotalPagesContext.Provider value={value}>{children}</TotalPagesContext.Provider>;
@@ -17,27 +14,57 @@ interface Props {
   children: ReactNode;
 }
 
-// A4 page frame — 210mm × 297mm with internal padding matched to the Electrosoft proposal.
-// Every block inside should use `style={{ breakInside: 'avoid' }}` (or the .pdf-block class)
-// so Puppeteer never splits a logical unit across pages.
+// A4 = 297mm tall. Breakdown:
+//   top padding:     12mm
+//   bottom padding:  14mm
+//   header:          ~14mm  (logo 12mm + 2mm border/gap)
+//   footer:          ~10mm  (text lines + border)
+//   pt-3 gap:         3mm
+//   remaining for content: ~297 - 12 - 14 - 14 - 10 - 3 = ~244mm
 export function PdfPage({ pageNumber, totalPages, header, footer, children }: Props) {
   const ctxTotal = useContext(TotalPagesContext);
   const total = totalPages ?? ctxTotal ?? 24;
   return (
     <div
-      className="pdf-page bg-white text-slate-900 mx-auto shadow-md print:shadow-none mb-6 print:mb-0 flex flex-col"
+      className="pdf-page bg-white text-slate-900 mx-auto shadow-md print:shadow-none mb-6 print:mb-0"
       style={{
         width: "210mm",
         height: "297mm",
-        padding: "12mm 14mm 14mm 14mm",
+        minHeight: "297mm",
+        maxHeight: "297mm",
+        paddingTop: "12mm",
+        paddingBottom: "14mm",
+        paddingLeft: "14mm",
+        paddingRight: "14mm",
         boxSizing: "border-box",
         pageBreakAfter: "always",
         breakAfter: "page",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
       }}
     >
-      <PdfHeader>{header}</PdfHeader>
-      <div className="pt-3 flex-1 overflow-hidden">{children}</div>
-      <PdfFooter pageNumber={pageNumber} totalPages={total}>{footer}</PdfFooter>
+      {/* Header — fixed height, never shrinks */}
+      <div style={{ flexShrink: 0 }}>
+        <PdfHeader>{header}</PdfHeader>
+      </div>
+
+      {/* Content — takes remaining space, clips overflow so nothing bleeds out */}
+      <div
+        style={{
+          flex: 1,
+          overflow: "hidden",
+          paddingTop: "6px",
+          minHeight: 0, // critical: allows flex child to shrink below content size
+        }}
+      >
+        {children}
+      </div>
+
+      {/* Footer — fixed height, never shrinks, always anchored at bottom */}
+      <div style={{ flexShrink: 0 }}>
+        <PdfFooter pageNumber={pageNumber} totalPages={total}>{footer}</PdfFooter>
+      </div>
     </div>
   );
 }
@@ -68,7 +95,7 @@ export function PdfFooter({
   children?: ReactNode;
 }) {
   return (
-    <div className="border-t border-slate-300 pt-2 mt-3 text-[8.5px] text-slate-500 flex items-end justify-between">
+    <div className="border-t border-slate-300 pt-2 mt-2 text-[8.5px] text-slate-500 flex items-end justify-between">
       <div className="leading-snug">
         {children ?? (
           <>

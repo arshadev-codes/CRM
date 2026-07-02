@@ -66,8 +66,8 @@ export function AllPages({ project }: { project: Project }) {
       <div className="proposal-print" data-pdf-settled={isSettled ? "true" : "false"}>
         <RFQPdf project={project} />
         {/* <IntroLetterPdf project={project} /> */}
-        <SystemIntroPdf project={project} pageNumber={systemPage} />
         <RequirementPdf project={project} />
+        <SystemIntroPdf project={project} pageNumber={systemPage} />   
         <SubsystemsPdf
           project={project}
           startPage={subsysStart}

@@ -27,8 +27,48 @@ export interface Transformer { rating: string; ratingUnit: "MVA"|"KVA"; voltage:
 export interface MakeSelection { id: string; enabled: boolean; make: string; custom?: string; }
 
 export interface CustomizationItem { id: string; title: string; description: string; }
-export interface SubsystemCustomization { include: boolean; items: CustomizationItem[]; }
 export interface SystemLayoutAssets { imageUrl?: string; designPdfUrl?: string; }
+
+/** A user-added proprietary item (free-text, not from the library) */
+export interface ProprietaryCustomItem { id: string; title: string; }
+
+/**
+ * A single editable pricing entry: user enters the unit price and quantity,
+ * the line total (price) is always DERIVED — never stored/edited directly.
+ * Used for Scope of Supply, Instruments, and Equipment.
+ */
+export interface PriceEntry {
+  unitPrice: string;
+  qty: string;
+}
+
+/**
+ * All pricing lives in one place, keyed by the row's stable id, so Step 9
+ * (Pricing) and every PDF page that needs a price reads from the same
+ * source of truth instead of each table owning its own qty/price fields.
+ *
+ *   scopeOfSupply   -> keyed by subsystem id, plus the 2 in-scope
+ *                      proprietary item ids ("power-panel", "lv-trolley")
+ *   instruments     -> keyed by instrument row id
+ *   equipment       -> keyed by equipment row id
+ *   scopeOfServices -> keyed by proprietary item id (everything except the
+ *                      2 in-scope ones), "installation", and
+ *                      "additional-warranty". DIRECT price, no qty — these
+ *                      rows print with Sr.No / Description / Price only.
+ */
+export interface PricingData {
+  scopeOfSupply: Record<string, PriceEntry>;
+  instruments: Record<string, PriceEntry>;
+  equipment: Record<string, PriceEntry>;
+  scopeOfServices: Record<string, string>;
+}
+
+export interface InstallationPricing {
+  pricingType: "calculate" | "inclusive";
+  days: string;
+  perDayCost: string;
+  lumpSum?: string;
+}
 
 export interface ProposalData {
   systemType: SystemType;
@@ -37,11 +77,26 @@ export interface ProposalData {
   transformer: Transformer;
   selectedTests: string[];
   selectedSubsystems: string[];
-  subsystemCustomizations: Record<string, SubsystemCustomization>;
+  proposalCustomizations: CustomizationItem[];
+  subsystemVariants: Record<string, string>;
   systemLayout: SystemLayoutAssets;
   instruments: InstrumentRow[];
   equipment: EquipmentRow[];
   proprietary: string[];
+  /** User-added free-text proprietary items (not from the library) */
+  proprietaryCustom: ProprietaryCustomItem[];
+  /**
+   * Installation type selection:
+   *   null          = Installation not selected
+   *   "full"        = Full Installation
+   *   "supervision" = Supervision Installation
+   */
+  installationType: "full" | "supervision" | null;
+  installationPricing?: InstallationPricing;
+  /** Months of additional warranty, set when "additional-warranty" proprietary item is selected */
+  additionalWarrantyMonths?: number | null;
+  /** Editable unit-price/qty entries used to derive every price shown in Step 9 + PDFs */
+  pricing: PricingData;
   delivery: DeliveryRow[];
   exclusions: string[];
   makes: MakeSelection[];
@@ -69,6 +124,7 @@ const emptyMeta = (): Meta => ({
   revision: "R0", date: new Date().toISOString().slice(0,10),
 });
 const emptyTransformer = (): Transformer => ({ rating: "500", ratingUnit: "MVA", voltage: "765", voltageUnit: "kV" });
+const emptyPricing = (): PricingData => ({ scopeOfSupply: {}, instruments: {}, equipment: {}, scopeOfServices: {} });
 
 function defaultsForSystem(systemType: SystemType): ProposalData {
   const cfg = systemConfiguration[systemType];
@@ -79,11 +135,16 @@ function defaultsForSystem(systemType: SystemType): ProposalData {
     transformer: emptyTransformer(),
     selectedTests: [...cfg.defaultTests],
     selectedSubsystems: getMajorSubsystems(systemType).map(s => s.id),
-    subsystemCustomizations: {},
+    proposalCustomizations: [],
+    subsystemVariants: {},
     systemLayout: {},
     instruments: instrumentsData.filter(i => cfg.defaultInstruments.includes(i.id)).map(i => ({ ...i })),
     equipment: equipmentData.map(e => ({ ...e, included: cfg.defaultEquipment.includes(e.id) })),
     proprietary: [...cfg.defaultProprietary],
+    proprietaryCustom: [],
+    installationType: null,
+    additionalWarrantyMonths: null,
+    pricing: emptyPricing(),
     delivery: deliveryDefaults.map(d => ({ ...d })),
     exclusions: exclusionsData.filter(e => e.defaultIncluded).map(e => e.id),
     makes: makesOfSupplyData.map(m => ({ id: m.id, enabled: !!m.defaultEnabled, make: m.defaultMake })),
@@ -142,7 +203,6 @@ export const useProposalStore = create<ProposalStore>()(
       setSystemType: (id, systemType) =>
         set(s => ({ projects: s.projects.map(p => {
           if (p.id !== id) return p;
-          // Preserve customer/meta/transformer; reset system-dependent fields to new defaults
           const fresh = defaultsForSystem(systemType);
           return { ...p, updatedAt: Date.now(), data: {
             ...fresh,
@@ -194,7 +254,6 @@ export const useProposalStore = create<ProposalStore>()(
   )
 );
 
-// CMS helper: read library with optional overrides
 export function useCms<T>(key: string, fallback: T): T {
   const ov = useProposalStore(s => s.cmsOverrides[key]);
   return (ov as T) ?? fallback;

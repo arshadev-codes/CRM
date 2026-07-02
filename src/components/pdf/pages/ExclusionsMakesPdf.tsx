@@ -35,10 +35,10 @@ export function ExclusionsMakesPdf({
       </div>
 
       <div className="mt-5" style={{ breakInside: "avoid" }}>
-        <div className="bg-slate-100 border-l-4 border-blue-700 px-3 py-1 font-bold text-[18px] text-blue-900">
+        <div className="bg-blue-900 border-l-4 border-blue-600 px-3 py-1 font-bold text-[18px] text-white">
           MAKES OF SUPPLY
         </div>
-        <table className="w-full text-[13px] mt-2 border border-slate-300">
+        <table className="w-full text-[13px] border border-slate-300">
           <thead className="bg-slate-50">
             <tr>
               <th className="border border-slate-300 p-1.5 text-left w-14 bg-blue-100">Sr. No.</th>

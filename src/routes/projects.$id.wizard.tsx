@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, Save, Eye, Printer } from "lucide-react";
 import {
   Step1ProjectSetup, Step2Tests, Step3Subsystems, Step3bSystemLayout, Step4InstrumentsEquipment,
-  Step5Proprietary, Step6Delivery, Step7ExclusionsMakes, Step8Payment, Step9Review,
+  Step5Proprietary, Step6Delivery, Step7ExclusionsMakes, StepPricing, Step8Payment, Step9Review,
 } from "@/components/wizard/Steps";
 import { toast } from "sonner";
 
@@ -25,6 +25,7 @@ const STEPS = [
   { key: "proprietary", label: "Proprietary Items", Comp: Step5Proprietary },
   { key: "delivery", label: "Delivery", Comp: Step6Delivery },
   { key: "excl-makes", label: "Exclusions & Makes", Comp: Step7ExclusionsMakes },
+  { key: "pricing", label: "Pricing", Comp: StepPricing },
   { key: "payment", label: "Payment", Comp: Step8Payment },
   { key: "review", label: "Review", Comp: Step9Review },
 ] as const;
@@ -49,7 +50,7 @@ function Wizard() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-4 gap-3">
+      <div className="flex items-center justify-between mb-4 gap-3 pl-4">
         <div className="flex-1">
           <Input value={project.name} onChange={e => updateProject(project.id, { name: e.target.value })}
             className="text-xl font-bold border-0 px-0 h-auto focus-visible:ring-0 shadow-none" />
@@ -66,10 +67,19 @@ function Wizard() {
         <Progress value={((step + 1) / STEPS.length) * 100} className="mb-3" />
       </motion.div>
 
-      <div className="flex flex-wrap gap-1 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6">
         {STEPS.map((s, i) => (
-          <button key={s.key} onClick={() => setStep(i)}
-            className={`text-xs px-3 py-1.5 rounded-full border transition ${i === step ? "bg-blue-600 text-white border-blue-600" : i < step ? "bg-blue-50 text-blue-800 border-blue-200" : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"}`}>
+          <button
+            key={s.key}
+            onClick={() => setStep(i)}
+            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all duration-150
+              ${i === step
+                ? "neo-inset text-blue-700 ring-2 ring-blue-400/50"
+                : i < step
+                ? "neo-inset text-blue-500 opacity-70"
+                : "neo-pop text-slate-500 hover:text-blue-600"
+              }`}
+          >
             {i + 1}. {s.label}
           </button>
         ))}
