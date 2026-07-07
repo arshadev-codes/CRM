@@ -11,6 +11,8 @@ import { exclusionsData } from "@/data/exclusionsData";
 import { getMajorSubsystems } from "@/data/proposalContent";
 import { employeesData, type Employee } from "@/data/employeesData";
 import { companiesData, type Company } from "@/data/companiesData";
+import { supabase } from "@/lib/supabaseClient";
+import { buildOfferBase, buildOfferNumber, getFY, slugCompany } from "@/lib/offerNumber";
 
 
 export interface Customer {
@@ -109,6 +111,16 @@ export interface Project {
   status: "Draft" | "Completed" | "Archived";
   createdAt: number;
   updatedAt: number;
+  /** Sequential offer number within the FY (used for auto-increment) */
+  offerSeq?: number;
+  /** Indian fiscal year, e.g. "2025-26" */
+  fy?: string;
+  /** Company short slug used inside the offer number, e.g. "Neo" */
+  companyShort?: string;
+  /** Revision index: 0 = R0 (original), 1 = R1, ... */
+  revision: number;
+  /** For revisions: id of the offer this was revised from */
+  parentId?: string | null;
   data: ProposalData;
 }
 
@@ -120,7 +132,7 @@ const emptyCustomer = (): Customer => ({
 });
 const emptyMeta = (): Meta => ({
   preparedBy: "jmk", checkedBy: "sb",
-  offerNumber: `Q${String(Math.floor(Math.random()*900)+100)}/2025-26`,
+  offerNumber: "",
   revision: "R0", date: new Date().toISOString().slice(0,10),
 });
 const emptyTransformer = (): Transformer => ({ rating: "500", ratingUnit: "MVA", voltage: "765", voltageUnit: "kV" });
@@ -155,7 +167,7 @@ function defaultsForSystem(systemType: SystemType): ProposalData {
 export function newProject(name = "Untitled Project", systemType: SystemType = "Advanced"): Project {
   const id = crypto.randomUUID();
   const now = Date.now();
-  return { id, name, status: "Draft", createdAt: now, updatedAt: now, data: defaultsForSystem(systemType) };
+  return { id, name, status: "Draft", createdAt: now, updatedAt: now, revision: 0, data: defaultsForSystem(systemType) };
 }
 
 interface ProposalStore {
@@ -169,6 +181,7 @@ interface ProposalStore {
   updateProjectData: (id: string, patch: Partial<ProposalData>) => void;
   setSystemType: (id: string, systemType: SystemType) => void;
   duplicateProject: (id: string) => Project | null;
+  reviseProject: (id: string) => Project | null;
   deleteProject: (id: string) => void;
   archiveProject: (id: string) => void;
   getProject: (id: string) => Project | undefined;
@@ -180,7 +193,54 @@ interface ProposalStore {
   addCompany: (c: Omit<Company, "id"> & { id?: string }) => Company;
   updateCompany: (id: string, patch: Partial<Company>) => void;
   deleteCompany: (id: string) => void;
+  hydrateFromCloud: () => Promise<void>;
+  syncProject: (id: string) => Promise<void>;
   serialize: (id: string) => unknown;
+}
+
+// ---------- Supabase sync helpers ----------
+function projectToRow(p: Project) {
+  return {
+    id: p.id,
+    name: p.name,
+    status: p.status,
+    offer_base: p.offerSeq != null && p.fy && p.companyShort
+      ? buildOfferBase({ seq: p.offerSeq, fy: p.fy, companyShort: p.companyShort })
+      : null,
+    offer_seq: p.offerSeq ?? null,
+    fy: p.fy ?? null,
+    company_short: p.companyShort ?? null,
+    revision: p.revision ?? 0,
+    parent_id: p.parentId ?? null,
+    data: p.data,
+    updated_at: new Date(p.updatedAt).toISOString(),
+    created_at: new Date(p.createdAt).toISOString(),
+  };
+}
+async function pushProject(p: Project) {
+  try {
+    const { error } = await supabase.from("projects").upsert(projectToRow(p), { onConflict: "id" });
+    if (error) console.warn("[supabase] upsert failed:", error.message);
+  } catch (e) { console.warn("[supabase] push error:", e); }
+}
+async function removeProject(id: string) {
+  try { await supabase.from("projects").delete().eq("id", id); }
+  catch (e) { console.warn("[supabase] delete error:", e); }
+}
+
+/** Recompute meta.offerNumber from project's offerSeq/fy/companyShort/revision. */
+function recomputeOfferNumber(p: Project): Project {
+  if (p.offerSeq == null || !p.fy) return p;
+  const offerNumber = buildOfferNumber({
+    seq: p.offerSeq,
+    fy: p.fy,
+    companyShort: p.companyShort ?? p.data.customer.companyShortName ?? "",
+    revision: p.revision ?? 0,
+  });
+  return {
+    ...p,
+    data: { ...p.data, meta: { ...p.data.meta, offerNumber, revision: `R${p.revision ?? 0}` } },
+  };
 }
 
 export const useProposalStore = create<ProposalStore>()(
@@ -192,36 +252,118 @@ export const useProposalStore = create<ProposalStore>()(
       employees: employeesData,
       companies: companiesData,
       createProject: (name) => {
-        const p = newProject(name);
+        // Next global sequence per FY, computed across local projects (cloud hydration keeps this in sync).
+        const p0 = newProject(name);
+        const fy = getFY(p0.data.meta.date);
+        const nextSeq =
+          (get().projects.filter(x => x.fy === fy).reduce((m, x) => Math.max(m, x.offerSeq ?? 0), 0) || 0) + 1;
+        let p: Project = {
+          ...p0,
+          fy,
+          offerSeq: nextSeq,
+          companyShort: slugCompany(p0.data.customer.companyShortName || ""),
+          revision: 0,
+          parentId: null,
+        };
+        p = recomputeOfferNumber(p);
         set(s => ({ projects: [p, ...s.projects] }));
+        void pushProject(p);
         return p;
       },
       updateProject: (id, patch) =>
-        set(s => ({ projects: s.projects.map(p => p.id === id ? { ...p, ...patch, updatedAt: Date.now() } : p) })),
+        set(s => ({ projects: s.projects.map(p => {
+          if (p.id !== id) return p;
+          const merged = { ...p, ...patch, updatedAt: Date.now() };
+          void pushProject(merged);
+          return merged;
+        }) })),
       updateProjectData: (id, patch) =>
-        set(s => ({ projects: s.projects.map(p => p.id === id ? { ...p, data: { ...p.data, ...patch }, updatedAt: Date.now() } : p) })),
+        set(s => ({ projects: s.projects.map(p => {
+          if (p.id !== id) return p;
+          let merged: Project = { ...p, data: { ...p.data, ...patch }, updatedAt: Date.now() };
+          // If company short name changed, refresh the offer number slug.
+          const newShort = slugCompany(merged.data.customer.companyShortName || "");
+          if (newShort !== (merged.companyShort ?? "")) {
+            merged = recomputeOfferNumber({ ...merged, companyShort: newShort });
+          }
+          void pushProject(merged);
+          return merged;
+        }) })),
       setSystemType: (id, systemType) =>
         set(s => ({ projects: s.projects.map(p => {
           if (p.id !== id) return p;
           const fresh = defaultsForSystem(systemType);
-          return { ...p, updatedAt: Date.now(), data: {
+          const merged: Project = { ...p, updatedAt: Date.now(), data: {
             ...fresh,
             customer: p.data.customer,
             meta: p.data.meta,
             transformer: p.data.transformer,
           }};
+          void pushProject(merged);
+          return merged;
         })})),
       duplicateProject: (id) => {
         const src = get().projects.find(p => p.id === id);
         if (!src) return null;
-        const copy: Project = { ...src, id: crypto.randomUUID(), name: src.name + " (Copy)",
+        const fy = getFY(src.data.meta.date);
+        const nextSeq =
+          (get().projects.filter(x => x.fy === fy).reduce((m, x) => Math.max(m, x.offerSeq ?? 0), 0) || 0) + 1;
+        let copy: Project = {
+          ...src, id: crypto.randomUUID(), name: src.name + " (Copy)",
           status: "Draft", createdAt: Date.now(), updatedAt: Date.now(),
-          data: JSON.parse(JSON.stringify(src.data)) };
+          fy, offerSeq: nextSeq, revision: 0, parentId: null,
+          data: JSON.parse(JSON.stringify(src.data)),
+        };
+        copy = recomputeOfferNumber(copy);
         set(s => ({ projects: [copy, ...s.projects] }));
+        void pushProject(copy);
         return copy;
       },
-      deleteProject: (id) => set(s => ({ projects: s.projects.filter(p => p.id !== id) })),
-      archiveProject: (id) => set(s => ({ projects: s.projects.map(p => p.id === id ? { ...p, status: "Archived", updatedAt: Date.now() } : p) })),
+      reviseProject: (id) => {
+        const src = get().projects.find(p => p.id === id);
+        if (!src) return null;
+        // Walk back to the original to keep the base offer number stable across R1, R2, ...
+        const root = (() => {
+          let cur = src;
+          while (cur.parentId) {
+            const parent = get().projects.find(x => x.id === cur.parentId);
+            if (!parent) break;
+            cur = parent;
+          }
+          return cur;
+        })();
+        // Next revision index = 1 + max revision of any offer sharing this root
+        const family = get().projects.filter(x => x.id === root.id || x.parentId === root.id);
+        const nextRev = family.reduce((m, x) => Math.max(m, x.revision ?? 0), 0) + 1;
+        let copy: Project = {
+          ...src,
+          id: crypto.randomUUID(),
+          name: `${root.name} (R${nextRev})`,
+          status: "Draft",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          fy: root.fy,
+          offerSeq: root.offerSeq,
+          companyShort: root.companyShort,
+          revision: nextRev,
+          parentId: root.id,
+          data: JSON.parse(JSON.stringify(src.data)),
+        };
+        copy = recomputeOfferNumber(copy);
+        set(s => ({ projects: [copy, ...s.projects] }));
+        void pushProject(copy);
+        return copy;
+      },
+      deleteProject: (id) => {
+        set(s => ({ projects: s.projects.filter(p => p.id !== id) }));
+        void removeProject(id);
+      },
+      archiveProject: (id) => set(s => ({ projects: s.projects.map(p => {
+        if (p.id !== id) return p;
+        const merged = { ...p, status: "Archived" as const, updatedAt: Date.now() };
+        void pushProject(merged);
+        return merged;
+      }) })),
       getProject: (id) => get().projects.find(p => p.id === id),
       setCms: (key, value) => set(s => ({ cmsOverrides: { ...s.cmsOverrides, [key]: value } })),
       savePaymentTemplate: (name, milestones) =>
@@ -244,6 +386,39 @@ export const useProposalStore = create<ProposalStore>()(
         set(s => ({ companies: s.companies.map(c => c.id === id ? { ...c, ...patch } : c) })),
       deleteCompany: (id) =>
         set(s => ({ companies: s.companies.filter(c => c.id !== id) })),
+      syncProject: async (id) => {
+        const p = get().projects.find(x => x.id === id);
+        if (p) await pushProject(p);
+      },
+      hydrateFromCloud: async () => {
+        try {
+          const { data, error } = await supabase.from("projects").select("*").order("updated_at", { ascending: false });
+          if (error) { console.warn("[supabase] hydrate failed:", error.message); return; }
+          if (!data) return;
+          const cloud: Project[] = data.map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            status: (r.status ?? "Draft") as Project["status"],
+            createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+            updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
+            offerSeq: r.offer_seq ?? undefined,
+            fy: r.fy ?? undefined,
+            companyShort: r.company_short ?? undefined,
+            revision: r.revision ?? 0,
+            parentId: r.parent_id ?? null,
+            data: r.data as ProposalData,
+          }));
+          // Merge: cloud wins by id; keep local-only projects that haven't synced yet.
+          const local = get().projects;
+          const map = new Map<string, Project>();
+          for (const p of local) map.set(p.id, p);
+          for (const p of cloud) {
+            const existing = map.get(p.id);
+            if (!existing || p.updatedAt >= existing.updatedAt) map.set(p.id, p);
+          }
+          set({ projects: Array.from(map.values()).sort((a, b) => b.updatedAt - a.updatedAt) });
+        } catch (e) { console.warn("[supabase] hydrate error:", e); }
+      },
       serialize: (id) => {
         const p = get().getProject(id);
         if (!p) return null;

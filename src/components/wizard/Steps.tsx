@@ -1034,11 +1034,10 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
   // predated that field — causing `pricing.scopeOfServices[r.key]` to throw
   // "Cannot read properties of undefined (reading '...')" in the Scope of Services table below.
   const pricing: PricingData = {
-    scopeOfSupply: {},
-    instruments: {},
-    equipment: {},
-    scopeOfServices: {},
-    ...project.data.pricing,
+    scopeOfSupply: project.data.pricing?.scopeOfSupply ?? {},
+    instruments: project.data.pricing?.instruments ?? {},
+    equipment: project.data.pricing?.equipment ?? {},
+    scopeOfServices: project.data.pricing?.scopeOfServices ?? {},
   };
 
   const setEntry = (section: "scopeOfSupply" | "instruments" | "equipment", key: string, patch: Partial<PriceEntry>) => {
