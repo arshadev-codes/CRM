@@ -5,7 +5,7 @@ import { useProposalStore } from "@/store/proposalStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { ChevronLeft, ChevronRight, Save, Eye, Printer } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Eye, Printer, RefreshCw } from "lucide-react";
 import {
   Step1ProjectSetup, Step2Tests, Step3Subsystems, Step3bSystemLayout, Step4InstrumentsEquipment,
   Step5Proprietary, Step6Delivery, Step7ExclusionsMakes, StepPricing, Step8Payment, Step9Review,
