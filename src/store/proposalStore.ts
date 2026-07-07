@@ -181,6 +181,7 @@ interface ProposalStore {
   updateProjectData: (id: string, patch: Partial<ProposalData>) => void;
   setSystemType: (id: string, systemType: SystemType) => void;
   duplicateProject: (id: string) => Project | null;
+  reviseProject: (id: string) => Project | null;
   deleteProject: (id: string) => void;
   archiveProject: (id: string) => void;
   getProject: (id: string) => Project | undefined;
@@ -192,7 +193,54 @@ interface ProposalStore {
   addCompany: (c: Omit<Company, "id"> & { id?: string }) => Company;
   updateCompany: (id: string, patch: Partial<Company>) => void;
   deleteCompany: (id: string) => void;
+  hydrateFromCloud: () => Promise<void>;
+  syncProject: (id: string) => Promise<void>;
   serialize: (id: string) => unknown;
+}
+
+// ---------- Supabase sync helpers ----------
+function projectToRow(p: Project) {
+  return {
+    id: p.id,
+    name: p.name,
+    status: p.status,
+    offer_base: p.offerSeq != null && p.fy && p.companyShort
+      ? buildOfferBase({ seq: p.offerSeq, fy: p.fy, companyShort: p.companyShort })
+      : null,
+    offer_seq: p.offerSeq ?? null,
+    fy: p.fy ?? null,
+    company_short: p.companyShort ?? null,
+    revision: p.revision ?? 0,
+    parent_id: p.parentId ?? null,
+    data: p.data,
+    updated_at: new Date(p.updatedAt).toISOString(),
+    created_at: new Date(p.createdAt).toISOString(),
+  };
+}
+async function pushProject(p: Project) {
+  try {
+    const { error } = await supabase.from("projects").upsert(projectToRow(p), { onConflict: "id" });
+    if (error) console.warn("[supabase] upsert failed:", error.message);
+  } catch (e) { console.warn("[supabase] push error:", e); }
+}
+async function removeProject(id: string) {
+  try { await supabase.from("projects").delete().eq("id", id); }
+  catch (e) { console.warn("[supabase] delete error:", e); }
+}
+
+/** Recompute meta.offerNumber from project's offerSeq/fy/companyShort/revision. */
+function recomputeOfferNumber(p: Project): Project {
+  if (p.offerSeq == null || !p.fy) return p;
+  const offerNumber = buildOfferNumber({
+    seq: p.offerSeq,
+    fy: p.fy,
+    companyShort: p.companyShort ?? p.data.customer.companyShortName ?? "",
+    revision: p.revision ?? 0,
+  });
+  return {
+    ...p,
+    data: { ...p.data, meta: { ...p.data.meta, offerNumber, revision: `R${p.revision ?? 0}` } },
+  };
 }
 
 export const useProposalStore = create<ProposalStore>()(
