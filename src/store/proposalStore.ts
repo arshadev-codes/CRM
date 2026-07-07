@@ -252,36 +252,118 @@ export const useProposalStore = create<ProposalStore>()(
       employees: employeesData,
       companies: companiesData,
       createProject: (name) => {
-        const p = newProject(name);
+        // Next global sequence per FY, computed across local projects (cloud hydration keeps this in sync).
+        const p0 = newProject(name);
+        const fy = getFY(p0.data.meta.date);
+        const nextSeq =
+          (get().projects.filter(x => x.fy === fy).reduce((m, x) => Math.max(m, x.offerSeq ?? 0), 0) || 0) + 1;
+        let p: Project = {
+          ...p0,
+          fy,
+          offerSeq: nextSeq,
+          companyShort: slugCompany(p0.data.customer.companyShortName || ""),
+          revision: 0,
+          parentId: null,
+        };
+        p = recomputeOfferNumber(p);
         set(s => ({ projects: [p, ...s.projects] }));
+        void pushProject(p);
         return p;
       },
       updateProject: (id, patch) =>
-        set(s => ({ projects: s.projects.map(p => p.id === id ? { ...p, ...patch, updatedAt: Date.now() } : p) })),
+        set(s => ({ projects: s.projects.map(p => {
+          if (p.id !== id) return p;
+          const merged = { ...p, ...patch, updatedAt: Date.now() };
+          void pushProject(merged);
+          return merged;
+        }) })),
       updateProjectData: (id, patch) =>
-        set(s => ({ projects: s.projects.map(p => p.id === id ? { ...p, data: { ...p.data, ...patch }, updatedAt: Date.now() } : p) })),
+        set(s => ({ projects: s.projects.map(p => {
+          if (p.id !== id) return p;
+          let merged: Project = { ...p, data: { ...p.data, ...patch }, updatedAt: Date.now() };
+          // If company short name changed, refresh the offer number slug.
+          const newShort = slugCompany(merged.data.customer.companyShortName || "");
+          if (newShort !== (merged.companyShort ?? "")) {
+            merged = recomputeOfferNumber({ ...merged, companyShort: newShort });
+          }
+          void pushProject(merged);
+          return merged;
+        }) })),
       setSystemType: (id, systemType) =>
         set(s => ({ projects: s.projects.map(p => {
           if (p.id !== id) return p;
           const fresh = defaultsForSystem(systemType);
-          return { ...p, updatedAt: Date.now(), data: {
+          const merged: Project = { ...p, updatedAt: Date.now(), data: {
             ...fresh,
             customer: p.data.customer,
             meta: p.data.meta,
             transformer: p.data.transformer,
           }};
+          void pushProject(merged);
+          return merged;
         })})),
       duplicateProject: (id) => {
         const src = get().projects.find(p => p.id === id);
         if (!src) return null;
-        const copy: Project = { ...src, id: crypto.randomUUID(), name: src.name + " (Copy)",
+        const fy = getFY(src.data.meta.date);
+        const nextSeq =
+          (get().projects.filter(x => x.fy === fy).reduce((m, x) => Math.max(m, x.offerSeq ?? 0), 0) || 0) + 1;
+        let copy: Project = {
+          ...src, id: crypto.randomUUID(), name: src.name + " (Copy)",
           status: "Draft", createdAt: Date.now(), updatedAt: Date.now(),
-          data: JSON.parse(JSON.stringify(src.data)) };
+          fy, offerSeq: nextSeq, revision: 0, parentId: null,
+          data: JSON.parse(JSON.stringify(src.data)),
+        };
+        copy = recomputeOfferNumber(copy);
         set(s => ({ projects: [copy, ...s.projects] }));
+        void pushProject(copy);
         return copy;
       },
-      deleteProject: (id) => set(s => ({ projects: s.projects.filter(p => p.id !== id) })),
-      archiveProject: (id) => set(s => ({ projects: s.projects.map(p => p.id === id ? { ...p, status: "Archived", updatedAt: Date.now() } : p) })),
+      reviseProject: (id) => {
+        const src = get().projects.find(p => p.id === id);
+        if (!src) return null;
+        // Walk back to the original to keep the base offer number stable across R1, R2, ...
+        const root = (() => {
+          let cur = src;
+          while (cur.parentId) {
+            const parent = get().projects.find(x => x.id === cur.parentId);
+            if (!parent) break;
+            cur = parent;
+          }
+          return cur;
+        })();
+        // Next revision index = 1 + max revision of any offer sharing this root
+        const family = get().projects.filter(x => x.id === root.id || x.parentId === root.id);
+        const nextRev = family.reduce((m, x) => Math.max(m, x.revision ?? 0), 0) + 1;
+        let copy: Project = {
+          ...src,
+          id: crypto.randomUUID(),
+          name: `${root.name} (R${nextRev})`,
+          status: "Draft",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          fy: root.fy,
+          offerSeq: root.offerSeq,
+          companyShort: root.companyShort,
+          revision: nextRev,
+          parentId: root.id,
+          data: JSON.parse(JSON.stringify(src.data)),
+        };
+        copy = recomputeOfferNumber(copy);
+        set(s => ({ projects: [copy, ...s.projects] }));
+        void pushProject(copy);
+        return copy;
+      },
+      deleteProject: (id) => {
+        set(s => ({ projects: s.projects.filter(p => p.id !== id) }));
+        void removeProject(id);
+      },
+      archiveProject: (id) => set(s => ({ projects: s.projects.map(p => {
+        if (p.id !== id) return p;
+        const merged = { ...p, status: "Archived" as const, updatedAt: Date.now() };
+        void pushProject(merged);
+        return merged;
+      }) })),
       getProject: (id) => get().projects.find(p => p.id === id),
       setCms: (key, value) => set(s => ({ cmsOverrides: { ...s.cmsOverrides, [key]: value } })),
       savePaymentTemplate: (name, milestones) =>
