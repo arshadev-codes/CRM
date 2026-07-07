@@ -1,137 +1,97 @@
-# Proposal Engine — Build Plan
+## Scope
 
-A data-driven techno-commercial proposal builder. Wizard collects structured data, data layer feeds 24 PDF pages, Puppeteer-ready print route exports. All content editable via Settings (CMS), nothing hardcoded in components.
+Three deliverables:
+1. Wire the app to **your external Supabase** for project persistence (keys you shared).
+2. **Auto-generate offer numbers** as `Q{NNN}/{FY}/{CompanyShort}/TTS/R{n}`.
+3. **Revise Offer** button on completed projects → duplicates as next revision.
 
-## Scope split (important)
+---
 
-This is a very large build. I'll deliver it in **two phases** in this turn:
+## 1. Supabase connection
 
-**Phase 1 (this turn) — full app skeleton + working data flow end-to-end:**
-- Project dashboard (create / edit / duplicate / delete / archive, localStorage)
-- Full multi-step wizard, all 9 steps from your revised flow
-- Complete data architecture under `src/data/` and `src/data/pageContent/{advanced,fullyAutomatic,semiAutomatic,conventional}/`
-- Zustand proposal store matching your existing shape (`meta`, `rfqCover`, `requirement`, `technicalPages`, `commercialPages`, `serialize()`, `hydrate()`)
-- Settings CMS for: Major Sub Systems, Scope of Supply, Scope of Services, Exclusions, Makes of Supply, Delivery Templates, Payment Templates, Instrument Library, Equipment Library, Test Library, Employee Master
-- Print route `/print/:projectId` that renders all PDF pages, ready for Puppeteer
-- **PDF pages: 3 fully built reference pages (RFQ cover p1, Statement of Requirement, Scope of Supply) + 21 structured placeholder pages** that consume the data correctly. Layout matches A4 forensic measurements from your snippets. Replacing a placeholder with your real layout later = drop-in, no data wiring needed.
+- URL `https://cxvdlpnmzgbunukcsynr.supabase.co` and the publishable key `sb_publishable_...` → stored as `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (safe, publishable).
+- Service secret `sb_secret_...` → stored via `set_secret` as `SUPABASE_SERVICE_ROLE_KEY` (never shipped to browser).
+- New file `src/lib/supabaseClient.ts` — plain browser client with the publishable key.
+- Extend the Zustand store to **mirror project writes to Supabase** (`projects` table) with an `upsert` on save, and hydrate `projects` from Supabase on app boot (fallback to local cache if offline).
 
-**Phase 2 (you ask, next turn) — fill in remaining 21 PDF pages** with the exact layouts from your sample PDF/XLSX. I'll do these in batches once Phase 1 is approved, because each page needs forensic measurement work.
+Persisting the full nested `ProposalData` as JSONB keeps the schema tiny and avoids rewriting every wizard step.
 
-## Routes
+### SQL you run in your Supabase SQL editor
 
-```
-/                              Project dashboard
-/projects/new                  Create + go to wizard
-/projects/:id/wizard           Multi-step wizard (steps 1–9)
-/projects/:id/wizard/:step     Direct step access
-/projects/:id/preview          On-screen preview of all 24 pages
-/print/:id                     Puppeteer entry (no chrome, hydrates from localStorage or ?data=)
-/settings                      Settings home
-/settings/subsystems           CMS: major sub systems (per system type)
-/settings/scope-supply
-/settings/scope-services
-/settings/exclusions
-/settings/makes
-/settings/delivery
-/settings/payment
-/settings/instruments
-/settings/equipment
-/settings/tests
-/settings/employees
-```
+I'll write this to `supabase-schema.sql` in the repo for you to copy:
 
-## Wizard (revised flow you specified)
+```sql
+create table public.projects (
+  id uuid primary key,
+  name text not null,
+  status text not null default 'Draft',
+  offer_base text,         -- "Q001/2025-26/Neo/TTS"
+  offer_seq int,           -- 1  (used for auto-increment)
+  fy text,                 -- "2025-26"
+  company_short text,      -- "Neo"
+  revision int not null default 0,
+  parent_id uuid references public.projects(id),  -- set on revisions
+  data jsonb not null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index projects_offer_seq_idx on public.projects(fy, offer_seq);
 
-1. **Project Setup** (merged) — Customer + Proposal + Transformer + System Type
-   - Customer: title, contact person, designation, mobile, alt mobile, email, company full name, short name, address, city, state, country, GST
-   - Proposal: prepared by (employee dropdown), checked by (employee dropdown), offer number (auto), revision (R0–R10), date (auto)
-   - Transformer: rating + unit (MVA/KVA), voltage + unit (kV)
-   - System Type: 4 large cards (Advanced / Fully Automatic / Semi Automatic / Conventional)
-2. **Tests** — multi-select cards from test library
-3. **Major Sub Systems** — checkbox list (title + small preview only); descriptions/images pulled from CMS at PDF time
-4. **Instruments + Equipment** — two editable tables on one step
-   - Instruments cols: Instrument, Make, Model, Spec-1..5, Qty, Price
-   - Equipment cols: Equipment, Yes/No, Spec-1..5, Qty, Price
-5. **Proprietary Items** — checkbox list
-6. **Delivery** — rows of (Deliverable, Duration dropdown 1–2…19–20 weeks / TBD / Custom)
-7. **Exclusions + Makes of Supply** — two sections
-   - Exclusions: checkbox list from CMS
-   - Makes: per-row enable + manufacturer dropdown (ABB, Siemens, Schneider, Electrosoft, Delta, Moonlight, Customer Specified, Custom)
-8. **Payment** — editable % rows, must sum to 100; Save as Template / Load Template; defaults 20-10-60-10, 30-20-40-10
-9. **Review** — summary + Generate PDF / Save Draft
-
-Progress bar across top, autosave to localStorage on every change, "Save & Exit" returns to dashboard.
-
-## System type → content mapping
-
-`src/data/systemConfiguration.js` controls per-system-type defaults:
-
-```js
-{
-  Advanced:        { software: 'Yes', lvTrolley: 'Automatic',          contentDir: 'advanced',        defaultTests: [...], defaultInstruments: [...], defaultEquipment: [...], defaultSubsystems: [...] },
-  FullyAutomatic:  { software: 'Yes', lvTrolley: 'Automatic',          contentDir: 'fullyAutomatic',  ... },
-  SemiAutomatic:   { software: 'Report Generation Only', lvTrolley: 'Manual', contentDir: 'semiAutomatic', ... },
-  Conventional:    { software: 'No',  lvTrolley: 'Manual',             contentDir: 'conventional',    ... },
-}
+grant select, insert, update, delete on public.projects to anon;
+grant all on public.projects to service_role;
+alter table public.projects enable row level security;
+create policy "public rw" on public.projects for all using (true) with check (true);
 ```
 
-Wizard reads this on system-type change to pre-fill defaults. PDF pages read it to resolve software/trolley language and pull content from the right `pageContent/<dir>/` files.
+(Open policy — matches your current no-auth setup. Tighten later when you add login.)
 
-## Data architecture
+---
 
-```
-src/data/
-  employeesData.js          # employee master
-  systemTypesData.js        # 4 system types metadata
-  systemConfiguration.js    # mapping engine
-  testsData.js              # full test library (id, title, description, group)
-  instrumentsData.js        # default instrument library
-  equipmentData.js          # default equipment library
-  subsystemsData.js         # major subsystems library (title, preview, full description, image, systemType)
-  scopeOfSupplyData.js
-  scopeOfServicesData.js
-  exclusionsData.js
-  makesOfSupplyData.js      # rows + manufacturer options
-  deliveryData.js           # default deliverable rows + duration options
-  paymentTermsData.js       # default templates
-  proprietaryItemsData.js
-  pageContent/
-    advanced/page4.js ... page24.js     # one file per page
-    fullyAutomatic/                     # professional placeholder content
-    semiAutomatic/
-    conventional/
-```
+## 2. Offer number generation
 
-Every file is a plain JS module exporting structured data. Editing a file = changing proposal content. CMS pages in Settings write to localStorage overrides keyed by the same IDs; PDF renderer merges (overrides > data file).
+Format: `Q{seq3}/{FY}/{CompanyShort}/TTS/R{rev}`
 
-## Store
+- `seq3` — next global sequence, zero-padded 3 digits. Computed as `max(offer_seq) + 1` across all projects in the current FY (queried from Supabase, falls back to local store).
+- `FY` — Indian fiscal year from project `date` (Apr–Mar), e.g. `2025-26`.
+- `CompanyShort` — from `customer.companyShortName`; auto-slug (spaces stripped, capitalize first letter, e.g. `Neo`). Fallback `XXX` if empty.
+- `TTS` — fixed literal.
+- `R{rev}` — starts `R0`, incremented on Revise.
 
-Zustand store mirroring the shape you pasted. Adds:
-- `projects[]` (dashboard list) — id, name, status, created, updated, snapshot of all wizard data
-- `currentProjectId`
-- `loadProject(id)` / `saveProject()` / `duplicateProject(id)` / `deleteProject(id)`
-- `cmsOverrides` (settings edits)
-- `serialize()` returns the same shape your existing Puppeteer flow expects, so wiring your real PDF pages later is a no-op
+Wired in `src/store/proposalStore.ts` so `meta.offerNumber` is rebuilt when company name changes or on project creation.
 
-Persistence: zustand `persist` middleware → localStorage. Images stored as base64 data URLs (Page13 pattern from your snippet).
+---
 
-## PDF pages (in this phase)
+## 3. Revise Offer flow
 
-- Print route renders pages back-to-back in A4 frames (`width: 210mm; height: 297mm`) so Puppeteer `printToPDF` gives identical output.
-- Shared `PdfHeader` / `PdfFooter` components.
-- **Fully built (3):** RFQPdf (p1), RequirementPdf (Statement of Requirement, p3), ScopeOfSupplyPdf — these use the exact forensic measurements from your snippets.
-- **Structured stubs (21):** correct A4 frame, header/footer, page title, and the right data bound from the store. Body uses a clean placeholder block. When you give me the real layouts in Phase 2, I swap the body — store wiring already works.
+- Dashboard (`src/routes/index.tsx`) project card: when `status === "Completed"`, show a **Revise Offer** button.
+- Handler calls a new store action `reviseProject(id)`:
+  - Deep-clones the project.
+  - New `id`, `parent_id = original.id`, `revision = original.revision + 1`, `status = "Draft"`.
+  - Keeps same `offer_base` / `offer_seq` / `FY` / `company_short` — only `R{n}` changes.
+  - Rebuilds `meta.offerNumber` and `meta.revision = "R{n}"`.
+  - Persists to Supabase + opens the wizard.
+- Also surfaced on the project preview/wizard header ("Revise" button visible when completed).
 
-## UI
+---
 
-ShadCN + Tailwind, clean white + blue theme (Electrosoft branding). Industrial SaaS feel — sidebar nav (Dashboard / Projects / Settings), top progress bar in wizard, autosave indicator. Responsive but optimized for desktop (this is a back-office tool).
+## Files touched
 
-## What I'm NOT doing in Phase 1
+**New**
+- `supabase-schema.sql` — the SQL block above
+- `src/lib/supabaseClient.ts` — browser Supabase client
+- `src/lib/offerNumber.ts` — pure helpers (`buildOfferNumber`, `nextOfferSeq`, `getFY`, `slugCompany`)
 
-- Lovable Cloud / multi-user / auth (you chose localStorage)
-- Actual Puppeteer server (you have your own)
-- Recreating the remaining 21 PDF pages pixel-for-pixel — those land in Phase 2
+**Edited**
+- `src/store/proposalStore.ts` — Supabase sync, `reviseProject`, offer-number wiring on create/company change
+- `src/routes/index.tsx` — Revise Offer button on completed cards
+- `src/routes/projects.$id.wizard.tsx` — Revise button in header when completed
+- `.env` handling via `set_secret` for the service key
 
-## Confirm to proceed
+**Not touched**
+- All PDF pages, wizard steps, and neomorphic UI stay as-is.
 
-If this scope is right, I'll start building Phase 1. If you'd rather I build fewer PDF pages and spend more time polishing the wizard CMS, or vice versa, tell me now.
+---
+
+## After you approve
+
+I'll implement in one pass and then hand you the SQL to paste into your Supabase SQL editor.
