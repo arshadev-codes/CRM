@@ -167,7 +167,7 @@ function defaultsForSystem(systemType: SystemType): ProposalData {
 export function newProject(name = "Untitled Project", systemType: SystemType = "Advanced"): Project {
   const id = crypto.randomUUID();
   const now = Date.now();
-  return { id, name, status: "Draft", createdAt: now, updatedAt: now, data: defaultsForSystem(systemType) };
+  return { id, name, status: "Draft", createdAt: now, updatedAt: now, revision: 0, data: defaultsForSystem(systemType) };
 }
 
 interface ProposalStore {
