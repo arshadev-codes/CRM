@@ -35,6 +35,7 @@ function Wizard() {
   const project = useProposalStore(s => s.projects.find(p => p.id === id));
   const updateProjectData = useProposalStore(s => s.updateProjectData);
   const updateProject = useProposalStore(s => s.updateProject);
+  const reviseProject = useProposalStore(s => s.reviseProject);
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
 
