@@ -258,6 +258,12 @@ function Dashboard() {
                   {p.data.transformer.voltageUnit}
                 </p>
 
+                {p.data.meta.offerNumber && (
+                  <p className="text-[11px] font-mono text-indigo-600 mt-2 truncate" title={p.data.meta.offerNumber}>
+                    {p.data.meta.offerNumber}
+                  </p>
+                )}
+
                 <p className="text-xs text-slate-500 mt-3 mb-4">
                   {p.data.customer.companyShortName ||
                     p.data.customer.companyFullName ||
@@ -275,6 +281,18 @@ function Dashboard() {
                   >
                     Edit
                   </Button>
+                  {p.status === "Completed" && (
+                    <Button
+                      size="sm"
+                      className="neo-pop !bg-transparent !text-emerald-700 font-medium
+                                 transition-transform active:scale-[0.94] active:shadow-inner"
+                      onClick={() => handleRevise(p.id)}
+                      title="Create next revision (R+1)"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                      Revise Offer
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"
