@@ -111,6 +111,16 @@ export interface Project {
   status: "Draft" | "Completed" | "Archived";
   createdAt: number;
   updatedAt: number;
+  /** Sequential offer number within the FY (used for auto-increment) */
+  offerSeq?: number;
+  /** Indian fiscal year, e.g. "2025-26" */
+  fy?: string;
+  /** Company short slug used inside the offer number, e.g. "Neo" */
+  companyShort?: string;
+  /** Revision index: 0 = R0 (original), 1 = R1, ... */
+  revision: number;
+  /** For revisions: id of the offer this was revised from */
+  parentId?: string | null;
   data: ProposalData;
 }
 
@@ -122,7 +132,7 @@ const emptyCustomer = (): Customer => ({
 });
 const emptyMeta = (): Meta => ({
   preparedBy: "jmk", checkedBy: "sb",
-  offerNumber: `Q${String(Math.floor(Math.random()*900)+100)}/2025-26`,
+  offerNumber: "",
   revision: "R0", date: new Date().toISOString().slice(0,10),
 });
 const emptyTransformer = (): Transformer => ({ rating: "500", ratingUnit: "MVA", voltage: "765", voltageUnit: "kV" });
