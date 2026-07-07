@@ -55,9 +55,20 @@ function Wizard() {
         <div className="flex-1">
           <Input value={project.name} onChange={e => updateProject(project.id, { name: e.target.value })}
             className="text-xl font-bold border-0 px-0 h-auto focus-visible:ring-0 shadow-none" />
-          <div className="text-xs text-muted-foreground">Autosaved · {new Date(project.updatedAt).toLocaleTimeString()}</div>
+          <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+            {project.data.meta.offerNumber && (
+              <span className="font-mono text-indigo-600">{project.data.meta.offerNumber}</span>
+            )}
+            <span>· Autosaved · {new Date(project.updatedAt).toLocaleTimeString()}</span>
+          </div>
         </div>
         <div className="flex gap-2 shrink-0">
+          {project.status === "Completed" && (
+            <Button size="sm" variant="outline" onClick={() => {
+              const p = reviseProject(project.id);
+              if (p) { toast.success(`Created R${p.revision}`); navigate({ to: "/projects/$id/wizard", params: { id: p.id } }); }
+            }}><RefreshCw className="h-3 w-3 mr-1" />Revise Offer</Button>
+          )}
           <Button size="sm" variant="outline" onClick={() => { updateProject(project.id, { status: "Completed" }); toast.success("Marked completed"); }}><Save className="h-3 w-3 mr-1" />Save Draft</Button>
           <Button size="sm" variant="outline" onClick={() => navigate({ to: "/projects/$id/preview", params: { id: project.id } })}><Eye className="h-3 w-3 mr-1" />Preview</Button>
           <Button size="sm" onClick={() => window.open(`/print/${project.id}`, "_blank")}><Printer className="h-3 w-3 mr-1" />Generate</Button>
