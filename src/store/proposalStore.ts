@@ -11,6 +11,8 @@ import { exclusionsData } from "@/data/exclusionsData";
 import { getMajorSubsystems } from "@/data/proposalContent";
 import { employeesData, type Employee } from "@/data/employeesData";
 import { companiesData, type Company } from "@/data/companiesData";
+import { supabase } from "@/lib/supabaseClient";
+import { buildOfferBase, buildOfferNumber, getFY, slugCompany } from "@/lib/offerNumber";
 
 
 export interface Customer {
