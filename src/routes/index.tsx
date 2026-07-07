@@ -55,15 +55,24 @@ function Dashboard() {
   const projects = useProposalStore((s) => s.projects);
   const createProject = useProposalStore((s) => s.createProject);
   const duplicate = useProposalStore((s) => s.duplicateProject);
+  const revise = useProposalStore((s) => s.reviseProject);
   const remove = useProposalStore((s) => s.deleteProject);
   const archive = useProposalStore((s) => s.archiveProject);
+  const hydrateFromCloud = useProposalStore((s) => s.hydrateFromCloud);
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("All");
 
+  useEffect(() => { void hydrateFromCloud(); }, [hydrateFromCloud]);
+
   const handleCreate = () => {
     const p = createProject(`Proposal ${new Date().toLocaleDateString()}`);
     navigate({ to: "/projects/$id/wizard", params: { id: p.id } });
+  };
+
+  const handleRevise = (id: string) => {
+    const p = revise(id);
+    if (p) navigate({ to: "/projects/$id/wizard", params: { id: p.id } });
   };
 
   const counts = {
