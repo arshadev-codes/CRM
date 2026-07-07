@@ -386,6 +386,39 @@ export const useProposalStore = create<ProposalStore>()(
         set(s => ({ companies: s.companies.map(c => c.id === id ? { ...c, ...patch } : c) })),
       deleteCompany: (id) =>
         set(s => ({ companies: s.companies.filter(c => c.id !== id) })),
+      syncProject: async (id) => {
+        const p = get().projects.find(x => x.id === id);
+        if (p) await pushProject(p);
+      },
+      hydrateFromCloud: async () => {
+        try {
+          const { data, error } = await supabase.from("projects").select("*").order("updated_at", { ascending: false });
+          if (error) { console.warn("[supabase] hydrate failed:", error.message); return; }
+          if (!data) return;
+          const cloud: Project[] = data.map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            status: (r.status ?? "Draft") as Project["status"],
+            createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+            updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
+            offerSeq: r.offer_seq ?? undefined,
+            fy: r.fy ?? undefined,
+            companyShort: r.company_short ?? undefined,
+            revision: r.revision ?? 0,
+            parentId: r.parent_id ?? null,
+            data: r.data as ProposalData,
+          }));
+          // Merge: cloud wins by id; keep local-only projects that haven't synced yet.
+          const local = get().projects;
+          const map = new Map<string, Project>();
+          for (const p of local) map.set(p.id, p);
+          for (const p of cloud) {
+            const existing = map.get(p.id);
+            if (!existing || p.updatedAt >= existing.updatedAt) map.set(p.id, p);
+          }
+          set({ projects: Array.from(map.values()).sort((a, b) => b.updatedAt - a.updatedAt) });
+        } catch (e) { console.warn("[supabase] hydrate error:", e); }
+      },
       serialize: (id) => {
         const p = get().getProject(id);
         if (!p) return null;
