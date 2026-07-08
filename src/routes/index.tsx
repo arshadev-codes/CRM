@@ -352,7 +352,7 @@ function Dashboard() {
                     variant="ghost"
                     className="neo-pop !bg-transparent !text-red-500 h-9 w-9 p-0 ml-auto
                                transition-transform active:scale-90 active:shadow-inner"
-                    onClick={() => confirm(`Delete "${p.name}"?`) && remove(p.id)}
+                    onClick={() => handleDelete(p.id, p.data.meta.offerNumber || p.name)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
