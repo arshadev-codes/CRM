@@ -260,8 +260,8 @@ function Dashboard() {
                 }}
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="font-semibold text-base truncate text-slate-800">
-                    {p.name}
+                  <div className="font-mono font-semibold text-sm truncate text-slate-800" title={p.data.meta.offerNumber || p.name}>
+                    {p.data.meta.offerNumber || p.name}
                   </div>
                   <span
                     className={`shrink-0 text-[10px] font-semibold uppercase tracking-wide
@@ -271,17 +271,15 @@ function Dashboard() {
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-500">
+                {p.name && p.data.meta.offerNumber && (
+                  <p className="text-xs text-slate-600 truncate">{p.name}</p>
+                )}
+
+                <p className="text-xs text-slate-500 mt-1">
                   {p.data.systemType} · {p.data.transformer.rating}{" "}
                   {p.data.transformer.ratingUnit}, {p.data.transformer.voltage}{" "}
                   {p.data.transformer.voltageUnit}
                 </p>
-
-                {p.data.meta.offerNumber && (
-                  <p className="text-[11px] font-mono text-indigo-600 mt-2 truncate" title={p.data.meta.offerNumber}>
-                    {p.data.meta.offerNumber}
-                  </p>
-                )}
 
                 <p className="text-xs text-slate-500 mt-3 mb-4">
                   {p.data.customer.companyShortName ||
@@ -290,6 +288,7 @@ function Dashboard() {
                   <br />
                   Updated {new Date(p.updatedAt).toLocaleDateString()}
                 </p>
+
 
                 <div className="flex flex-wrap gap-1.5">
                   <Button
