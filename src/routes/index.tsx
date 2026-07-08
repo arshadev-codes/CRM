@@ -198,7 +198,7 @@ function Dashboard() {
       <div className="mb-6 relative max-w-sm">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
         <input
-          placeholder="Search projects…"
+          placeholder="Search by offer number, company…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="neo-inset w-full pl-10 pr-4 py-2.5 text-sm bg-transparent outline-none
