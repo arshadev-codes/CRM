@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
+import { toast } from "sonner";
+
+const DELETE_PASSWORD = "electrosoft@2025";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "Dashboard — Electrosoft Proposal Engine" }] }),
