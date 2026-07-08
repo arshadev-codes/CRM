@@ -86,10 +86,26 @@ function Dashboard() {
   };
 
   const filtered = useMemo(() => {
-    return projects
-      .filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
-      .filter((p) => filter === "All" || p.status === filter);
+    const qq = q.trim().toLowerCase();
+    const matched = projects
+      .filter((p) => {
+        if (!qq) return true;
+        const hay = `${p.name} ${p.data.meta.offerNumber ?? ""} ${p.data.customer.companyFullName ?? ""} ${p.data.customer.companyShortName ?? ""}`.toLowerCase();
+        return hay.includes(qq);
+      })
+      .filter((p) => filter === "All" || p.status === filter)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+    // Without a search, show only the 10 most recent. Searching reveals everything.
+    return qq ? matched : matched.slice(0, 10);
   }, [projects, q, filter]);
+
+  const handleDelete = (id: string, label: string) => {
+    const pwd = window.prompt(`Enter password to permanently delete "${label}":`);
+    if (pwd == null) return;
+    if (pwd !== DELETE_PASSWORD) { toast.error("Incorrect password. Deletion cancelled."); return; }
+    remove(id);
+    toast.success("Offer deleted from database and dashboard.");
+  };
 
   const gridRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
