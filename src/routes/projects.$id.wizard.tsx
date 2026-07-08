@@ -127,7 +127,7 @@ function Wizard() {
         {step < STEPS.length - 1 ? (
           <Button onClick={() => setStep(s => s + 1)}>Next<ChevronRight className="h-4 w-4 ml-1" /></Button>
         ) : (
-          <Button onClick={() => window.open(`/print/${project.id}`, "_blank")}><Printer className="h-4 w-4 mr-1" />Generate PDF</Button>
+          <Button onClick={markCompletedAndGenerate}><Printer className="h-4 w-4 mr-1" />Generate PDF</Button>
         )}
       </div>
     </div>
