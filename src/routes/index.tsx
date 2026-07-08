@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
+import { toast } from "sonner";
+
+const DELETE_PASSWORD = "electrosoft@2025";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [{ title: "Dashboard — Electrosoft Proposal Engine" }] }),
@@ -83,10 +86,26 @@ function Dashboard() {
   };
 
   const filtered = useMemo(() => {
-    return projects
-      .filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
-      .filter((p) => filter === "All" || p.status === filter);
+    const qq = q.trim().toLowerCase();
+    const matched = projects
+      .filter((p) => {
+        if (!qq) return true;
+        const hay = `${p.name} ${p.data.meta.offerNumber ?? ""} ${p.data.customer.companyFullName ?? ""} ${p.data.customer.companyShortName ?? ""}`.toLowerCase();
+        return hay.includes(qq);
+      })
+      .filter((p) => filter === "All" || p.status === filter)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+    // Without a search, show only the 10 most recent. Searching reveals everything.
+    return qq ? matched : matched.slice(0, 10);
   }, [projects, q, filter]);
+
+  const handleDelete = (id: string, label: string) => {
+    const pwd = window.prompt(`Enter password to permanently delete "${label}":`);
+    if (pwd == null) return;
+    if (pwd !== DELETE_PASSWORD) { toast.error("Incorrect password. Deletion cancelled."); return; }
+    remove(id);
+    toast.success("Offer deleted from database and dashboard.");
+  };
 
   const gridRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -179,7 +198,7 @@ function Dashboard() {
       <div className="mb-6 relative max-w-sm">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
         <input
-          placeholder="Search projects…"
+          placeholder="Search by offer number, company…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="neo-inset w-full pl-10 pr-4 py-2.5 text-sm bg-transparent outline-none
@@ -241,8 +260,8 @@ function Dashboard() {
                 }}
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="font-semibold text-base truncate text-slate-800">
-                    {p.name}
+                  <div className="font-mono font-semibold text-sm truncate text-slate-800" title={p.data.meta.offerNumber || p.name}>
+                    {p.data.meta.offerNumber || p.name}
                   </div>
                   <span
                     className={`shrink-0 text-[10px] font-semibold uppercase tracking-wide
@@ -252,17 +271,15 @@ function Dashboard() {
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-500">
+                {p.name && p.data.meta.offerNumber && (
+                  <p className="text-xs text-slate-600 truncate">{p.name}</p>
+                )}
+
+                <p className="text-xs text-slate-500 mt-1">
                   {p.data.systemType} · {p.data.transformer.rating}{" "}
                   {p.data.transformer.ratingUnit}, {p.data.transformer.voltage}{" "}
                   {p.data.transformer.voltageUnit}
                 </p>
-
-                {p.data.meta.offerNumber && (
-                  <p className="text-[11px] font-mono text-indigo-600 mt-2 truncate" title={p.data.meta.offerNumber}>
-                    {p.data.meta.offerNumber}
-                  </p>
-                )}
 
                 <p className="text-xs text-slate-500 mt-3 mb-4">
                   {p.data.customer.companyShortName ||
@@ -271,6 +288,7 @@ function Dashboard() {
                   <br />
                   Updated {new Date(p.updatedAt).toLocaleDateString()}
                 </p>
+
 
                 <div className="flex flex-wrap gap-1.5">
                   <Button
@@ -334,7 +352,7 @@ function Dashboard() {
                     variant="ghost"
                     className="neo-pop !bg-transparent !text-red-500 h-9 w-9 p-0 ml-auto
                                transition-transform active:scale-90 active:shadow-inner"
-                    onClick={() => confirm(`Delete "${p.name}"?`) && remove(p.id)}
+                    onClick={() => handleDelete(p.id, p.data.meta.offerNumber || p.name)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>

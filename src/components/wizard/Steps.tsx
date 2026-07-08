@@ -1301,17 +1301,6 @@ export function Step9Review({ project }: { project: Project; update: Update }) {
           <div><strong>Payment total:</strong> {d.payment.reduce((s, m) => s + Number(m.percent || 0), 0)}%</div>
         </CardContent>
       </Card>
-      <div className="flex gap-2">
-        <Button onClick={() => window.open(`/print/${project.id}`, "_blank")}>Open Print View (Puppeteer entry)</Button>
-        <Button variant="outline" onClick={() => {
-          const blob = new Blob([JSON.stringify({ project }, null, 2)], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `${project.name}.json`;
-          a.click();
-        }}>Download proposal JSON</Button>
-      </div>
     </div>
   );
 }

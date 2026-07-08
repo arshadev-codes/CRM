@@ -18,8 +18,9 @@ type Override = { items: SubsystemContent[]; deleted: string[] };
 
 const cmsKey = (st: SystemType) => `subsystems:${st}`;
 
+const EMPTY_OVERRIDE: Override = { items: [], deleted: [] };
 function useOverride(st: SystemType): [Override, (next: Override) => void] {
-  const value = useProposalStore(s => (s.cmsOverrides[cmsKey(st)] as Override) ?? { items: [], deleted: [] });
+  const value = useProposalStore(s => (s.cmsOverrides[cmsKey(st)] as Override | undefined)) ?? EMPTY_OVERRIDE;
   const setCms = useProposalStore(s => s.setCms);
   return [value, (next) => setCms(cmsKey(st), next)];
 }
