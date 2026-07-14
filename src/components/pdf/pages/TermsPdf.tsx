@@ -1,14 +1,16 @@
 import type React from "react";
 import { useMemo, useEffect } from "react";
 import { PdfPage } from "../PdfPage";
+import type { Project } from "@/store/proposalStore";
 import {
   termsClauses,
-  termsEffectiveDate,
   termsIntro,
+  weightClause,
   type TermsClause,
 } from "@/data/termsAndConditions";
 import { useBlockHeights } from "@/hooks/useBlockHeights";
 import { paginateByMeasuredHeights } from "@/data/paginateByMeasuredHeights";
+import { paginateBlocks } from "@/data/paginationHelpers";
 
 const PAGE_CONTENT_MM = 239;
 const CONTENT_WIDTH_MM = 182;
@@ -48,21 +50,39 @@ function renderClause(c: TermsClause) {
 }
 
 interface TermsPdfProps {
+  project: Project;
   startPage: number;
   onPageCountKnown?: (count: number) => void;
 }
 
-export function TermsPdf({ startPage, onPageCountKnown }: TermsPdfProps): React.ReactElement {
-  // MeasurementPortal MUST be rendered at all times — while measuring so
-  // React commits the hidden blocks and heights can be read, and after
-  // measuring so the portal stays mounted and doesn't trigger a re-measure.
+// Format an ISO date (YYYY-MM-DD) as e.g. "14th July 2026"
+function formatEffectiveDate(iso: string): string {
+  const d = iso ? new Date(iso) : new Date();
+  if (isNaN(d.getTime())) return iso;
+  const day = d.getDate();
+  const suffix = (n: number) => {
+    const v = n % 100;
+    if (v >= 11 && v <= 13) return "th";
+    switch (n % 10) {
+      case 1: return "st";
+      case 2: return "nd";
+      case 3: return "rd";
+      default: return "th";
+    }
+  };
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  return `${day}${suffix(day)} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+export function TermsPdf({ project, startPage, onPageCountKnown }: TermsPdfProps): React.ReactElement {
+  const effectiveDate = formatEffectiveDate(project.data.meta.date);
   const { heightsMm, measuring, MeasurementPortal } = useBlockHeights(
     termsClauses,
     renderClause,
     CONTENT_WIDTH_MM,
   );
 
-  const pages = useMemo(() => {
+  const measuredPages = useMemo(() => {
     if (measuring || heightsMm.length === 0) return null;
     return paginateByMeasuredHeights(
       termsClauses,
@@ -72,19 +92,21 @@ export function TermsPdf({ startPage, onPageCountKnown }: TermsPdfProps): React.
     );
   }, [measuring, heightsMm]);
 
-  useEffect(() => {
-    if (pages && onPageCountKnown) {
-      onPageCountKnown(pages.length);
-    }
-  }, [pages, onPageCountKnown]);
+  // Fallback pagination while measuring — guarantees the Terms section
+  // renders in the PDF even if measurement hasn't completed yet (e.g. when
+  // print fires after the safety-net timeout).
+  const fallbackPages = useMemo(
+    () => paginateBlocks(termsClauses, weightClause, [PAGE_CONTENT_MM - TITLE_BLOCK_MM, PAGE_CONTENT_MM]),
+    [],
+  );
 
-  // While measuring: render nothing visible but keep MeasurementPortal in the
-  // tree so React commits the hidden clause blocks and heights get captured.
-  // Previously this rendered a placeholder <PdfPage> with "Measuring layout…"
-  // which appeared in the PDF output and hid the real Terms pages.
-  if (!pages) {
-    return <>{MeasurementPortal}</>;
-  }
+  const pages = measuredPages ?? fallbackPages;
+
+  useEffect(() => {
+    if (measuredPages && onPageCountKnown) {
+      onPageCountKnown(measuredPages.length);
+    }
+  }, [measuredPages, onPageCountKnown]);
 
   return (
     <>
@@ -98,7 +120,7 @@ export function TermsPdf({ startPage, onPageCountKnown }: TermsPdfProps): React.
                   GENERAL TERMS &amp; CONDITIONS
                 </h1>
                 <div className="text-[14px] text-black-600 text-center mt-1">
-                  Effective date: {termsEffectiveDate}
+                  Effective date: {effectiveDate}
                 </div>
                 <p className="text-[13px] leading-relaxed mt-3 whitespace-pre-line">
                   {termsIntro}
@@ -118,7 +140,6 @@ export function TermsPdf({ startPage, onPageCountKnown }: TermsPdfProps): React.
           </PdfPage>
         );
       })}
-      {/* Keep portal mounted after measurement — unmounting triggers a re-measure */}
       {MeasurementPortal}
     </>
   );
