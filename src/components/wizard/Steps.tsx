@@ -333,6 +333,10 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
 
 export function Step3bSystemLayout({ project, update }: { project: Project; update: Update }) {
   const layout = project.data.systemLayout ?? {};
+  const { defaultLayoutImages } = require("@/lib/defaultLayoutImages") as typeof import("@/lib/defaultLayoutImages");
+  const defaultImage = defaultLayoutImages[project.data.systemType];
+  const displayedImage = layout.imageUrl || defaultImage;
+  const isUsingDefault = !layout.imageUrl;
   const onFile = (file: File | null, key: "imageUrl" | "designPdfUrl") => {
     if (!file) return;
     const reader = new FileReader();
@@ -342,21 +346,30 @@ export function Step3bSystemLayout({ project, update }: { project: Project; upda
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        The <strong>Schematic of Offered System</strong> page text is fixed and not editable. Only the layout image and the
-        design PDF link below appear on that page. Defaults can be set in Settings; replace them here for this specific project.
+        The <strong>Schematic of Offered System</strong> page text is fixed and not editable. A default schematic
+        image is pre-loaded for each system type — use <strong>Change Image</strong> to swap it out with your own
+        drawing for this specific project.
       </p>
       <Section title="Layout Image">
         <div className="flex items-start gap-4">
           <div className="w-64 h-48 border rounded grid place-items-center overflow-hidden bg-slate-50 shrink-0">
-            {layout.imageUrl
-              ? <img src={layout.imageUrl} alt="Layout" className="max-w-full max-h-full object-contain" />
-              : <span className="text-xs text-muted-foreground">No image uploaded</span>}
+            <img src={displayedImage} alt="Layout" className="max-w-full max-h-full object-contain" />
           </div>
           <div className="space-y-2">
-            <Input type="file" accept="image/*" onChange={e => onFile(e.target.files?.[0] ?? null, "imageUrl")} />
-            {layout.imageUrl && (
+            <div className="text-xs text-slate-600">
+              {isUsingDefault
+                ? <>Using default image for <strong>{project.data.systemType}</strong>.</>
+                : <>Custom image uploaded for this project.</>}
+            </div>
+            <label className="inline-flex items-center gap-2 px-3 py-2 rounded border cursor-pointer bg-white hover:bg-slate-50 text-sm">
+              <Plus className="h-3 w-3" />
+              Change Image
+              <input type="file" accept="image/*" className="hidden"
+                onChange={e => onFile(e.target.files?.[0] ?? null, "imageUrl")} />
+            </label>
+            {!isUsingDefault && (
               <Button size="sm" variant="ghost" onClick={() => update({ systemLayout: { ...layout, imageUrl: undefined } })}>
-                <Trash2 className="h-3 w-3 mr-1" />Remove image
+                <Trash2 className="h-3 w-3 mr-1" />Revert to default
               </Button>
             )}
           </div>
