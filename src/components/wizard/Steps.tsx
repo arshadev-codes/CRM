@@ -334,7 +334,7 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
 
 export function Step3bSystemLayout({ project, update }: { project: Project; update: Update }) {
   const layout = project.data.systemLayout ?? {};
-  const { defaultLayoutImages } = require("@/lib/defaultLayoutImages") as typeof import("@/lib/defaultLayoutImages");
+  // defaultLayoutImages imported at top of file
   const defaultImage = defaultLayoutImages[project.data.systemType];
   const displayedImage = layout.imageUrl || defaultImage;
   const isUsingDefault = !layout.imageUrl;
