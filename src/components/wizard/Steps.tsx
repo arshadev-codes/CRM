@@ -192,6 +192,7 @@ function NeoInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 
 export function Step2Tests({ project, update }: { project: Project; update: Update }) {
   const { selectedTests } = project.data;
+  const notes = project.data.testsNotes ?? "";
   const toggle = (id: string) => update({ selectedTests: selectedTests.includes(id) ? selectedTests.filter(x => x !== id) : [...selectedTests, id] });
   const groups = Array.from(new Set(testsData.map(t => t.group)));
   return (
@@ -214,6 +215,17 @@ export function Step2Tests({ project, update }: { project: Project; update: Upda
           </div>
         </Section>
       ))}
+      <Section title="Notes (optional)">
+        <Textarea
+          rows={3}
+          value={notes}
+          onChange={e => update({ testsNotes: e.target.value })}
+          placeholder="Any special note about the tests to include in the PDF. Leave empty to omit."
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Shown in the preview and PDF only when this field has content.
+        </p>
+      </Section>
       <p className="text-xs text-muted-foreground">{selectedTests.length} test{selectedTests.length === 1 ? "" : "s"} selected.</p>
     </div>
   );
