@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { requireAdminPassword } from "@/lib/passwordGate";
 
 // CMS storage key per system type. Overrides merge over the static library:
 //   resolved = override || libraryItem
@@ -84,6 +85,7 @@ function SubsystemsEditor({ systemType }: { systemType: SystemType }) {
   };
 
   const add = () => {
+    if (!requireAdminPassword()) return;
     const item: SubsystemContent = { id: crypto.randomUUID(), title: "New subsystem", preview: "", description: "" };
     setOverride({ ...override, items: [...override.items, item] });
     setEditing(item.id);

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Save, Trash2, X, Search } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { requireAdminPassword } from "@/lib/passwordGate";
 
 export const Route = createFileRoute("/settings/companies")({ component: CompaniesSettings });
 
@@ -83,7 +84,7 @@ function CompaniesSettings() {
             value={q} onChange={e => setQ(e.target.value)} />
         </div>
         <div className="flex-1 text-sm text-slate-600">{list.length} of {companies.length}</div>
-        {!draft && <Button size="sm" onClick={() => setDraft(emptyDraft())}><Plus className="h-3 w-3 mr-1" />Add company</Button>}
+        {!draft && <Button size="sm" onClick={() => { if (!requireAdminPassword()) return; setDraft(emptyDraft()); }}><Plus className="h-3 w-3 mr-1" />Add company</Button>}
       </div>
 
       {draft && (
