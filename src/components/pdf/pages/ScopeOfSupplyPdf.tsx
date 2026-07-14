@@ -84,7 +84,10 @@ export function ScopeOfSupplyPdf({
     182,
   );
 
-  const pages = measuring ? [] : paginateByHeights(rows, heightsMm, [200, 245]);
+  // Reduced capacities to leave headroom for table borders/padding and
+  // the section heading gap on the first page — prevents the last row from
+  // being clipped by PdfPage's overflow:hidden.
+  const pages = measuring ? [] : paginateByHeights(rows, heightsMm, [185, 230]);
 
   useEffect(() => {
     if (!measuring && onPageCountKnown) {
