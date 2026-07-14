@@ -15,6 +15,7 @@ import { deliveryDurationOptions, deliveryDefaults } from "@/data/deliveryData";
 import { exclusionsData } from "@/data/exclusionsData";
 import { makesOfSupplyData } from "@/data/makesOfSupplyData";
 import { getOnSiteServiceRows } from "@/data/scopeOfServiceRows";
+import { defaultLayoutImages } from "@/lib/defaultLayoutImages";
 import { lineTotal } from "@/data/pricingHelpers";
 import { CompanyAutocomplete } from "@/components/wizard/CompanyAutocomplete";
 import { Input } from "@/components/ui/input";
