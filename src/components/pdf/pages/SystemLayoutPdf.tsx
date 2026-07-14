@@ -1,9 +1,11 @@
 import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
+import { defaultLayoutImages } from "@/lib/defaultLayoutImages";
 
 // SCHEMATIC OF OFFERED SYSTEM — static text; only the layout image & design PDF link change.
 export function SystemLayoutPdf({ project, pageNumber }: { project: Project; pageNumber: number }) {
   const layout = project.data.systemLayout ?? {};
+  const imageSrc = layout.imageUrl || defaultLayoutImages[project.data.systemType];
   return (
     <PdfPage pageNumber={pageNumber}>
       <div style={{ breakInside: "avoid" }}>
@@ -19,13 +21,7 @@ export function SystemLayoutPdf({ project, pageNumber }: { project: Project; pag
       </div>
 
       <div className="mt-4 border border-slate-300 rounded overflow-hidden" style={{ breakInside: "avoid" }}>
-        {layout.imageUrl ? (
-          <img src={layout.imageUrl} alt="System Layout" className="w-full" style={{ maxHeight: "180mm", objectFit: "contain" }} />
-        ) : (
-          <div className="aspect-[4/3] grid place-items-center text-slate-400 text-[13px] bg-slate-50">
-            [Layout image — upload in wizard → System Layout]
-          </div>
-        )}
+        <img src={imageSrc} alt="System Layout" className="w-full" style={{ maxHeight: "180mm", objectFit: "contain" }} />
       </div>
 
       <div className="mt-3 text-[13px]" style={{ breakInside: "avoid" }}>

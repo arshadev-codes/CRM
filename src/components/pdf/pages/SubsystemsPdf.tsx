@@ -2,7 +2,7 @@ import type React from "react";
 import { PdfPage } from "../PdfPage";
 import type { Project, CustomizationItem } from "@/store/proposalStore";
 import { getMajorSubsystems, type SubsystemContent } from "@/data/proposalContent";
-import { paginateByHeights } from "@/data/paginationHelpers";
+import { paginateByHeights, paginateBlocks, weightSubsystem } from "@/data/paginationHelpers";
 import { useBlockHeights } from "@/hooks/useBlockHeights";
 import { useEffect } from "react";
 
@@ -75,7 +75,22 @@ export function SubsystemsPdf({
     182,
   );
 
-  const pages = measuring ? [] : paginateByHeights(flow, heightsMm, [185, 240]);
+  // Reduced capacities by ~10mm to leave headroom for the space-y-4 gaps
+  // between blocks (which aren't included in per-block measured heights)
+  // — prevents the last row of a block from being clipped at the page edge.
+  const measuredPages = measuring ? null : paginateByHeights(flow, heightsMm, [175, 230]);
+
+  // Fallback pagination — used while measurement is still running so the
+  // section reliably appears in the PDF even under aggressive print timing.
+  // Uses the legacy weight estimator (character-count based) which is not
+  // pixel-perfect but always renders SOMETHING rather than nothing.
+  const fallbackPages = paginateBlocks(
+    flow,
+    (item) => item.kind === "subsystem" ? weightSubsystem(item.subsystem) : 40,
+    [170, 225],
+  );
+
+  const pages = measuredPages ?? fallbackPages;
 
   useEffect(() => {
     if (!measuring && onPageCountKnown) {
@@ -85,10 +100,6 @@ export function SubsystemsPdf({
   }, [measuring, pages.length]);
 
   if (flow.length === 0) return null;
-
-  if (measuring) {
-    return <>{MeasurementPortal}</>;
-  }
 
   let subsystemCounter = -1;
 

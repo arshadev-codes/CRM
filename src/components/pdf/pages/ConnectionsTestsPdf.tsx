@@ -112,20 +112,30 @@ export function ConnectionsTestsPdf({
         </div>
       )}
 
-      {/* ── Numbered test lists ────────────────────────────────────────── */}
+      {/* ── Numbered test lists (continuous numbering across A, B, C) ─── */}
       <div className="mt-5 space-y-3">
-        {mainGroups.map((g) => (
-          <div key={g} style={{ breakInside: "avoid" }}>
-            <div className="font-bold text-[14px] text-slate-900 ">
-              {connectionLabels[g]}
-            </div>
-            <ol className="mt-0.5 list-decimal pl-6 text-[13px] space-y-0.5 text-slate-800">
-              {groups[g].map((t) => (
-                <li key={t.id}>{t.title}</li>
-              ))}
-            </ol>
-          </div>
-        ))}
+        {(() => {
+          let running = 0;
+          return mainGroups.map((g) => {
+            const start = running + 1;
+            running += groups[g].length;
+            return (
+              <div key={g} style={{ breakInside: "avoid" }}>
+                <div className="font-bold text-[14px] text-slate-900 ">
+                  {connectionLabels[g]}
+                </div>
+                <ol
+                  start={start}
+                  className="mt-0.5 list-decimal pl-6 text-[13px] space-y-0.5 text-slate-800"
+                >
+                  {groups[g].map((t) => (
+                    <li key={t.id}>{t.title}</li>
+                  ))}
+                </ol>
+              </div>
+            );
+          });
+        })()}
       </div>
 
       {/* ── Other / footnote tests ─────────────────────────────────────── */}
@@ -133,6 +143,16 @@ export function ConnectionsTestsPdf({
         <div className="mt-6 pt-3 border-t border-slate-300 text-[10px] text-slate-500">
           <span className="font-semibold">++</span>{" "}
           {otherTests.map((t) => t.title).join(", ")}
+        </div>
+      )}
+
+      {/* ── Optional user notes ─────────────────────────────────────────── */}
+      {project.data.testsNotes && project.data.testsNotes.trim() && (
+        <div className="mt-5 pt-3 border-t border-slate-300" style={{ breakInside: "avoid" }}>
+          <div className="font-bold text-[13px] text-slate-900">Notes:</div>
+          <p className="text-[12.5px] text-slate-700 mt-1 whitespace-pre-line leading-relaxed">
+            {project.data.testsNotes.trim()}
+          </p>
         </div>
       )}
 

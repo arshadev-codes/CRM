@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Save, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { requireAdminPassword } from "@/lib/passwordGate";
 
 export const Route = createFileRoute("/settings/employees")({ component: EmployeesSettings });
 
@@ -18,7 +19,7 @@ function EmployeesSettings() {
   const deleteEmployee = useProposalStore(s => s.deleteEmployee);
   const [draft, setDraft] = useState<Draft | null>(null);
 
-  const startNew = () => setDraft({ name: "", designation: "" });
+  const startNew = () => { if (!requireAdminPassword()) return; setDraft({ name: "", designation: "" }); };
   const startEdit = (id: string) => {
     const e = employees.find(x => x.id === id);
     if (e) setDraft({ id: e.id, name: e.name, designation: e.designation });

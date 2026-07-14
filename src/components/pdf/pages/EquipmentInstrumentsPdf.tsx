@@ -21,10 +21,10 @@ export function EquipmentInstrumentsPdf({
   const describeEq = (e: typeof equipmentData[number]) =>
     [e.equipment, e.spec1, e.spec2, e.spec3, e.spec4, e.spec5]
       .filter(Boolean)
-      .join(" - ");
+      .join(", ");
 
   const describeIns = (i: typeof instrumentsData[number]) =>
-    [i.instrument, i.make, i.model].filter(Boolean).join(" - ");
+    [i.instrument, i.make, i.model].filter(Boolean).join(", ");
 
   return (
     <PdfPage pageNumber={pageNumber}>

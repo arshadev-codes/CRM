@@ -85,6 +85,7 @@ export function AllPages({ project }: { project: Project }) {
         <ExclusionsMakesPdf project={project} pageNumber={exclusionsPage} />
         <CommercialTermsPdf project={project} pageNumber={commercialPage} />
         <TermsPdf
+          project={project}
           startPage={termsStart}
           onPageCountKnown={report("terms")}
         />

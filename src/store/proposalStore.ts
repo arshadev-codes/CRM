@@ -78,6 +78,8 @@ export interface ProposalData {
   meta: Meta;
   transformer: Transformer;
   selectedTests: string[];
+  /** Optional free-text notes shown under the tests section in the PDF when non-empty */
+  testsNotes?: string;
   selectedSubsystems: string[];
   proposalCustomizations: CustomizationItem[];
   subsystemVariants: Record<string, string>;
