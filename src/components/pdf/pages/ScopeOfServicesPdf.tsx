@@ -3,6 +3,11 @@ import type { Project } from "@/store/proposalStore";
 import { scopeOfServicesData } from "@/data/scopeOfServicesData";
 import { getOnSiteServiceRows } from "@/data/scopeOfServiceRows";
 
+// Key used for the additional-warranty row wherever it's produced by
+// getOnSiteServiceRows — kept as a constant so it's obvious what has to line
+// up if that file's row keys ever change.
+const ADDITIONAL_WARRANTY_KEY = "additional-warranty";
+
 export function ScopeOfServicesPdf({
   project,
   pageNumber,
@@ -14,8 +19,14 @@ export function ScopeOfServicesPdf({
     /document|engineering|drawing|datasheet|fat|manual/i.test(s.title)
   );
 
-  const onsiteRows = getOnSiteServiceRows(project);
+  const allOnsiteRows = getOnSiteServiceRows(project);
   const servicePricing = project.data.pricing?.scopeOfServices ?? {};
+
+  // Additional Warranty gets pulled OUT of the generic on-site table and
+  // rendered as its own table below, only when the user actually selected it.
+  const onsiteRows = allOnsiteRows.filter((r) => r.key !== ADDITIONAL_WARRANTY_KEY);
+  const warrantyMonths = project.data.additionalWarrantyMonths;
+  const warrantyRow = allOnsiteRows.find((r) => r.key === ADDITIONAL_WARRANTY_KEY);
 
   return (
     <PdfPage pageNumber={pageNumber}>
@@ -23,11 +34,11 @@ export function ScopeOfServicesPdf({
         Electrosoft's Scope of Services
       </h2>
 
-      <DocumentsTable
+      {/* <DocumentsTable
         title="OFF-SITE: DELIVERABLE DOCUMENTS"
         rows={offsite.map((s, i) => ({ sr: i + 1, desc: s.title }))}
         qty="1 set"
-      />
+      /> */}
 
       <div className="mt-4" />
 
@@ -39,6 +50,23 @@ export function ScopeOfServicesPdf({
           price: servicePricing[r.key] ? `₹${Number(servicePricing[r.key]).toLocaleString("en-IN")}` : "---",
         }))}
       />
+
+      {warrantyMonths && warrantyRow && (
+        <div className="mt-4">
+          <OnSiteTable
+            title="ADDITIONAL WARRANTY"
+            rows={[
+              {
+                sr: 1,
+                desc: `Additional Warranty — ${warrantyMonths} month${warrantyMonths === 1 ? "" : "s"} beyond the standard 12-month warranty period.`,
+                price: servicePricing[ADDITIONAL_WARRANTY_KEY]
+                  ? `₹${Number(servicePricing[ADDITIONAL_WARRANTY_KEY]).toLocaleString("en-IN")}`
+                  : "---",
+              },
+            ]}
+          />
+        </div>
+      )}
 
       <div className="mt-5" style={{ breakInside: "avoid" }}>
         <div className="bg-blue-900   border-l-4 border-blue-700 px-3 py-1 font-bold text-[14px] text-white">
@@ -124,6 +152,11 @@ function OnSiteTable({
   title: string;
   rows: { sr: number; desc: string; price: string }[];
 }) {
+  const total = rows.reduce((sum, r) => {
+    const n = Number(String(r.price).replace(/[^\d.-]/g, ""));
+    return sum + (isNaN(n) ? 0 : n);
+  }, 0);
+
   return (
     <div style={{ breakInside: "avoid" }}>
       <div className="bg-blue-900   border-l-4 border-blue-700 px-3 py-1 font-bold text-[14px] text-white    mt-3">
@@ -140,13 +173,23 @@ function OnSiteTable({
         <tbody>
           {rows.length === 0 ? (
             <tr><td className="border p-2 text-center italic text-slate-400" colSpan={3}>— None selected —</td></tr>
-          ) : rows.map((r) => (
-            <tr key={r.sr}>
-              <td className="border border-slate-300 p-1.5">{r.sr}</td>
-              <td className="border border-slate-300 p-1.5">{r.desc}</td>
-              <td className="border border-slate-300 p-1.5 text-right">{r.price}</td>
-            </tr>
-          ))}
+          ) : (
+            <>
+              {rows.map((r) => (
+                <tr key={r.sr}>
+                  <td className="border border-slate-300 p-1.5">{r.sr}</td>
+                  <td className="border border-slate-300 p-1.5">{r.desc}</td>
+                  <td className="border border-slate-300 p-1.5 text-right">{r.price}</td>
+                </tr>
+              ))}
+              <tr className="bg-slate-100 font-bold">
+                <td className="border border-slate-300 p-1.5 text-right" colSpan={2}>Total</td>
+                <td className="border border-slate-300 p-1.5 text-right text-blue-900">
+                  ₹{total.toLocaleString("en-IN")}
+                </td>
+              </tr>
+            </>
+          )}
         </tbody>
       </table>
     </div>

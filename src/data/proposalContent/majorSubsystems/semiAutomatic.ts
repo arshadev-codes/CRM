@@ -2,7 +2,6 @@
 import xmerEdgeImg from "@/assets/xmer-edge.png";
 import powerPanelImg from "@/assets/power-panel.png";
 import lvTrolleyImg from "@/assets/lv-trolley.png";
-import ctPtRackImg from "@/assets/ct-pt-rack.png";
 //import htCapImg from "@/assets/subsystems/ht-capacitor-bank.jpg";
 //import htIsolatorCapImg from "@/assets/subsystems/ht-isolator-capacitor.jpg";
 import htIsolatorTrhImg from "@/assets/ht-isolator-temp-rise.png";
@@ -96,49 +95,6 @@ export const semiAutomaticMajorSubsystems: SubsystemContent[] = [ {
         },
       ],
     },
-  },
-  {
-    id: "ct-pt-rack",
-    title: "CT-PT Rack with Pneumatic Knife Switches",
-    preview: "Software-controlled CT/PT primary selection.",
-    description:
-      "The CT-PT rack is designed for automated primary selection and routing during CT-PT related tests. It uses pneumatic knife switches actuated through software-controlled logic integrated with the X'mer Edge™ platform. The system provides fail-safe actuation and feedback-based position confirmation to ensure the correct selection is made before any test is initiated. This arrangement enables fully automatic switching between various CT and PT combinations required during various tests.",
-    images: [ctPtRackImg],
-    variants: {
-      default: "hand-operated",
-      options: [
-        {
-          key: "hand-operated",
-          label: "Hand Operated",
-          title: "CT-PT Rack with Hand Operated Knife Switches",
-          description:
-            "The CT-PT rack is designed for primary selection and routing during CT-PT related tests. It uses hand operated knife switches that the operator switches manually to select the required CT and PT combination before any test is initiated. Clear labelling and mechanical positive-position detents help ensure the correct selection is made reliably during testing.",
-        },
-        {
-          key: "pneumatic",
-          label: "Pneumatic",
-          title: "CT-PT Rack with Pneumatic Knife Switches",
-          description:
-            "The CT-PT rack is designed for automated primary selection and routing during CT-PT related tests. It uses pneumatic knife switches actuated through software-controlled logic integrated with the X'mer Edge™ platform. The system provides fail-safe actuation and feedback-based position confirmation to ensure the correct selection is made before any test is initiated. This arrangement enables fully automatic switching between various CT and PT combinations required during various tests.",
-        },
-      ],
-    },
-  },
-  {
-    id: "ht-cap",
-    title: "HT Capacitor Bank",
-    preview: "Reactive power support for no-load and IVW tests.",
-    description:
-      "The HT Capacitor Bank is a critical subsystem that supplies the reactive MVA required during tests such as no-load loss, load loss, induced-voltage withstand (DVDF), and other excitation-based high-voltage tests. It provides stable reactive power support, enabling controlled voltage buildup and maintaining required test voltages without overloading the power source. The capacitor bank works in coordination with the motorized HT isolator switch and integrated protection logic, allowing safe, interlocked energisation and de-energisation through software commands. Its inclusion ensures reliable and efficient testing of large EHV transformers up to 500 MVA, 765 kV.",
-   // images: [htCapImg],
-  },
-  {
-    id: "LT-cap",
-    title: "LT Capacitor Bank",
-    preview: "Reactive power support for no-load and IVW tests.",
-    description:
-      "This motorized isolator switch provides safe and reliable connection and isolation of the HT capacitor bank. The motorized actuation eliminates manual operation and ensures consistent, interlocked switching controlled through the system logic. When combined with PLC-based interlocking, it prevents energisation unless the isolator is in the correct position, thereby enhancing operational safety and test reliability.",
-    //images: [htIsolatorCapImg],
   },
   {
     id: "ht-isolator-trh",

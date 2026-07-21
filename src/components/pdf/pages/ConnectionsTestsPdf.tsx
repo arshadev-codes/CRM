@@ -139,12 +139,12 @@ export function ConnectionsTestsPdf({
       </div>
 
       {/* ── Other / footnote tests ─────────────────────────────────────── */}
-      {otherTests.length > 0 && (
+      {/* {otherTests.length > 0 && (
         <div className="mt-6 pt-3 border-t border-slate-300 text-[10px] text-slate-500">
           <span className="font-semibold">++</span>{" "}
           {otherTests.map((t) => t.title).join(", ")}
         </div>
-      )}
+      )} */}
 
       {/* ── Optional user notes ─────────────────────────────────────────── */}
       {project.data.testsNotes && project.data.testsNotes.trim() && (

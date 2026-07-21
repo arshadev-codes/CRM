@@ -7,7 +7,7 @@ import type {
 import { useProposalStore } from "@/store/proposalStore";
 import { systemTypesData, type SystemType } from "@/data/systemTypesData";
 import { testsData } from "@/data/testsData";
-import { getMajorSubsystems } from "@/data/proposalContent";
+import { getMajorSubsystems, resolveSubsystemTitle } from "@/data/proposalContent";
 import { instrumentsData } from "@/data/instrumentsData";
 import { equipmentData } from "@/data/equipmentData";
 import { proprietaryItemsData } from "@/data/proprietaryItemsData";
@@ -37,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
 
 type Update = (patch: Partial<ProposalData>) => void;
 
@@ -377,17 +378,26 @@ export function Step3bSystemLayout({ project, update }: { project: Project; upda
         </div>
       </Section>
       <Section title="Design PDF">
-        <div className="space-y-2 max-w-xl">
-          <Input type="file" accept="application/pdf" onChange={e => onFile(e.target.files?.[0] ?? null, "designPdfUrl")} />
-          {layout.designPdfUrl && (
-            <div className="text-xs text-blue-700">
-              <a href={layout.designPdfUrl} target="_blank" rel="noreferrer" className="underline">Open uploaded design PDF</a>
-              {" · "}
-              <button className="underline" onClick={() => update({ systemLayout: { ...layout, designPdfUrl: undefined } })}>Remove</button>
-            </div>
-          )}
-        </div>
-      </Section>
+  <div className="space-y-2 max-w-xl">
+    <label className="inline-flex items-center gap-2 px-3 py-2 rounded border cursor-pointer bg-white hover:bg-slate-50 text-sm">
+      <Plus className="h-3 w-3" />
+      Upload Design PDF
+      <input
+        type="file"
+        accept="application/pdf"
+        className="hidden"
+        onChange={e => onFile(e.target.files?.[0] ?? null, "designPdfUrl")}
+      />
+    </label>
+    {layout.designPdfUrl && (
+      <div className="text-xs text-blue-700">
+        <a href={layout.designPdfUrl} target="_blank" rel="noreferrer" className="underline">Open uploaded design PDF</a>
+        {" · "}
+        <button className="underline" onClick={() => update({ systemLayout: { ...layout, designPdfUrl: undefined } })}>Remove</button>
+      </div>
+    )}
+  </div>
+</Section>
     </div>
   );
 }
@@ -1001,13 +1011,22 @@ export function Step6Delivery({ project, update }: { project: Project; update: U
 }
 
 export function Step7ExclusionsMakes({ project, update }: { project: Project; update: Update }) {
-  const { exclusions, makes } = project.data;
+  const { exclusions, makes, installationType } = project.data;
   const toggleEx = (id: string) =>
     update({ exclusions: exclusions.includes(id) ? exclusions.filter(x => x !== id) : [...exclusions, id] });
   const updMake = (id: string, patch: Partial<typeof makes[number]>) =>
     update({ makes: makes.map(m => m.id === id ? { ...m, ...patch } : m) });
   return (
     <div className="space-y-6">
+      {installationType === "full" && (
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded px-4 py-3 text-sm text-amber-800">
+          <span className="text-lg leading-none mt-0.5 shrink-0">⚠</span>
+          <span>
+            <strong>Full Installation is selected</strong> for this proposal. Installation is considered on top of
+            the standard scope — please confirm exclusions and pricing account for this before sharing with the customer.
+          </span>
+        </div>
+      )}
       <Section title="Exclusions">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {exclusionsData.map(e => (
@@ -1054,11 +1073,6 @@ export function Step7ExclusionsMakes({ project, update }: { project: Project; up
 }
 
 export function StepPricing({ project, update }: { project: Project; update: Update }) {
-  // FIX: merge per-key defaults instead of falling back only when `pricing` itself is missing.
-  // Previously: `project.data.pricing ?? { ...defaults }` left `scopeOfServices` (and any other
-  // newly-added key) as `undefined` whenever an older saved project had a `pricing` object that
-  // predated that field — causing `pricing.scopeOfServices[r.key]` to throw
-  // "Cannot read properties of undefined (reading '...')" in the Scope of Services table below.
   const pricing: PricingData = {
     scopeOfSupply: project.data.pricing?.scopeOfSupply ?? {},
     instruments: project.data.pricing?.instruments ?? {},
@@ -1085,18 +1099,44 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
     });
   };
 
-  // ── Scope of Supply rows: subsystems + the 2 in-scope proprietary items only ──
+  // ── Scope of Supply rows: subsystems (title resolved through the ACTIVE
+  // variant — Manual/Cloud/etc — not the default) + the 2 in-scope
+  // proprietary items only. Instruments/Equipment are priced in their own
+  // sections below, not mixed into this one.
   const allSubs = getMajorSubsystems(project.data.systemType);
   const selectedSubIds = new Set(project.data.selectedSubsystems);
   const subsystemRows = allSubs.filter(s => selectedSubIds.has(s.id) || selectedSubIds.has(s.title));
+  const subsystemVariants = project.data.subsystemVariants ?? {};
 
   const selectedProprietaryIds = new Set(project.data.proprietary);
   const scopeProprietaryRows = proprietaryItemsData.filter(
     p => p.inScopeOfSupply && selectedProprietaryIds.has(p.id)
   );
 
-  // ── Scope of Services (on-site) rows — everything else, incl. Installation & Additional Warranty
   const serviceRows = getOnSiteServiceRows(project);
+
+  const specsOf = (row: { spec1?: string; spec2?: string; spec3?: string; spec4?: string; spec5?: string }) =>
+    [row.spec1, row.spec2, row.spec3, row.spec4, row.spec5].filter((v): v is string => !!v && v.trim().length > 0);
+
+  // Installation price auto-fills from whatever was configured in the
+  // Proprietary/Installation step (lump sum for Full, days×perDay for
+  // Supervision), but the user can still type over it here — typing
+  // ALWAYS wins over this computed default, and only the price is editable
+  // (there's no separate field for it in this table).
+  const installationDefaultPrice = (() => {
+    if (!project.data.installationType) return null;
+    const ip = project.data.installationPricing;
+    if (!ip || ip.pricingType === "inclusive") return null;
+    if (project.data.installationType === "full" && ip.lumpSum) {
+      return Number(ip.lumpSum);
+    }
+    if (project.data.installationType === "supervision" && ip.days && ip.perDayCost) {
+      return Number(ip.days) * Number(ip.perDayCost);
+    }
+    return null;
+  })();
+
+  const installationRowKey = "installation"; // ⚠ confirm this matches the key used in scopeOfServiceRows.ts
 
   return (
     <div className="space-y-8">
@@ -1108,7 +1148,7 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
       <PricingSection title="Scope of Supply">
         <PricingTable
           rows={[
-            ...subsystemRows.map(s => ({ key: s.id, label: s.title })),
+            ...subsystemRows.map(s => ({ key: s.id, label: resolveSubsystemTitle(s, subsystemVariants) })),
             ...scopeProprietaryRows.map(p => ({ key: p.id, label: p.title })),
           ]}
           entries={pricing.scopeOfSupply}
@@ -1118,7 +1158,11 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
 
       <PricingSection title="Testing Instruments">
         <PricingTable
-          rows={project.data.instruments.map(i => ({ key: i.id, label: `${i.instrument}${i.make ? ` — ${i.make} ${i.model}` : ""}` }))}
+          rows={project.data.instruments.map(i => ({
+            key: i.id,
+            label: `${i.instrument}${i.make ? ` — ${i.make} ${i.model}` : ""}`,
+            specs: specsOf(i),
+          }))}
           entries={pricing.instruments}
           onChangeEntry={(key, patch) => setEntry("instruments", key, patch)}
         />
@@ -1126,7 +1170,11 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
 
       <PricingSection title="Other Equipment">
         <PricingTable
-          rows={project.data.equipment.filter(e => e.included).map(e => ({ key: e.id, label: e.equipment }))}
+          rows={project.data.equipment.filter(e => e.included).map(e => ({
+            key: e.id,
+            label: e.equipment,
+            specs: specsOf(e),
+          }))}
           entries={pricing.equipment}
           onChangeEntry={(key, patch) => setEntry("equipment", key, patch)}
         />
@@ -1152,7 +1200,12 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
                       type="number"
                       min="0"
                       className="h-8 text-sm text-right"
-                      value={pricing.scopeOfServices[r.key] ?? ""}
+                      value={
+                        pricing.scopeOfServices[r.key] ??
+                        (r.key === installationRowKey && installationDefaultPrice != null
+                          ? String(installationDefaultPrice)
+                          : "")
+                      }
                       onChange={e => setServicePrice(r.key, e.target.value)}
                       placeholder="0"
                     />
@@ -1181,7 +1234,7 @@ function PricingTable({
   entries,
   onChangeEntry,
 }: {
-  rows: { key: string; label: string }[];
+  rows: { key: string; label: string; specs?: string[] }[];
   entries: Record<string, PriceEntry>;
   onChangeEntry: (key: string, patch: Partial<PriceEntry>) => void;
 }) {
@@ -1203,7 +1256,12 @@ function PricingTable({
           const entry = entries[r.key] ?? { unitPrice: "", qty: "1" };
           return (
             <tr key={r.key}>
-              <td className="border p-2">{r.label}</td>
+              <td className="border p-2">
+                <div>{r.label}</div>
+                {r.specs && r.specs.length > 0 && (
+                  <div className="text-[11px] text-slate-500 mt-0.5">{r.specs.join(" · ")}</div>
+                )}
+              </td>
               <td className="border p-1">
                 <Input
                   type="number"

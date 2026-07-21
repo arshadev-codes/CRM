@@ -5,14 +5,14 @@ export const paymentTemplatesData: PaymentTemplate[] = [
     milestones: [
       { id: "advance", label: "Advance against PO", percent: 20 },
       { id: "drawing", label: "On drawing approval", percent: 10 },
-      { id: "dispatch", label: "Pro-rata against dispatch", percent: 60 },
+      { id: "dispatch", label: "Against PI before Dispatch", percent: 60 },
       { id: "commissioning", label: "On commissioning", percent: 10 },
     ] },
   { id: "30-20-40-10", name: "30-20-40-10",
     milestones: [
       { id: "advance", label: "Advance against PO", percent: 30 },
       { id: "drawing", label: "On drawing approval", percent: 20 },
-      { id: "dispatch", label: "Pro-rata against dispatch", percent: 40 },
+      { id: "dispatch", label: "Against PI before Dispatch", percent: 40 },
       { id: "commissioning", label: "On commissioning", percent: 10 },
     ] },
 ];

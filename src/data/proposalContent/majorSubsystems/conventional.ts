@@ -1,7 +1,6 @@
 // import testBenchImg from "@/assets/test-bench.png";
 import powerPanelImg from "@/assets/power-panel.png";
 import lvTrolleyImg from "@/assets/lv-trolley.png";
-import ctPtRackImg from "@/assets/ct-pt-rack.png";
 //import htCapImg from "@/assets/subsystems/ht-capacitor-bank.jpg";
 //import htIsolatorCapImg from "@/assets/subsystems/ht-isolator-capacitor.jpg";
 import htIsolatorTrhImg from "@/assets/ht-isolator-temp-rise.png";
@@ -61,26 +60,11 @@ export const conventionalMajorSubsystems: SubsystemContent[] = [
     images: [lvTrolleyImg],
   },
   {
-    id: "ct-pt-rack",
-    title: "CT-PT Rack with Hand Operated Knife Switches",
-    preview: "Manually operated CT/PT primary selection.",
-    description:
-      "The CT-PT rack is designed for primary selection and routing during CT-PT related tests. It uses hand operated knife switches that the operator switches manually to select the required CT and PT combination before any test is initiated. Clear labelling and mechanical positive-position detents help ensure the correct selection is made reliably during testing.",
-    images: [ctPtRackImg],
-  },
-  {
     id: "ht-cap",
     title: "HT Capacitor Bank",
     preview: "Reactive power support for no-load and IVW tests.",
     description:
       "The HT Capacitor Bank is a critical subsystem that supplies the reactive MVA required during tests such as no-load loss, load loss, induced-voltage withstand (DVDF), and other excitation-based high-voltage tests. It provides stable reactive power support, enabling controlled voltage buildup and maintaining required test voltages without overloading the power source. The capacitor bank works in coordination with the manually operated HT isolator switch, allowing safe, interlocked energisation and de-energisation through operator-controlled switching. Its inclusion ensures reliable and efficient testing of large EHV transformers up to 500 MVA, 765 kV.",
-  },
-  {
-    id: "LT-cap",
-    title: "LT Capacitor Bank",
-    preview: "Reactive power support for no-load and IVW tests.",
-    description:
-      "This manually operated isolator switch provides safe and reliable connection and isolation of the HT capacitor bank. Operation is carried out directly by the operator through a hand-operated mechanism, with mechanical and electrical interlocks preventing energisation unless the isolator is in the correct position, thereby enhancing operational safety and test reliability.",
   },
   {
     id: "ht-isolator-trh",

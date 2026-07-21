@@ -302,7 +302,7 @@ function Dashboard() {
                   {p.status === "Completed" && (
                     <Button
                       size="sm"
-                      className="neo-pop !bg-transparent !text-emerald-700 font-medium
+                      className="neo-pop !bg-transparent !text-black font-medium
                                  transition-transform active:scale-[0.94] active:shadow-inner"
                       onClick={() => handleRevise(p.id)}
                       title="Create next revision (R+1)"

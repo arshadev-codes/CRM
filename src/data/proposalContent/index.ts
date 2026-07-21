@@ -8,7 +8,6 @@ import { conventionalMajorSubsystems } from "./majorSubsystems/conventional";
 
 export type { SubsystemContent };
 
-// Page 3 system intro — one per system type, no fallback (each type has its own).
 export function getSystemIntro(systemType: SystemType) {
   switch (systemType) {
     case "SemiAutomatic": return semiAutomaticSystemIntro;
@@ -19,9 +18,6 @@ export function getSystemIntro(systemType: SystemType) {
   }
 }
 
-// Major Subsystems — resolves with permanent fallback to Advanced when the
-// dedicated library for the system type is empty. This is intentional per spec
-// and must NOT be removed once SATTS/CTTS content is added.
 export function getMajorSubsystems(systemType: SystemType): SubsystemContent[] {
   let list: SubsystemContent[] = [];
   switch (systemType) {
@@ -31,10 +27,33 @@ export function getMajorSubsystems(systemType: SystemType): SubsystemContent[] {
     case "FullyAutomatic":
     default: list = advancedMajorSubsystems;
   }
-  return list.length ? list : advancedMajorSubsystems; // permanent fallback
+  return list.length ? list : advancedMajorSubsystems;
 }
 
-// Lookup a single subsystem by id with the same fallback rule.
 export function getSubsystemById(systemType: SystemType, id: string): SubsystemContent | undefined {
   return getMajorSubsystems(systemType).find(s => s.id === id);
+}
+
+// ── NEW: single source of truth for resolving a subsystem's ACTIVE
+// variant content. Every place that shows a subsystem's title/description/
+// images (Step 3 wizard, Step 9 pricing, ScopeOfSupplyPdf, SubsystemsPdf)
+// must go through these instead of reading s.title / s.description / s.images
+// directly — otherwise the selected variant (e.g. "Manual") gets silently
+// ignored and the DEFAULT variant's content leaks through instead.
+function activeVariantOption(s: SubsystemContent, variants?: Record<string, string>) {
+  if (!s.variants) return undefined;
+  const activeKey = variants?.[s.id] ?? s.variants.default;
+  return s.variants.options.find(o => o.key === activeKey);
+}
+
+export function resolveSubsystemTitle(s: SubsystemContent, variants?: Record<string, string>): string {
+  return activeVariantOption(s, variants)?.title ?? s.title;
+}
+
+export function resolveSubsystemDescription(s: SubsystemContent, variants?: Record<string, string>): string {
+  return activeVariantOption(s, variants)?.description ?? s.description;
+}
+
+export function resolveSubsystemImages(s: SubsystemContent, variants?: Record<string, string>): string[] | undefined {
+  return activeVariantOption(s, variants)?.images ?? s.images;
 }

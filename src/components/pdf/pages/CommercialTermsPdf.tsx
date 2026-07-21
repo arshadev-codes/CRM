@@ -22,7 +22,7 @@ export function CommercialTermsPdf({
 
       <Section title="Pricing">
         <p>All prices are quoted in INR, exclusive of GST and any other applicable statutory levies.</p>
-        <p className="mt-1">Detailed price breakdown is shared separately as part of the commercial annexure.</p>
+        {/* <p className="mt-1">Detailed price breakdown is shared separately as part of the commercial annexure.</p> */}
       </Section>
 
       <Section title="Freight &amp; Logistics">

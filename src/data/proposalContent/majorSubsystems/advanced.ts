@@ -11,7 +11,6 @@ import testBenchImg from "@/assets/test-bench.png";
 import xmerEdgeImg from "@/assets/xmer-edge.png";
 import powerPanelImg from "@/assets/power-panel.png";
 import lvTrolleyImg from "@/assets/lv-trolley.png";
-import ctPtRackImg from "@/assets/ct-pt-rack.png";
 //import htCapImg from "@/assets/subsystems/ht-capacitor-bank.jpg";
 //import htIsolatorCapImg from "@/assets/subsystems/ht-isolator-capacitor.jpg";
 import htIsolatorTrhImg from "@/assets/ht-isolator-temp-rise.png";
@@ -28,10 +27,11 @@ import CloudReportingImg from "@/assets/Cloud-Report.png";
 // `title` and `description` here OVERRIDE the parent SubsystemContent's
 // title/description in the PDF when this option is the active selection.
 export interface SubsystemVariantOption {
-  key: string;          // stable id used in storage, e.g. "pneumatic"
-  label: string;         // shown in the wizard dropdown, e.g. "Pneumatic"
-  title: string;          // PDF heading when this option is selected
-  description: string;    // PDF body text when this option is selected
+  key: string;
+  label: string;
+  title: string;
+  description: string;
+  images?: string[];   // NEW — lets each variant show its own photo (e.g. Cloud vs Local screenshot)
 }
 
 export interface SubsystemContent {
@@ -56,7 +56,7 @@ export const advancedMajorSubsystems: SubsystemContent[] = [
     title: "Advanced Fully-automatic Transformer Test Bench",
     preview: "Centralised control station with 43\" HD display and laser printer.",
     description:
-      "The Advanced Transformer Test Bench is a centralized and ergonomically designed control station that houses the industrial PC with a 43\" high-definition display and a mono laser printer for on-site report printing. It incorporates PLC-based advanced control and monitoring logic along with automated safety interlocks, trip circuits, and protection mechanisms. The bench includes integrated terminals for all test inputs and outputs, enabling seamless connection with all subsystems. Serving as the comman1111111111111qad centre of the entire system, it allows the operator to control and monitor the entire test process directly through the software interface, ensuring reliability, safety, and ease of operation.",
+      "The Advanced Transformer Test Bench is a centralized and ergonomically designed control station that houses the industrial PC with a 43\" high-definition display and a mono laser printer for on-site report printing. It incorporates PLC-based advanced control and monitoring logic along with automated safety interlocks, trip circuits, and protection mechanisms. The bench includes integrated terminals for all test inputs and outputs, enabling seamless connection with all subsystems. Serving as the comman centre of the entire system, it allows the operator to control and monitor the entire test process directly through the software interface, ensuring reliability, safety, and ease of operation.",
     images: [AdvancedFullyAutomaticImg],
   },
   {
@@ -68,21 +68,34 @@ export const advancedMajorSubsystems: SubsystemContent[] = [
     images: [xmerEdgeImg],
   },
    {
-    id: "xmer-edge-report",
-    title: "Electrosoft X'mer Edge™ — Report generation module",
-    preview: "Web-based report generation module for customised test reports.",
-    description:
-      " The Report Generation Module of Electrosoft X'mer Edge™ is a web-based application that allows users to generate customised transformer test reports. It accesses logged data from the test bench and produces neatly formatted PDF reports according to user-defined templates. This module ensures that all test results are documented accurately and professionally, facilitating easy sharing and record-keeping.",
-    images: [ReportingSoftwareImg],
+  id: "xmer-edge-report",
+  title: "Electrosoft X'mer Edge™ — Report Generation Module",
+  preview: "Cloud or on-premise report generation module for customised test reports.",
+  description:
+    " The Cloud-based Report Generation Module of Electrosoft X'mer Edge™ is a web-based application that allows users to generate customised transformer test reports. It accesses logged data from the test bench and produces neatly formatted PDF reports according to user-defined templates. This module ensures that all test results are documented accurately and professionally, facilitating easy sharing and record-keeping.",
+  images: [CloudReportingImg],
+  variants: {
+    default: "cloud",
+    options: [
+      {
+        key: "cloud",
+        label: "Cloud",
+        title: "Electrosoft X'mer Edge™ — Cloud-based Report Generation Module",
+        description:
+          " The Cloud-based Report Generation Module of Electrosoft X'mer Edge™ is a web-based application that allows users to generate customised transformer test reports. It accesses logged data from the test bench and produces neatly formatted PDF reports according to user-defined templates. This module ensures that all test results are documented accurately and professionally, facilitating easy sharing and record-keeping.",
+        images: [CloudReportingImg],
+      },
+      {
+        key: "local",
+        label: "Local",
+        title: "Electrosoft X'mer Edge™ — Report Generation Module",
+        description:
+          " The Report Generation Module of Electrosoft X'mer Edge™ is a web-based application that allows users to generate customised transformer test reports. It accesses logged data from the test bench and produces neatly formatted PDF reports according to user-defined templates. This module ensures that all test results are documented accurately and professionally, facilitating easy sharing and record-keeping.",
+        images: [ReportingSoftwareImg],
+      },
+    ],
   },
-    {
-    id: "xmer-edge-cloud",
-    title: "Electrosoft X'mer Edge™ — Cloud-based report generation module",
-    preview: "Cloud-based report generation module for customised test reports.",
-    description:
-      " The Cloud-based Report Generation Module of Electrosoft X'mer Edge™ is a web-based application that allows users to generate customised transformer test reports. It accesses logged data from the test bench and produces neatly formatted PDF reports according to user-defined templates. This module ensures that all test results are documented accurately and professionally, facilitating easy sharing and record-keeping.",
-    images: [CloudReportingImg],
-  },
+},
    {
     id: "power-panel-generator",
     title: "Generator Panels.",
@@ -141,49 +154,6 @@ export const advancedMajorSubsystems: SubsystemContent[] = [
         },
       ],
     },
-  },
-  {
-    id: "ct-pt-rack",
-    title: "CT-PT Rack with Pneumatic Knife Switches",
-    preview: "Software-controlled CT/PT primary selection.",
-    description:
-      "The CT-PT rack is designed for automated primary selection and routing during CT-PT related tests. It uses pneumatic knife switches actuated through software-controlled logic integrated with the X'mer Edge™ platform. The system provides fail-safe actuation and feedback-based position confirmation to ensure the correct selection is made before any test is initiated. This arrangement enables fully automatic switching between various CT and PT combinations required during various tests.",
-    images: [ctPtRackImg],
-    variants: {
-      default: "hand-operated",
-      options: [
-        {
-          key: "hand-operated",
-          label: "Hand Operated",
-          title: "CT-PT Rack with Hand Operated Knife Switches",
-          description:
-            "The CT-PT rack is designed for primary selection and routing during CT-PT related tests. It uses hand operated knife switches that the operator switches manually to select the required CT and PT combination before any test is initiated. Clear labelling and mechanical positive-position detents help ensure the correct selection is made reliably during testing.",
-        },
-        {
-          key: "pneumatic",
-          label: "Pneumatic",
-          title: "CT-PT Rack with Pneumatic Knife Switches",
-          description:
-            "The CT-PT rack is designed for automated primary selection and routing during CT-PT related tests. It uses pneumatic knife switches actuated through software-controlled logic integrated with the X'mer Edge™ platform. The system provides fail-safe actuation and feedback-based position confirmation to ensure the correct selection is made before any test is initiated. This arrangement enables fully automatic switching between various CT and PT combinations required during various tests.",
-        },
-      ],
-    },
-  },
-  {
-    id: "ht-cap",
-    title: "HT Capacitor Bank",
-    preview: "Reactive power support for no-load and IVW tests.",
-    description:
-      "The HT Capacitor Bank is a critical subsystem that supplies the reactive MVA required during tests such as no-load loss, load loss, induced-voltage withstand (DVDF), and other excitation-based high-voltage tests. It provides stable reactive power support, enabling controlled voltage buildup and maintaining required test voltages without overloading the power source. The capacitor bank works in coordination with the motorized HT isolator switch and integrated protection logic, allowing safe, interlocked energisation and de-energisation through software commands. Its inclusion ensures reliable and efficient testing of large EHV transformers up to 500 MVA, 765 kV.",
-   // images: [htCapImg],
-  },
-  {
-    id: "LT-cap",
-    title: "LT Capacitor Bank",
-    preview: "Reactive power support for no-load and IVW tests.",
-    description:
-      "The LT Capacitor Bank is a critical subsystem that supplies the reactive MVA required during tests such as no-load loss, load loss, induced-voltage withstand (DVDF), and other excitation-based high-voltage tests. It provides stable reactive power support, enabling controlled voltage buildup and maintaining required test voltages without overloading the power source. The capacitor bank works in coordination with the motorized LT isolator switch and integrated protection logic, allowing safe, interlocked energisation and de-energisation through software commands. Its inclusion ensures reliable and efficient testing of large EHV transformers up to 500 MVA, 765 kV.",
-   // images: [ltCapImg],
   },
   {
     id: "ht-isolator-cap",
