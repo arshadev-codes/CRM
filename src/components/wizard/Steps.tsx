@@ -37,6 +37,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { FreightLogisticsData } from "@/store/proposalStore";
+import {
+  freightChargesOptions,
+  sourceOptions,
+  modeOfTransportOptions,
+  incotermsOptions,
+  transitInsuranceOptions,
+  freightLogisticsDefaults,
+} from "@/data/freightLogisticsData";
 
 
 type Update = (patch: Partial<ProposalData>) => void;
@@ -44,10 +53,11 @@ type Update = (patch: Partial<ProposalData>) => void;
 export function Step1ProjectSetup({ project, update }: { project: Project; update: Update }) {
   const setSystemType = useProposalStore(s => s.setSystemType);
   const employees = useProposalStore(s => s.employees);
-  const { customer, meta, transformer, systemType } = project.data;
+  const { customer, meta, transformer, systemType, freightLogistics } = project.data;
   const c = (patch: Partial<typeof customer>) => update({ customer: { ...customer, ...patch } });
   const m = (patch: Partial<typeof meta>) => update({ meta: { ...meta, ...patch } });
   const t = (patch: Partial<typeof transformer>) => update({ transformer: { ...transformer, ...patch } });
+  const f = (patch: Partial<typeof freightLogistics>) => update({ freightLogistics: { ...freightLogistics, ...patch } });
 
   return (
     <div className="space-y-8 p-2">
@@ -963,49 +973,178 @@ export function Step5Proprietary({ project, update }: { project: Project; update
   );
 }
 
+// Paste this in place of the existing `Step6Delivery` function in
+// src/components/wizard/Steps.tsx
+//
+// Also add this import near your other data imports at the top of Steps.tsx:
+//
+//   import type { FreightLogisticsData } from "@/store/proposalStore";
+//   import {
+//     freightChargesOptions,
+//     sourceOptions,
+//     modeOfTransportOptions,
+//     incotermsOptions,
+//     transitInsuranceOptions,
+//     freightLogisticsDefaults,
+//   } from "@/data/freightLogisticsData";
+
 export function Step6Delivery({ project, update }: { project: Project; update: Update }) {
   const { delivery } = project.data;
   const updateRow = (i: number, patch: Partial<typeof delivery[number]>) =>
     update({ delivery: delivery.map((r, idx) => idx === i ? { ...r, ...patch } : r) });
   const remove = (i: number) => update({ delivery: delivery.filter((_, idx) => idx !== i) });
   const add = () => update({ delivery: [...delivery, { id: crypto.randomUUID(), deliverable: "New Deliverable", duration: "Will Be Decided Later" }] });
+
+  // ── Freight & Logistics ──────────────────────────────────────────────
+  const fl: FreightLogisticsData = project.data.freightLogistics ?? {
+    ...freightLogisticsDefaults,
+  };
+  const setFl = (patch: Partial<FreightLogisticsData>) =>
+    update({ freightLogistics: { ...fl, ...patch } });
+
+  const destinationValue = fl.destination || project.data.customer.city || "";
+
   return (
-    <div className="space-y-3">
-      <table className="w-full text-sm border">
-        <thead className="bg-slate-100">
-          <tr>
-            <th className="border p-2 text-left">Deliverable</th>
-            <th className="border p-2 text-left w-56">Duration</th>
-            <th className="border p-2 text-left">If Custom</th>
-            <th className="border p-2 w-12"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {delivery.map((r, i) => (
-            <tr key={r.id}>
-              <td className="border p-1"><Input value={r.deliverable} onChange={e => updateRow(i, { deliverable: e.target.value })} /></td>
-              <td className="border p-1">
-                <Select value={r.duration} onValueChange={v => updateRow(i, { duration: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{deliveryDurationOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                </Select>
-              </td>
-              <td className="border p-1">
-                {r.duration === "Custom" && (
-                  <Input value={r.custom ?? ""} onChange={e => updateRow(i, { custom: e.target.value })} placeholder="e.g. 25 days from PO" />
-                )}
-              </td>
-              <td className="border p-1 text-center">
-                <Button size="icon" variant="ghost" onClick={() => remove(i)}><Trash2 className="h-3 w-3" /></Button>
-              </td>
+    <div className="space-y-8">
+      <div className="space-y-3">
+        <table className="w-full text-sm border">
+          <thead className="bg-slate-100">
+            <tr>
+              <th className="border p-2 text-left">Deliverable</th>
+              <th className="border p-2 text-left w-56">Duration</th>
+              <th className="border p-2 text-left">If Custom</th>
+              <th className="border p-2 w-12"></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="flex gap-2">
-        <Button size="sm" variant="outline" onClick={add}><Plus className="h-3 w-3 mr-1" />Add row</Button>
-        <Button size="sm" variant="ghost" onClick={() => update({ delivery: deliveryDefaults.map(d => ({ ...d })) })}>Reset to defaults</Button>
+          </thead>
+          <tbody>
+            {delivery.map((r, i) => (
+              <tr key={r.id}>
+                <td className="border p-1"><Input value={r.deliverable} onChange={e => updateRow(i, { deliverable: e.target.value })} /></td>
+                <td className="border p-1">
+                  <Select value={r.duration} onValueChange={v => updateRow(i, { duration: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{deliveryDurationOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                  </Select>
+                </td>
+                <td className="border p-1">
+                  {r.duration === "Custom" && (
+                    <Input value={r.custom ?? ""} onChange={e => updateRow(i, { custom: e.target.value })} placeholder="e.g. 25 days from PO" />
+                  )}
+                </td>
+                <td className="border p-1 text-center">
+                  <Button size="icon" variant="ghost" onClick={() => remove(i)}><Trash2 className="h-3 w-3" /></Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={add}><Plus className="h-3 w-3 mr-1" />Add row</Button>
+          <Button size="sm" variant="ghost" onClick={() => update({ delivery: deliveryDefaults.map(d => ({ ...d })) })}>Reset to defaults</Button>
+        </div>
       </div>
+
+      <Section title="Freight & Logistics">
+        <p className="text-xs text-muted-foreground mb-3">
+          These details are inserted into the <strong>Commercial Terms</strong> page of the PDF. Pick a preset from
+          each dropdown, or choose <strong>Custom</strong> to type your own wording.
+        </p>
+        <div className="grid grid-cols-12 gap-4">
+          <Field className="col-span-6" label="Freight Charges">
+            <Select value={fl.freightCharges} onValueChange={v => setFl({ freightCharges: v })}>
+              <SelectTrigger className="neo-inset !shadow-none border-0 h-[42px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {freightChargesOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+
+          <Field className="col-span-6" label="Destination">
+            <NeoInput
+              value={destinationValue}
+              onChange={e => setFl({ destination: e.target.value })}
+              placeholder="e.g. Customer site city"
+            />
+          </Field>
+
+          <Field className="col-span-6" label="Source (Dispatch Location)">
+            <Select value={fl.source} onValueChange={v => setFl({ source: v })}>
+              <SelectTrigger className="neo-inset !shadow-none border-0 h-[42px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {sourceOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {fl.source === "Custom" && (
+              <NeoInput
+                className="mt-2"
+                value={fl.sourceCustom ?? ""}
+                onChange={e => setFl({ sourceCustom: e.target.value })}
+                placeholder="Enter dispatch location"
+              />
+            )}
+          </Field>
+
+          <Field className="col-span-6" label="Mode of Transport">
+            <Select value={fl.modeOfTransport} onValueChange={v => setFl({ modeOfTransport: v })}>
+              <SelectTrigger className="neo-inset !shadow-none border-0 h-[42px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {modeOfTransportOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {fl.modeOfTransport === "Custom" && (
+              <NeoInput
+                className="mt-2"
+                value={fl.modeOfTransportCustom ?? ""}
+                onChange={e => setFl({ modeOfTransportCustom: e.target.value })}
+                placeholder="Enter mode of transport"
+              />
+            )}
+          </Field>
+
+          <Field className="col-span-6" label="Incoterms">
+            <Select value={fl.incoterms} onValueChange={v => setFl({ incoterms: v })}>
+              <SelectTrigger className="neo-inset !shadow-none border-0 h-[42px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {incotermsOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {fl.incoterms === "Custom" && (
+              <NeoInput
+                className="mt-2"
+                value={fl.incotermsCustom ?? ""}
+                onChange={e => setFl({ incotermsCustom: e.target.value })}
+                placeholder="Enter incoterms"
+              />
+            )}
+          </Field>
+
+          <Field className="col-span-6" label="Transit Insurance">
+            <Select value={fl.transitInsurance} onValueChange={v => setFl({ transitInsurance: v })}>
+              <SelectTrigger className="neo-inset !shadow-none border-0 h-[42px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {transitInsuranceOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {fl.transitInsurance === "Custom" && (
+              <NeoInput
+                className="mt-2"
+                value={fl.transitInsuranceCustom ?? ""}
+                onChange={e => setFl({ transitInsuranceCustom: e.target.value })}
+                placeholder="Enter transit insurance clause"
+              />
+            )}
+          </Field>
+
+          <Field className="col-span-12" label="Liability Note">
+            <textarea
+              rows={2}
+              className="neo-inset w-full px-3 py-2 text-sm outline-none resize-y"
+              value={fl.liabilityNote}
+              onChange={e => setFl({ liabilityNote: e.target.value })}
+            />
+          </Field>
+        </div>
+      </Section>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { employeesData, type Employee } from "@/data/employeesData";
 import { companiesData, type Company } from "@/data/companiesData";
 import { supabase } from "@/lib/supabaseClient";
 import { buildOfferBase, buildOfferNumber, getFY, slugCompany } from "@/lib/offerNumber";
+import { freightLogisticsDefaults, type FreightLogisticsData } from "@/data/freightLogisticsData";
 
 
 export interface Customer {
@@ -105,6 +106,8 @@ export interface ProposalData {
   exclusions: string[];
   makes: MakeSelection[];
   payment: PaymentMilestone[];
+  /** Freight/logistics details for the Commercial Terms PDF page */
+  freightLogistics?: FreightLogisticsData;
 }
 
 export interface Project {
@@ -163,6 +166,7 @@ function defaultsForSystem(systemType: SystemType): ProposalData {
     exclusions: exclusionsData.filter(e => e.defaultIncluded).map(e => e.id),
     makes: makesOfSupplyData.map(m => ({ id: m.id, enabled: !!m.defaultEnabled, make: m.defaultMake })),
     payment: paymentTemplatesData[0].milestones.map(m => ({ ...m })),
+    freightLogistics: { ...freightLogisticsDefaults },
   };
 }
 
