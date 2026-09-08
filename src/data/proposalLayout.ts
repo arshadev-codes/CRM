@@ -90,7 +90,7 @@ export function resolveLayout(layout?: ProposalLayout | null): ProposalLayout {
   }
   for (const s of base.sections) if (!seen.has(s.id)) sections.push(s);
 
-  const knownSteps = new Set(WIZARD_STEP_DEFS.map((s) => s.key));
+  const knownSteps = new Set<string>(WIZARD_STEP_DEFS.map((s) => s.key));
   const steps = (layout.steps ?? []).filter((k, i, arr) => knownSteps.has(k) && arr.indexOf(k) === i);
 
   return {
