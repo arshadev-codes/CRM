@@ -267,9 +267,28 @@ export const useProposalStore = create<ProposalStore>()(
       paymentTemplates: paymentTemplatesData,
       employees: employeesData,
       companies: companiesData,
-      createProject: (name) => {
+      projectTemplates: [],
+      saveProjectTemplate: (name, layout) => {
+        const t: SavedProposalTemplate = {
+          id: crypto.randomUUID(), name, createdAt: Date.now(),
+          layout: JSON.parse(JSON.stringify(layout)),
+        };
+        set(s => ({ projectTemplates: [t, ...s.projectTemplates] }));
+        return t;
+      },
+      deleteProjectTemplate: (id) =>
+        set(s => ({ projectTemplates: s.projectTemplates.filter(t => t.id !== id) })),
+      setProjectLayout: (id, layout) =>
+        set(s => ({ projects: s.projects.map(p => {
+          if (p.id !== id) return p;
+          const merged: Project = { ...p, updatedAt: Date.now(), data: { ...p.data, layout } };
+          void pushProject(merged);
+          return merged;
+        }) })),
+      createProject: (name, layout) => {
         // Next global sequence per FY, computed across local projects (cloud hydration keeps this in sync).
         const p0 = newProject(name);
+        if (layout) p0.data.layout = JSON.parse(JSON.stringify(layout));
         const fy = getFY(p0.data.meta.date);
         const nextSeq =
           (get().projects.filter(x => x.fy === fy).reduce((m, x) => Math.max(m, x.offerSeq ?? 0), 0) || 0) + 1;
