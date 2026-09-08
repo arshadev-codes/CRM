@@ -14,6 +14,9 @@ import { companiesData, type Company } from "@/data/companiesData";
 import { supabase } from "@/lib/supabaseClient";
 import { buildOfferBase, buildOfferNumber, getFY, slugCompany } from "@/lib/offerNumber";
 import { freightLogisticsDefaults, type FreightLogisticsData } from "@/data/freightLogisticsData";
+import { defaultLayout, type ProposalLayout, type SavedProposalTemplate } from "@/data/proposalLayout";
+
+export type { FreightLogisticsData };
 
 
 export interface Customer {
