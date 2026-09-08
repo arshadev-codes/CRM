@@ -333,6 +333,7 @@ export const useProposalStore = create<ProposalStore>()(
             customer: p.data.customer,
             meta: p.data.meta,
             transformer: p.data.transformer,
+            layout: p.data.layout ?? fresh.layout,
           }};
           void pushProject(merged);
           return merged;
