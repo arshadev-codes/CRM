@@ -1,8 +1,10 @@
+import type { ReactNode } from "react";
 import type { Project } from "@/store/proposalStore";
 import { TotalPagesProvider } from "./PdfPage";
-import { useDynamicPageCounts } from "@/hooks/useDynamicPageCounts";
+import { SectionShell } from "./SectionShell";
+import { useDynamicPageCounts, type DynamicSectionKey } from "@/hooks/useDynamicPageCounts";
+import { resolveLayout, SECTION_BY_ID, type ProposalLayout } from "@/data/proposalLayout";
 import { RFQPdf } from "./pages/RFQPdf";
-import { IntroLetterPdf } from "./pages/IntroLetterPdf";
 import { RequirementPdf } from "./pages/RequirementPdf";
 import { SystemIntroPdf } from "./pages/SystemIntroPdf";
 import { SubsystemsPdf } from "./pages/SubsystemsPdf";
@@ -15,81 +17,98 @@ import { ExclusionsMakesPdf } from "./pages/ExclusionsMakesPdf";
 import { CommercialTermsPdf } from "./pages/CommercialTermsPdf";
 import { TermsPdf } from "./pages/TermsPdf";
 
-// FALLBACK page counts, used only until each dynamic section finishes its
-// real measurement pass and reports back via the registry. These are just
-// "good enough to render something on first paint" guesses — every number
-// downstream self-corrects once real counts arrive. Tune these to roughly
-// match typical project sizes so the on-screen flicker window (fallback →
-// real) is as small as possible, but they are NOT relied on for correctness.
-const FALLBACK_SUBSYSTEMS_PAGES = 6;
-const FALLBACK_SCOPE_PAGES = 3;
-const FALLBACK_TERMS_PAGES = 2;
+// data-pdf-settled flips to "true" only once every dynamic section included in
+// THIS document has reported its real measured page count — Puppeteer waits on
+// it before snapshotting.
+export function AllPages({
+  project,
+  layout,
+  editableSectionId,
+  onSectionCommit,
+}: {
+  project: Project;
+  layout?: ProposalLayout;
+  /** Section currently being edited inline in the preview editor */
+  editableSectionId?: string | null;
+  onSectionCommit?: (sectionId: string, html: string) => void;
+}) {
+  const resolved = resolveLayout(layout ?? project.data.layout);
+  const active = resolved.sections.filter((s) => s.enabled);
+  const overrides = resolved.htmlOverrides ?? {};
 
-// data-pdf-settled is a plain DOM attribute (not a class, not styling) that
-// Puppeteer can poll for before calling page.pdf(). It flips to "true" only
-// once every dynamic section (Subsystems, ScopeOfSupply, Terms) has reported
-// its REAL measured page count at least once — i.e. the whole document's
-// page numbering is finally stable and won't shift on a later render.
-//
-// Example Puppeteer wait (in your export route, not this file):
-//   await page.waitForSelector('[data-pdf-settled="true"]', { timeout: 15000 });
-export function AllPages({ project }: { project: Project }) {
-  const { isSettled, getCount, report } = useDynamicPageCounts();
+  const dynamicKeys = active
+    .map((s) => SECTION_BY_ID[s.id]?.dynamic)
+    .filter((k): k is DynamicSectionKey => !!k);
 
-  const subsystemsPages = getCount("subsystems", FALLBACK_SUBSYSTEMS_PAGES);
-  const scopePages = getCount("scopeOfSupply", FALLBACK_SCOPE_PAGES);
-  const termsPages = getCount("terms", FALLBACK_TERMS_PAGES);
+  const { isSettled, getCount, report } = useDynamicPageCounts(dynamicKeys);
 
-  // ── Page number accounting ─────────────────────────────────────────────
-  // All three dynamic counts above come from the SAME registry snapshot, so
-  // every value below is computed from a single consistent state — never a
-  // mix of "some real, some stale" numbers across one render.
+  // Walk sections in the user's order, handing each one its running start page.
   let p = 1;
-  const rfqPage         = p++;
-  const introPage       = p++;
-  const systemPage      = p++;
-  const requirementPage = p++;
-  const subsysStart     = p; p += Math.max(1, subsystemsPages);
-  const connectionsPage = p++;
-  const layoutPage      = p++;
-  const scopeStart      = p; p += Math.max(1, scopePages);
-  const eqInsPage       = p++;
-  const servicesPage    = p++;
-  const exclusionsPage  = p++;
-  const commercialPage  = p++;
-  const termsStart      = p; p += Math.max(1, termsPages);
+  const rendered: ReactNode[] = [];
 
-  const totalPages = p - 1;
+  for (const { id } of active) {
+    const def = SECTION_BY_ID[id];
+    if (!def) continue;
+    const startPage = p;
+    let node: ReactNode = null;
+
+    switch (id) {
+      case "rfq":
+        node = <RFQPdf project={project} />; p += 1; break;
+      case "requirement":
+        node = <RequirementPdf project={project} />; p += 1; break;
+      case "systemIntro":
+        node = <SystemIntroPdf project={project} pageNumber={startPage} />; p += 1; break;
+      case "subsystems": {
+        const n = Math.max(1, getCount("subsystems", def.fallbackPages ?? 6));
+        node = <SubsystemsPdf project={project} startPage={startPage} onPageCountKnown={report("subsystems")} />;
+        p += n; break;
+      }
+      case "connections":
+        node = <ConnectionsTestsPdf project={project} pageNumber={startPage} />; p += 1; break;
+      case "systemLayout":
+        node = <SystemLayoutPdf project={project} pageNumber={startPage} />; p += 1; break;
+      case "scopeOfSupply": {
+        const n = Math.max(1, getCount("scopeOfSupply", def.fallbackPages ?? 3));
+        node = <ScopeOfSupplyPdf project={project} startPage={startPage} onPageCountKnown={report("scopeOfSupply")} />;
+        p += n; break;
+      }
+      case "equipmentInstruments":
+        node = <EquipmentInstrumentsPdf project={project} pageNumber={startPage} />; p += 1; break;
+      case "scopeOfServices":
+        node = <ScopeOfServicesPdf project={project} pageNumber={startPage} />; p += 1; break;
+      case "exclusionsMakes":
+        node = <ExclusionsMakesPdf project={project} pageNumber={startPage} />; p += 1; break;
+      case "commercial":
+        node = <CommercialTermsPdf project={project} pageNumber={startPage} />; p += 1; break;
+      case "terms": {
+        const n = Math.max(1, getCount("terms", def.fallbackPages ?? 2));
+        node = <TermsPdf project={project} startPage={startPage} onPageCountKnown={report("terms")} />;
+        p += n; break;
+      }
+      default:
+        continue;
+    }
+
+    rendered.push(
+      <SectionShell
+        key={id}
+        id={id}
+        overrideHtml={overrides[id]}
+        editable={editableSectionId === id}
+        onCommit={(html) => onSectionCommit?.(id, html)}
+      >
+        {node}
+      </SectionShell>,
+    );
+  }
+
+  const totalPages = Math.max(1, p - 1);
 
   return (
     <TotalPagesProvider value={totalPages}>
       <div className="proposal-print" data-pdf-settled={isSettled ? "true" : "false"}>
-        <RFQPdf project={project} />
-        {/* <IntroLetterPdf project={project} /> */}
-        <RequirementPdf project={project} />
-        <SystemIntroPdf project={project} pageNumber={systemPage} />   
-        <SubsystemsPdf
-          project={project}
-          startPage={subsysStart}
-          onPageCountKnown={report("subsystems")}
-        />
-        <ConnectionsTestsPdf project={project} pageNumber={connectionsPage} />
-        <SystemLayoutPdf project={project} pageNumber={layoutPage} />
-        <ScopeOfSupplyPdf
-          project={project}
-          startPage={scopeStart}
-          onPageCountKnown={report("scopeOfSupply")}
-        />
-        <EquipmentInstrumentsPdf project={project} pageNumber={eqInsPage} />
-        <ScopeOfServicesPdf project={project} pageNumber={servicesPage} />
-        <ExclusionsMakesPdf project={project} pageNumber={exclusionsPage} />
-        <CommercialTermsPdf project={project} pageNumber={commercialPage} />
-        <TermsPdf
-          project={project}
-          startPage={termsStart}
-          onPageCountKnown={report("terms")}
-        />
-        <span className="hidden">{rfqPage}{introPage}{requirementPage}</span>
+        {rendered}
       </div>
     </TotalPagesProvider>
   );
