@@ -52,7 +52,7 @@ export interface DynamicPageCounts {
   getCount: (key: DynamicSectionKey, fallback: number) => number;
 }
 
-export function useDynamicPageCounts(): DynamicPageCounts {
+export function useDynamicPageCounts(expected?: DynamicSectionKey[]): DynamicPageCounts {
   const [counts, setCounts] = useState<Partial<Record<DynamicSectionKey, number>>>({});
 
   // One stable callback per key, cached for the lifetime of the component.
@@ -80,7 +80,8 @@ export function useDynamicPageCounts(): DynamicPageCounts {
     [counts],
   );
 
-  const isSettled = SECTION_KEYS.every((k) => counts[k] !== undefined);
+  // Only sections actually included in this document have to report in.
+  const isSettled = (expected ?? SECTION_KEYS).every((k) => counts[k] !== undefined);
 
   return { counts, isSettled, report, getCount };
 }

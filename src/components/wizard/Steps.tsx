@@ -57,7 +57,8 @@ export function Step1ProjectSetup({ project, update }: { project: Project; updat
   const c = (patch: Partial<typeof customer>) => update({ customer: { ...customer, ...patch } });
   const m = (patch: Partial<typeof meta>) => update({ meta: { ...meta, ...patch } });
   const t = (patch: Partial<typeof transformer>) => update({ transformer: { ...transformer, ...patch } });
-  const f = (patch: Partial<typeof freightLogistics>) => update({ freightLogistics: { ...freightLogistics, ...patch } });
+  const f = (patch: Partial<FreightLogisticsData>) =>
+    update({ freightLogistics: { ...(freightLogistics ?? {}), ...patch } as FreightLogisticsData });
 
   return (
     <div className="space-y-8 p-2">

@@ -14,6 +14,9 @@ import { companiesData, type Company } from "@/data/companiesData";
 import { supabase } from "@/lib/supabaseClient";
 import { buildOfferBase, buildOfferNumber, getFY, slugCompany } from "@/lib/offerNumber";
 import { freightLogisticsDefaults, type FreightLogisticsData } from "@/data/freightLogisticsData";
+import { defaultLayout, type ProposalLayout, type SavedProposalTemplate } from "@/data/proposalLayout";
+
+export type { FreightLogisticsData };
 
 
 export interface Customer {
@@ -108,6 +111,8 @@ export interface ProposalData {
   payment: PaymentMilestone[];
   /** Freight/logistics details for the Commercial Terms PDF page */
   freightLogistics?: FreightLogisticsData;
+  /** Which wizard steps / proposal sections this project uses, plus edited section HTML */
+  layout?: ProposalLayout;
 }
 
 export interface Project {
@@ -167,6 +172,7 @@ function defaultsForSystem(systemType: SystemType): ProposalData {
     makes: makesOfSupplyData.map(m => ({ id: m.id, enabled: !!m.defaultEnabled, make: m.defaultMake })),
     payment: paymentTemplatesData[0].milestones.map(m => ({ ...m })),
     freightLogistics: { ...freightLogisticsDefaults },
+    layout: defaultLayout(),
   };
 }
 
@@ -182,7 +188,11 @@ interface ProposalStore {
   paymentTemplates: typeof paymentTemplatesData;
   employees: Employee[];
   companies: Company[];
-  createProject: (name?: string) => Project;
+  createProject: (name?: string, layout?: ProposalLayout) => Project;
+  setProjectLayout: (id: string, layout: ProposalLayout) => void;
+  projectTemplates: SavedProposalTemplate[];
+  saveProjectTemplate: (name: string, layout: ProposalLayout) => SavedProposalTemplate;
+  deleteProjectTemplate: (id: string) => void;
   updateProject: (id: string, patch: Partial<Project>) => void;
   updateProjectData: (id: string, patch: Partial<ProposalData>) => void;
   setSystemType: (id: string, systemType: SystemType) => void;
@@ -257,9 +267,28 @@ export const useProposalStore = create<ProposalStore>()(
       paymentTemplates: paymentTemplatesData,
       employees: employeesData,
       companies: companiesData,
-      createProject: (name) => {
+      projectTemplates: [],
+      saveProjectTemplate: (name, layout) => {
+        const t: SavedProposalTemplate = {
+          id: crypto.randomUUID(), name, createdAt: Date.now(),
+          layout: JSON.parse(JSON.stringify(layout)),
+        };
+        set(s => ({ projectTemplates: [t, ...s.projectTemplates] }));
+        return t;
+      },
+      deleteProjectTemplate: (id) =>
+        set(s => ({ projectTemplates: s.projectTemplates.filter(t => t.id !== id) })),
+      setProjectLayout: (id, layout) =>
+        set(s => ({ projects: s.projects.map(p => {
+          if (p.id !== id) return p;
+          const merged: Project = { ...p, updatedAt: Date.now(), data: { ...p.data, layout } };
+          void pushProject(merged);
+          return merged;
+        }) })),
+      createProject: (name, layout) => {
         // Next global sequence per FY, computed across local projects (cloud hydration keeps this in sync).
         const p0 = newProject(name);
+        if (layout) p0.data.layout = JSON.parse(JSON.stringify(layout));
         const fy = getFY(p0.data.meta.date);
         const nextSeq =
           (get().projects.filter(x => x.fy === fy).reduce((m, x) => Math.max(m, x.offerSeq ?? 0), 0) || 0) + 1;
@@ -304,6 +333,7 @@ export const useProposalStore = create<ProposalStore>()(
             customer: p.data.customer,
             meta: p.data.meta,
             transformer: p.data.transformer,
+            layout: p.data.layout ?? fresh.layout,
           }};
           void pushProject(merged);
           return merged;
