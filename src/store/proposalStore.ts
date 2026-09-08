@@ -188,7 +188,11 @@ interface ProposalStore {
   paymentTemplates: typeof paymentTemplatesData;
   employees: Employee[];
   companies: Company[];
-  createProject: (name?: string) => Project;
+  createProject: (name?: string, layout?: ProposalLayout) => Project;
+  setProjectLayout: (id: string, layout: ProposalLayout) => void;
+  projectTemplates: SavedProposalTemplate[];
+  saveProjectTemplate: (name: string, layout: ProposalLayout) => SavedProposalTemplate;
+  deleteProjectTemplate: (id: string) => void;
   updateProject: (id: string, patch: Partial<Project>) => void;
   updateProjectData: (id: string, patch: Partial<ProposalData>) => void;
   setSystemType: (id: string, systemType: SystemType) => void;
