@@ -111,6 +111,8 @@ export interface ProposalData {
   payment: PaymentMilestone[];
   /** Freight/logistics details for the Commercial Terms PDF page */
   freightLogistics?: FreightLogisticsData;
+  /** Which wizard steps / proposal sections this project uses, plus edited section HTML */
+  layout?: ProposalLayout;
 }
 
 export interface Project {
@@ -170,6 +172,7 @@ function defaultsForSystem(systemType: SystemType): ProposalData {
     makes: makesOfSupplyData.map(m => ({ id: m.id, enabled: !!m.defaultEnabled, make: m.defaultMake })),
     payment: paymentTemplatesData[0].milestones.map(m => ({ ...m })),
     freightLogistics: { ...freightLogisticsDefaults },
+    layout: defaultLayout(),
   };
 }
 
