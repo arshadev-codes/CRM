@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsTestsRouteImport } from './routes/settings.tests'
+import { Route as SettingsTemplatesRouteImport } from './routes/settings.templates'
 import { Route as SettingsSubsystemsRouteImport } from './routes/settings.subsystems'
 import { Route as SettingsScopeSupplyRouteImport } from './routes/settings.scope-supply'
 import { Route as SettingsScopeServicesRouteImport } from './routes/settings.scope-services'
@@ -41,6 +42,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
 const SettingsTestsRoute = SettingsTestsRouteImport.update({
   id: '/settings/tests',
   path: '/settings/tests',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsTemplatesRoute = SettingsTemplatesRouteImport.update({
+  id: '/settings/templates',
+  path: '/settings/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsSubsystemsRoute = SettingsSubsystemsRouteImport.update({
@@ -134,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/settings/scope-services': typeof SettingsScopeServicesRoute
   '/settings/scope-supply': typeof SettingsScopeSupplyRoute
   '/settings/subsystems': typeof SettingsSubsystemsRoute
+  '/settings/templates': typeof SettingsTemplatesRoute
   '/settings/tests': typeof SettingsTestsRoute
   '/settings/': typeof SettingsIndexRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByTo {
   '/settings/scope-services': typeof SettingsScopeServicesRoute
   '/settings/scope-supply': typeof SettingsScopeSupplyRoute
   '/settings/subsystems': typeof SettingsSubsystemsRoute
+  '/settings/templates': typeof SettingsTemplatesRoute
   '/settings/tests': typeof SettingsTestsRoute
   '/settings': typeof SettingsIndexRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/settings/scope-services': typeof SettingsScopeServicesRoute
   '/settings/scope-supply': typeof SettingsScopeSupplyRoute
   '/settings/subsystems': typeof SettingsSubsystemsRoute
+  '/settings/templates': typeof SettingsTemplatesRoute
   '/settings/tests': typeof SettingsTestsRoute
   '/settings/': typeof SettingsIndexRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/settings/scope-services'
     | '/settings/scope-supply'
     | '/settings/subsystems'
+    | '/settings/templates'
     | '/settings/tests'
     | '/settings/'
     | '/projects/$id/preview'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/settings/scope-services'
     | '/settings/scope-supply'
     | '/settings/subsystems'
+    | '/settings/templates'
     | '/settings/tests'
     | '/settings'
     | '/projects/$id/preview'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/settings/scope-services'
     | '/settings/scope-supply'
     | '/settings/subsystems'
+    | '/settings/templates'
     | '/settings/tests'
     | '/settings/'
     | '/projects/$id/preview'
@@ -258,6 +270,7 @@ export interface RootRouteChildren {
   SettingsScopeServicesRoute: typeof SettingsScopeServicesRoute
   SettingsScopeSupplyRoute: typeof SettingsScopeSupplyRoute
   SettingsSubsystemsRoute: typeof SettingsSubsystemsRoute
+  SettingsTemplatesRoute: typeof SettingsTemplatesRoute
   SettingsTestsRoute: typeof SettingsTestsRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   ProjectsIdPreviewRoute: typeof ProjectsIdPreviewRoute
@@ -285,6 +298,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/tests'
       fullPath: '/settings/tests'
       preLoaderRoute: typeof SettingsTestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/templates': {
+      id: '/settings/templates'
+      path: '/settings/templates'
+      fullPath: '/settings/templates'
+      preLoaderRoute: typeof SettingsTemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/subsystems': {
@@ -410,6 +430,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsScopeServicesRoute: SettingsScopeServicesRoute,
   SettingsScopeSupplyRoute: SettingsScopeSupplyRoute,
   SettingsSubsystemsRoute: SettingsSubsystemsRoute,
+  SettingsTemplatesRoute: SettingsTemplatesRoute,
   SettingsTestsRoute: SettingsTestsRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   ProjectsIdPreviewRoute: ProjectsIdPreviewRoute,
