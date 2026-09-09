@@ -16,6 +16,7 @@ export interface SectionDef {
 
 export const PROPOSAL_SECTIONS: SectionDef[] = [
   { id: "rfq", label: "RFQ / Cover" },
+  { id: "toc", label: "Table of Contents" },
   { id: "requirement", label: "Requirement" },
   { id: "systemIntro", label: "System Introduction" },
   { id: "subsystems", label: "Major Subsystems", dynamic: "subsystems", fallbackPages: 6 },

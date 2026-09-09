@@ -16,6 +16,7 @@ import { ScopeOfServicesPdf } from "./pages/ScopeOfServicesPdf";
 import { ExclusionsMakesPdf } from "./pages/ExclusionsMakesPdf";
 import { CommercialTermsPdf } from "./pages/CommercialTermsPdf";
 import { TermsPdf } from "./pages/TermsPdf";
+import { TableOfContentsPdf, type TocEntry } from "./pages/TableOfContentsPdf";
 
 // data-pdf-settled flips to "true" only once every dynamic section included in
 // THIS document has reported its real measured page count — Puppeteer waits on
@@ -42,50 +43,64 @@ export function AllPages({
 
   const { isSettled, getCount, report } = useDynamicPageCounts(dynamicKeys);
 
-  // Walk sections in the user's order, handing each one its running start page.
-  let p = 1;
+  // ── Pass 1: page budget ────────────────────────────────────────────────
+  // Walk the section order once and work out how many pages each section
+  // occupies, so the Table of Contents can print real start/end pages and
+  // every footer shows a consistent "Page X of Y".
+  const pagesFor = (id: string): number => {
+    const def = SECTION_BY_ID[id];
+    if (!def) return 0;
+    if (def.dynamic) return Math.max(1, getCount(def.dynamic, def.fallbackPages ?? 1));
+    return 1;
+  };
+
+  let cursor = 1;
+  const plan = active.map(({ id }) => {
+    const count = pagesFor(id);
+    const entry = { id, label: SECTION_BY_ID[id]?.label ?? id, start: cursor, end: cursor + count - 1, count };
+    cursor += count;
+    return entry;
+  });
+
+  const totalPages = Math.max(1, cursor - 1);
+
+  const tocEntries: TocEntry[] = plan
+    .filter((e) => e.id !== "toc" && e.count > 0)
+    .map(({ id, label, start, end }) => ({ id, label, start, end }));
+
+  // ── Pass 2: render with the resolved page numbers ─────────────────────
   const rendered: ReactNode[] = [];
 
-  for (const { id } of active) {
-    const def = SECTION_BY_ID[id];
-    if (!def) continue;
-    const startPage = p;
+  for (const { id, start } of plan) {
     let node: ReactNode = null;
 
     switch (id) {
       case "rfq":
-        node = <RFQPdf project={project} />; p += 1; break;
+        node = <RFQPdf project={project} pageNumber={start} />; break;
+      case "toc":
+        node = <TableOfContentsPdf pageNumber={start} entries={tocEntries} />; break;
       case "requirement":
-        node = <RequirementPdf project={project} />; p += 1; break;
+        node = <RequirementPdf project={project} pageNumber={start} />; break;
       case "systemIntro":
-        node = <SystemIntroPdf project={project} pageNumber={startPage} />; p += 1; break;
-      case "subsystems": {
-        const n = Math.max(1, getCount("subsystems", def.fallbackPages ?? 6));
-        node = <SubsystemsPdf project={project} startPage={startPage} onPageCountKnown={report("subsystems")} />;
-        p += n; break;
-      }
+        node = <SystemIntroPdf project={project} pageNumber={start} />; break;
+      case "subsystems":
+        node = <SubsystemsPdf project={project} startPage={start} onPageCountKnown={report("subsystems")} />; break;
       case "connections":
-        node = <ConnectionsTestsPdf project={project} pageNumber={startPage} />; p += 1; break;
+        node = <ConnectionsTestsPdf project={project} pageNumber={start} />; break;
       case "systemLayout":
-        node = <SystemLayoutPdf project={project} pageNumber={startPage} />; p += 1; break;
-      case "scopeOfSupply": {
-        const n = Math.max(1, getCount("scopeOfSupply", def.fallbackPages ?? 3));
-        node = <ScopeOfSupplyPdf project={project} startPage={startPage} onPageCountKnown={report("scopeOfSupply")} />;
-        p += n; break;
-      }
+        node = <SystemLayoutPdf project={project} pageNumber={start} />; break;
+      case "scopeOfSupply":
+        node = <ScopeOfSupplyPdf project={project} startPage={start} onPageCountKnown={report("scopeOfSupply")} />; break;
       case "equipmentInstruments":
-        node = <EquipmentInstrumentsPdf project={project} pageNumber={startPage} />; p += 1; break;
+        node = <EquipmentInstrumentsPdf project={project} pageNumber={start} />; break;
       case "scopeOfServices":
-        node = <ScopeOfServicesPdf project={project} pageNumber={startPage} />; p += 1; break;
+        node = <ScopeOfServicesPdf project={project} pageNumber={start} />; break;
       case "exclusionsMakes":
-        node = <ExclusionsMakesPdf project={project} pageNumber={startPage} />; p += 1; break;
+        node = <ExclusionsMakesPdf project={project} pageNumber={start} />; break;
       case "commercial":
-        node = <CommercialTermsPdf project={project} pageNumber={startPage} />; p += 1; break;
-      case "terms": {
-        const n = Math.max(1, getCount("terms", def.fallbackPages ?? 2));
-        node = <TermsPdf project={project} startPage={startPage} onPageCountKnown={report("terms")} />;
-        p += n; break;
-      }
+        node = <CommercialTermsPdf project={project} pageNumber={start} />; break;
+      case "terms":
+        node = <TermsPdf project={project} startPage={start} onPageCountKnown={report("terms")} />; break;
       default:
         continue;
     }
@@ -102,8 +117,6 @@ export function AllPages({
       </SectionShell>,
     );
   }
-
-  const totalPages = Math.max(1, p - 1);
 
   return (
     <TotalPagesProvider value={totalPages}>

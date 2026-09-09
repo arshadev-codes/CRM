@@ -3,12 +3,12 @@ import type { Project } from "@/store/proposalStore";
 import { testsData } from "@/data/testsData";
 import { systemConfiguration } from "@/data/systemConfiguration";
 
-export function RequirementPdf({ project }: { project: Project }) {
+export function RequirementPdf({ project, pageNumber = 2 }: { project: Project; pageNumber?: number }) {
   const { selectedTests, systemType, transformer } = project.data;
   const cfg = systemConfiguration[systemType];
   const selected = testsData.filter(t => selectedTests.includes(t.id));
   return (
-    <PdfPage pageNumber={3}>
+    <PdfPage pageNumber={pageNumber}>
       <div className="bg-blue-200  px-3 py-1.5 font-bold text-[14px] italic text-black-800">
         Statement of Requirements:
       </div>

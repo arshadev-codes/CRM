@@ -18,6 +18,8 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { toast } from "sonner";
+import { NewProjectDialog } from "@/components/NewProjectDialog";
+import type { ProposalLayout } from "@/data/proposalLayout";
 
 const DELETE_PASSWORD = "electrosoft@2025";
 
@@ -69,8 +71,11 @@ function Dashboard() {
 
   useEffect(() => { void hydrateFromCloud(); }, [hydrateFromCloud]);
 
-  const handleCreate = () => {
-    const p = createProject(`Proposal ${new Date().toLocaleDateString()}`);
+  const [newOpen, setNewOpen] = useState(false);
+
+  const handleCreate = (layout: ProposalLayout) => {
+    const p = createProject(`Proposal ${new Date().toLocaleDateString()}`, layout);
+    setNewOpen(false);
     navigate({ to: "/projects/$id/wizard", params: { id: p.id } });
   };
 
@@ -124,6 +129,7 @@ function Dashboard() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <NewProjectDialog open={newOpen} onOpenChange={setNewOpen} onCreate={handleCreate} />
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
@@ -133,7 +139,7 @@ function Dashboard() {
           </p>
         </div>
         <Button
-          onClick={handleCreate}
+          onClick={() => setNewOpen(true)}
           className="neo-pop h-11 px-5 font-semibold !bg-transparent !text-black
                      transition-all duration-200 hover:-translate-y-0.5
                      active:translate-y-0 active:scale-[0.97] active:shadow-inner"
