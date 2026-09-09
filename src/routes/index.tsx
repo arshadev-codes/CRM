@@ -138,7 +138,7 @@ function Dashboard() {
           </p>
         </div>
         <Button
-          onClick={handleCreate}
+          onClick={() => setNewOpen(true)}
           className="neo-pop h-11 px-5 font-semibold !bg-transparent !text-black
                      transition-all duration-200 hover:-translate-y-0.5
                      active:translate-y-0 active:scale-[0.97] active:shadow-inner"
