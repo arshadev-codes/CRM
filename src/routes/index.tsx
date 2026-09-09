@@ -18,6 +18,8 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { toast } from "sonner";
+import { NewProjectDialog } from "@/components/NewProjectDialog";
+import type { ProposalLayout } from "@/data/proposalLayout";
 
 const DELETE_PASSWORD = "electrosoft@2025";
 
@@ -69,8 +71,11 @@ function Dashboard() {
 
   useEffect(() => { void hydrateFromCloud(); }, [hydrateFromCloud]);
 
-  const handleCreate = () => {
-    const p = createProject(`Proposal ${new Date().toLocaleDateString()}`);
+  const [newOpen, setNewOpen] = useState(false);
+
+  const handleCreate = (layout: ProposalLayout) => {
+    const p = createProject(`Proposal ${new Date().toLocaleDateString()}`, layout);
+    setNewOpen(false);
     navigate({ to: "/projects/$id/wizard", params: { id: p.id } });
   };
 
