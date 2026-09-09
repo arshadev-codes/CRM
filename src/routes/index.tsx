@@ -129,6 +129,7 @@ function Dashboard() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <NewProjectDialog open={newOpen} onOpenChange={setNewOpen} onCreate={handleCreate} />
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>

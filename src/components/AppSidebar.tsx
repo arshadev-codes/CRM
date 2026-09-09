@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Settings, Cog, BookOpen, Users, Wrench, Boxes, ListChecks, Truck, CreditCard, ShieldOff, Tag, Layers, GitBranch, Building2 } from "lucide-react";
+import { LayoutDashboard, Settings, Cog, BookOpen, Users, Wrench, Boxes, ListChecks, Truck, CreditCard, ShieldOff, Tag, Layers, GitBranch, Building2, LayoutTemplate } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,
@@ -13,6 +13,7 @@ const main = [
 
 const cms = [
   { title: "Settings Home", url: "/settings", icon: Settings },
+  { title: "Proposal Templates", url: "/settings/templates", icon: LayoutTemplate },
   { title: "Sub Systems", url: "/settings/subsystems", icon: Layers },
   { title: "Scope of Supply", url: "/settings/scope-supply", icon: BookOpen },
   { title: "Scope of Services", url: "/settings/scope-services", icon: BookOpen },
