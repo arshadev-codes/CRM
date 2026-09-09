@@ -26,7 +26,7 @@ function formatDottedDate(iso: string): string {
   return `${dd}.${mm}.${d.getFullYear()}`;
 }
 
-export function RFQPdf({ project }: { project: Project }) {
+export function RFQPdf({ project, pageNumber = 1 }: { project: Project; pageNumber?: number }) {
   const { customer, meta, transformer, systemType } = project.data;
   const prep = employeesData.find(e => e.id === meta.preparedBy)?.name ?? meta.preparedBy;
   const chk = employeesData.find(e => e.id === meta.checkedBy)?.name ?? meta.checkedBy;
@@ -34,7 +34,7 @@ export function RFQPdf({ project }: { project: Project }) {
   const revisionNum = meta.revision.replace(/^R/i, "");
 
   return (
-    <PdfPage pageNumber={1}>
+    <PdfPage pageNumber={pageNumber}>
       <table className="w-full text-[13px] border border-black mt-2" style={{ borderCollapse: "collapse" }}>
         <tbody>
           <Row label="To" value={`${customer.title} ${customer.contactPerson || "—"}`}  />
