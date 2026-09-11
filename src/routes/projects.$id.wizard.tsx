@@ -11,12 +11,13 @@ import {
   Step5Proprietary, Step6Delivery, Step7ExclusionsMakes, StepPricing, Step8Payment, Step9Review,
 } from "@/components/wizard/Steps";
 import { toast } from "sonner";
+import { resolveLayout } from "@/data/proposalLayout";
 
 export const Route = createFileRoute("/projects/$id/wizard")({
   component: Wizard,
 });
 
-const STEPS = [
+const ALL_STEPS = [
   { key: "setup", label: "Project Setup", Comp: Step1ProjectSetup },
   { key: "tests", label: "Tests", Comp: Step2Tests },
   { key: "subsystems", label: "Major Sub Systems", Comp: Step3Subsystems },
@@ -39,6 +40,15 @@ function Wizard() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
 
+  // Only the wizard steps this project was created with (customized proposals
+  // can drop steps); order follows the saved layout.
+  const chosen = resolveLayout(project?.data.layout).steps;
+  const picked = chosen
+    .map(k => ALL_STEPS.find(s => s.key === k))
+    .filter((s): s is (typeof ALL_STEPS)[number] => Boolean(s));
+  const STEPS = picked.length ? picked : ALL_STEPS;
+  const stepIndex = Math.min(step, STEPS.length - 1);
+
   if (!project) return (
     <div className="p-8 text-center">
       <p>Project not found.</p>
@@ -46,7 +56,7 @@ function Wizard() {
     </div>
   );
 
-  const Current = STEPS[step].Comp;
+  const Current = STEPS[stepIndex].Comp;
   const update = (patch: Parameters<typeof updateProjectData>[1]) => updateProjectData(project.id, patch);
 
   const markCompletedAndGenerate = () => {
@@ -87,7 +97,7 @@ function Wizard() {
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
-        <Progress value={((step + 1) / STEPS.length) * 100} className="mb-3" />
+        <Progress value={((stepIndex + 1) / STEPS.length) * 100} className="mb-3" />
       </motion.div>
 
       <div className="flex flex-wrap gap-2 mb-6">
@@ -96,9 +106,9 @@ function Wizard() {
             key={s.key}
             onClick={() => setStep(i)}
             className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all duration-150
-              ${i === step
+              ${i === stepIndex
                 ? "neo-inset text-blue-700 ring-2 ring-blue-400/50"
-                : i < step
+                : i < stepIndex
                 ? "neo-inset text-blue-500 opacity-70"
                 : "neo-pop text-slate-500 hover:text-blue-600"
               }`}
@@ -111,7 +121,7 @@ function Wizard() {
       <div className="bg-white rounded-lg border p-6 min-h-[400px] overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.div
-            key={STEPS[step].key}
+            key={STEPS[stepIndex].key}
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
@@ -123,9 +133,9 @@ function Wizard() {
       </div>
 
       <div className="flex justify-between mt-4">
-        <Button variant="outline" disabled={step === 0} onClick={() => setStep(s => s - 1)}><ChevronLeft className="h-4 w-4 mr-1" />Back</Button>
-        {step < STEPS.length - 1 ? (
-          <Button onClick={() => setStep(s => s + 1)}>Next<ChevronRight className="h-4 w-4 ml-1" /></Button>
+        <Button variant="outline" disabled={stepIndex === 0} onClick={() => setStep(stepIndex - 1)}><ChevronLeft className="h-4 w-4 mr-1" />Back</Button>
+        {stepIndex < STEPS.length - 1 ? (
+          <Button onClick={() => setStep(stepIndex + 1)}>Next<ChevronRight className="h-4 w-4 ml-1" /></Button>
         ) : (
           <Button onClick={markCompletedAndGenerate}><Printer className="h-4 w-4 mr-1" />Generate PDF</Button>
         )}

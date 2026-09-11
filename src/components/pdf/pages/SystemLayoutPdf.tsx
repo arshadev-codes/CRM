@@ -25,10 +25,20 @@ export function SystemLayoutPdf({ project, pageNumber }: { project: Project; pag
       </div>
 
       <div className="mt-3 text-[13px]" style={{ breakInside: "avoid" }}>
-        <span className="font-semibold">Design PDF: </span>
-        {layout.designPdfUrl
-          ? <a href={layout.designPdfUrl} className="text-blue-700 underline" target="_blank" rel="noreferrer">Open detailed design drawing</a>
-          : <span className="text-slate-500 italic">Not uploaded</span>}
+        <span className="font-semibold">Detailed design drawing: </span>
+        {layout.designPdfUrl ? (
+          <a
+            href={layout.designPdfUrl}
+            download={layout.designPdfName || `${project.data.meta.offerNumber || "system"}-design.pdf`}
+            className="text-blue-700 underline"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Download {layout.designPdfName || "design drawing (PDF)"}
+          </a>
+        ) : (
+          <span className="text-slate-500 italic">Not uploaded</span>
+        )}
       </div>
     </PdfPage>
   );
