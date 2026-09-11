@@ -16,7 +16,7 @@ export const Route = createFileRoute("/projects/$id/wizard")({
   component: Wizard,
 });
 
-const STEPS = [
+const ALL_STEPS = [
   { key: "setup", label: "Project Setup", Comp: Step1ProjectSetup },
   { key: "tests", label: "Tests", Comp: Step2Tests },
   { key: "subsystems", label: "Major Sub Systems", Comp: Step3Subsystems },
@@ -38,6 +38,15 @@ function Wizard() {
   const reviseProject = useProposalStore(s => s.reviseProject);
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
+
+  // Only the wizard steps this project was created with (customized proposals
+  // can drop steps); order follows the saved layout.
+  const chosen = resolveLayout(project?.data.layout).steps;
+  const picked = chosen
+    .map(k => ALL_STEPS.find(s => s.key === k))
+    .filter((s): s is (typeof ALL_STEPS)[number] => Boolean(s));
+  const STEPS = picked.length ? picked : ALL_STEPS;
+  const stepIndex = Math.min(step, STEPS.length - 1);
 
   if (!project) return (
     <div className="p-8 text-center">
