@@ -115,10 +115,31 @@ export interface ProposalData {
   layout?: ProposalLayout;
 }
 
+/** A works order created from a won ("Completed") quotation. */
+export interface InwardOrder {
+  id: string;
+  projectId: string;
+  /** Copied from the source quotation */
+  projectNumber: string;
+  customerName: string;
+  projectName: string;
+  poNumber: string;
+  poDate: string;
+  dueDate: string;
+  /** Entered when moving the quotation across */
+  supervisor: string;
+  qaOfficer: string;
+  readinessDate: string;
+  inspectionDate?: string;
+  dispatchDate?: string;
+  status: "Open" | "In Progress" | "Closed";
+  createdAt: number;
+}
+
 export interface Project {
   id: string;
   name: string;
-  status: "Draft" | "Completed" | "Archived";
+  status: "Draft" | "Completed" | "Archived" | "Converted";
   createdAt: number;
   updatedAt: number;
   /** Sequential offer number within the FY (used for auto-increment) */
