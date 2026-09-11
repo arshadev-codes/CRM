@@ -209,6 +209,10 @@ interface ProposalStore {
   paymentTemplates: typeof paymentTemplatesData;
   employees: Employee[];
   companies: Company[];
+  inwardOrders: InwardOrder[];
+  createInwardOrder: (o: Omit<InwardOrder, "id" | "createdAt" | "status">) => InwardOrder;
+  deleteInwardOrder: (id: string) => void;
+  hydrateInwardOrders: () => Promise<void>;
   createProject: (name?: string, layout?: ProposalLayout) => Project;
   setProjectLayout: (id: string, layout: ProposalLayout) => void;
   projectTemplates: SavedProposalTemplate[];
