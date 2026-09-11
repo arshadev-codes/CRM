@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as InwardOrdersRouteImport } from './routes/inward-orders'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsTestsRouteImport } from './routes/settings.tests'
@@ -29,6 +31,16 @@ import { Route as PrintIdRouteImport } from './routes/print.$id'
 import { Route as ProjectsIdWizardRouteImport } from './routes/projects.$id.wizard'
 import { Route as ProjectsIdPreviewRouteImport } from './routes/projects.$id.preview'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InwardOrdersRoute = InwardOrdersRouteImport.update({
+  id: '/inward-orders',
+  path: '/inward-orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -127,6 +139,8 @@ const ProjectsIdPreviewRoute = ProjectsIdPreviewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/inward-orders': typeof InwardOrdersRoute
+  '/login': typeof LoginRoute
   '/print/$id': typeof PrintIdRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -148,6 +162,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/inward-orders': typeof InwardOrdersRoute
+  '/login': typeof LoginRoute
   '/print/$id': typeof PrintIdRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -170,6 +186,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/inward-orders': typeof InwardOrdersRoute
+  '/login': typeof LoginRoute
   '/print/$id': typeof PrintIdRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -193,6 +211,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/inward-orders'
+    | '/login'
     | '/print/$id'
     | '/settings/companies'
     | '/settings/connections'
@@ -214,6 +234,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/inward-orders'
+    | '/login'
     | '/print/$id'
     | '/settings/companies'
     | '/settings/connections'
@@ -235,6 +257,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/inward-orders'
+    | '/login'
     | '/print/$id'
     | '/settings/companies'
     | '/settings/connections'
@@ -257,6 +281,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  InwardOrdersRoute: typeof InwardOrdersRoute
+  LoginRoute: typeof LoginRoute
   PrintIdRoute: typeof PrintIdRoute
   SettingsCompaniesRoute: typeof SettingsCompaniesRoute
   SettingsConnectionsRoute: typeof SettingsConnectionsRoute
@@ -279,6 +305,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inward-orders': {
+      id: '/inward-orders'
+      path: '/inward-orders'
+      fullPath: '/inward-orders'
+      preLoaderRoute: typeof InwardOrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -417,6 +457,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  InwardOrdersRoute: InwardOrdersRoute,
+  LoginRoute: LoginRoute,
   PrintIdRoute: PrintIdRoute,
   SettingsCompaniesRoute: SettingsCompaniesRoute,
   SettingsConnectionsRoute: SettingsConnectionsRoute,
