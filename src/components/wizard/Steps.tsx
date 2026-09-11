@@ -353,7 +353,13 @@ export function Step3bSystemLayout({ project, update }: { project: Project; upda
   const onFile = (file: File | null, key: "imageUrl" | "designPdfUrl") => {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => update({ systemLayout: { ...layout, [key]: String(reader.result) } });
+    reader.onload = () => update({
+      systemLayout: {
+        ...layout,
+        [key]: String(reader.result),
+        ...(key === "designPdfUrl" ? { designPdfName: file.name } : {}),
+      },
+    });
     reader.readAsDataURL(file);
   };
   return (

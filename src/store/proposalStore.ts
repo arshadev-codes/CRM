@@ -33,7 +33,7 @@ export interface Transformer { rating: string; ratingUnit: "MVA"|"KVA"; voltage:
 export interface MakeSelection { id: string; enabled: boolean; make: string; custom?: string; }
 
 export interface CustomizationItem { id: string; title: string; description: string; }
-export interface SystemLayoutAssets { imageUrl?: string; designPdfUrl?: string; }
+export interface SystemLayoutAssets { imageUrl?: string; designPdfUrl?: string; designPdfName?: string; }
 
 /** A user-added proprietary item (free-text, not from the library) */
 export interface ProprietaryCustomItem { id: string; title: string; }
