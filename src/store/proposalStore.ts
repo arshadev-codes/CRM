@@ -264,6 +264,28 @@ async function pushProject(p: Project) {
     if (error) console.warn("[supabase] upsert failed:", error.message);
   } catch (e) { console.warn("[supabase] push error:", e); }
 }
+async function pushInwardOrder(o: InwardOrder) {
+  try {
+    const { error } = await supabase.from("inward_orders").upsert({
+      id: o.id,
+      project_id: o.projectId,
+      project_number: o.projectNumber,
+      customer_name: o.customerName,
+      project_name: o.projectName,
+      po_number: o.poNumber || null,
+      po_date: o.poDate || null,
+      due_date: o.dueDate || null,
+      supervisor: o.supervisor,
+      qa_officer: o.qaOfficer,
+      readiness_date: o.readinessDate || null,
+      inspection_date: o.inspectionDate || null,
+      dispatch_date: o.dispatchDate || null,
+      status: o.status,
+      created_at: new Date(o.createdAt).toISOString(),
+    }, { onConflict: "id" });
+    if (error) console.warn("[supabase] inward upsert failed:", error.message);
+  } catch (e) { console.warn("[supabase] inward push error:", e); }
+}
 async function removeProject(id: string) {
   try { await supabase.from("projects").delete().eq("id", id); }
   catch (e) { console.warn("[supabase] delete error:", e); }
