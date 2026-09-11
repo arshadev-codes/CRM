@@ -292,6 +292,48 @@ export const useProposalStore = create<ProposalStore>()(
       paymentTemplates: paymentTemplatesData,
       employees: employeesData,
       companies: companiesData,
+      inwardOrders: [],
+      createInwardOrder: (o) => {
+        const order: InwardOrder = { ...o, id: crypto.randomUUID(), status: "Open", createdAt: Date.now() };
+        set(s => ({ inwardOrders: [order, ...s.inwardOrders] }));
+        void pushInwardOrder(order);
+        return order;
+      },
+      deleteInwardOrder: (id) => {
+        set(s => ({ inwardOrders: s.inwardOrders.filter(o => o.id !== id) }));
+        void (async () => {
+          try { await supabase.from("inward_orders").delete().eq("id", id); }
+          catch (e) { console.warn("[supabase] inward delete error:", e); }
+        })();
+      },
+      hydrateInwardOrders: async () => {
+        try {
+          const { data, error } = await supabase
+            .from("inward_orders").select("*").order("created_at", { ascending: false });
+          if (error || !data) return;
+          const cloud: InwardOrder[] = data.map((r: any) => ({
+            id: r.id,
+            projectId: r.project_id,
+            projectNumber: r.project_number ?? "",
+            customerName: r.customer_name ?? "",
+            projectName: r.project_name ?? "",
+            poNumber: r.po_number ?? "",
+            poDate: r.po_date ?? "",
+            dueDate: r.due_date ?? "",
+            supervisor: r.supervisor ?? "",
+            qaOfficer: r.qa_officer ?? "",
+            readinessDate: r.readiness_date ?? "",
+            inspectionDate: r.inspection_date ?? undefined,
+            dispatchDate: r.dispatch_date ?? undefined,
+            status: (r.status ?? "Open") as InwardOrder["status"],
+            createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+          }));
+          const map = new Map<string, InwardOrder>();
+          for (const o of get().inwardOrders) map.set(o.id, o);
+          for (const o of cloud) map.set(o.id, o);
+          set({ inwardOrders: Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt) });
+        } catch (e) { console.warn("[supabase] inward hydrate error:", e); }
+      },
       projectTemplates: [],
       saveProjectTemplate: (name, layout) => {
         const t: SavedProposalTemplate = {
