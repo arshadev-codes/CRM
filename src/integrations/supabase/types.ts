@@ -14,7 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      inward_orders: {
+        Row: {
+          created_at: string
+          customer_name: string
+          dispatch_date: string | null
+          due_date: string | null
+          id: string
+          inspection_date: string | null
+          po_date: string | null
+          po_number: string | null
+          project_id: string
+          project_name: string
+          project_number: string
+          qa_officer: string
+          readiness_date: string
+          status: string
+          supervisor: string
+        }
+        Insert: {
+          created_at?: string
+          customer_name?: string
+          dispatch_date?: string | null
+          due_date?: string | null
+          id: string
+          inspection_date?: string | null
+          po_date?: string | null
+          po_number?: string | null
+          project_id: string
+          project_name?: string
+          project_number: string
+          qa_officer: string
+          readiness_date: string
+          status?: string
+          supervisor: string
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          dispatch_date?: string | null
+          due_date?: string | null
+          id?: string
+          inspection_date?: string | null
+          po_date?: string | null
+          po_number?: string | null
+          project_id?: string
+          project_name?: string
+          project_number?: string
+          qa_officer?: string
+          readiness_date?: string
+          status?: string
+          supervisor?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
