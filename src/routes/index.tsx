@@ -14,17 +14,27 @@ import {
   Printer,
   Search,
   RefreshCw,
+  PackageCheck,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { toast } from "sonner";
 import { NewProjectDialog } from "@/components/NewProjectDialog";
 import type { ProposalLayout } from "@/data/proposalLayout";
+import { MoveToInwardOrderDialog } from "@/components/MoveToInwardOrderDialog";
+import type { Project } from "@/store/proposalStore";
 
 const DELETE_PASSWORD = "electrosoft@2025";
 
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [{ title: "Dashboard — Electrosoft Proposal Engine" }] }),
+  head: () => ({ meta: [
+    { title: "Quotations — Electrosoft Proposal Engine" },
+    { name: "description", content: "Create, manage, revise, and export Electrosoft techno-commercial quotations." },
+    { property: "og:title", content: "Quotations — Electrosoft Proposal Engine" },
+    { property: "og:description", content: "Create, manage, revise, and export Electrosoft techno-commercial quotations." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: Dashboard,
 });
 
@@ -68,6 +78,7 @@ function Dashboard() {
   const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("All");
+  const [moveProject, setMoveProject] = useState<Project | null>(null);
 
   useEffect(() => { void hydrateFromCloud(); }, [hydrateFromCloud]);
 
@@ -130,6 +141,11 @@ function Dashboard() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <NewProjectDialog open={newOpen} onOpenChange={setNewOpen} onCreate={handleCreate} />
+      <MoveToInwardOrderDialog
+        project={moveProject}
+        open={Boolean(moveProject)}
+        onOpenChange={(open) => { if (!open) setMoveProject(null); }}
+      />
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
@@ -305,6 +321,16 @@ function Dashboard() {
                   >
                     Edit
                   </Button>
+                  {p.status === "Completed" && (
+                    <Button
+                      size="sm"
+                      className="neo-pop !bg-transparent !text-indigo-600 font-medium transition-transform active:scale-[0.94] active:shadow-inner"
+                      onClick={() => setMoveProject(p)}
+                    >
+                      <PackageCheck className="h-3.5 w-3.5 mr-1" />
+                      Move to Inward Order
+                    </Button>
+                  )}
                   {p.status === "Completed" && (
                     <Button
                       size="sm"

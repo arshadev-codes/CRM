@@ -12,6 +12,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { NeoBackground } from "@/components/NeoBackground";
 import { PageTransition } from "@/components/PageTransition";
+import { QuotationNav } from "@/components/QuotationNav";
 
 
 function NotFoundComponent() {
@@ -74,9 +75,11 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: r => r.location.pathname });
   const isPrint = pathname.startsWith("/print/");
+  const isLogin = pathname === "/login";
+  const isQuotation = pathname === "/" || pathname.startsWith("/projects/") || pathname.startsWith("/settings");
   return (
     <QueryClientProvider client={queryClient}>
-      {isPrint ? <Outlet /> : (
+      {isPrint || isLogin ? <><Outlet /><Toaster /></> : (
         <SidebarProvider>
           <NeoBackground />
           <div className="min-h-screen flex w-full">
@@ -84,10 +87,14 @@ function RootComponent() {
             <div className="flex-1 flex flex-col min-w-0">
               <header className="h-14 mx-3 mt-3 rounded-2xl flex items-center neo-surface shrink-0 px-2">
                 <SidebarTrigger className="ml-1 neo-pop !h-9 !w-9 rounded-xl" />
-                <div className="ml-3 font-semibold text-sm bg-gradient-to-r from-indigo-600 to-sky-500 bg-clip-text text-transparent tracking-wide">
+                <div className="ml-3 font-semibold text-sm text-indigo-600 tracking-wide">
                   Electrosoft · Proposal Engine
                 </div>
+                <div className="ml-auto mr-1 h-9 w-9 rounded-full neo-pop grid place-items-center text-xs font-bold text-indigo-600" aria-label="User profile">
+                  ES
+                </div>
               </header>
+              {isQuotation && <QuotationNav />}
               <main className="flex-1 overflow-auto">
                 <PageTransition><Outlet /></PageTransition>
               </main>
