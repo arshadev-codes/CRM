@@ -32,3 +32,33 @@ create policy "public rw" on public.projects
   for all
   using (true)
   with check (true);
+
+create table if not exists public.inward_orders (
+  id              uuid primary key,
+  project_id      uuid not null references public.projects(id) on delete restrict,
+  project_number  text not null,
+  customer_name   text not null default '',
+  project_name    text not null default '',
+  po_number       text,
+  po_date         date,
+  due_date        date,
+  supervisor      text not null,
+  qa_officer      text not null,
+  readiness_date  date not null,
+  inspection_date date,
+  dispatch_date   date,
+  status          text not null default 'Open' check (status in ('Open', 'In Progress', 'Closed')),
+  created_at      timestamptz not null default now()
+);
+
+grant select, insert, update, delete on public.inward_orders to anon;
+grant select, insert, update, delete on public.inward_orders to authenticated;
+grant all on public.inward_orders to service_role;
+
+alter table public.inward_orders enable row level security;
+
+drop policy if exists "public rw" on public.inward_orders;
+create policy "public rw" on public.inward_orders
+  for all
+  using (true)
+  with check (true);
