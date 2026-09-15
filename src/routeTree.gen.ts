@@ -28,6 +28,7 @@ import { Route as SettingsDeliveryRouteImport } from './routes/settings.delivery
 import { Route as SettingsConnectionsRouteImport } from './routes/settings.connections'
 import { Route as SettingsCompaniesRouteImport } from './routes/settings.companies'
 import { Route as PrintIdRouteImport } from './routes/print.$id'
+import { Route as InwardOrdersIdRouteImport } from './routes/inward-orders.$id'
 import { Route as ProjectsIdWizardRouteImport } from './routes/projects.$id.wizard'
 import { Route as ProjectsIdPreviewRouteImport } from './routes/projects.$id.preview'
 
@@ -126,6 +127,11 @@ const PrintIdRoute = PrintIdRouteImport.update({
   path: '/print/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InwardOrdersIdRoute = InwardOrdersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => InwardOrdersRoute,
+} as any)
 const ProjectsIdWizardRoute = ProjectsIdWizardRouteImport.update({
   id: '/projects/$id/wizard',
   path: '/projects/$id/wizard',
@@ -139,8 +145,9 @@ const ProjectsIdPreviewRoute = ProjectsIdPreviewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/inward-orders': typeof InwardOrdersRoute
+  '/inward-orders': typeof InwardOrdersRouteWithChildren
   '/login': typeof LoginRoute
+  '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/print/$id': typeof PrintIdRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -162,8 +169,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/inward-orders': typeof InwardOrdersRoute
+  '/inward-orders': typeof InwardOrdersRouteWithChildren
   '/login': typeof LoginRoute
+  '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/print/$id': typeof PrintIdRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -186,8 +194,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/inward-orders': typeof InwardOrdersRoute
+  '/inward-orders': typeof InwardOrdersRouteWithChildren
   '/login': typeof LoginRoute
+  '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/print/$id': typeof PrintIdRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -213,6 +222,7 @@ export interface FileRouteTypes {
     | '/'
     | '/inward-orders'
     | '/login'
+    | '/inward-orders/$id'
     | '/print/$id'
     | '/settings/companies'
     | '/settings/connections'
@@ -236,6 +246,7 @@ export interface FileRouteTypes {
     | '/'
     | '/inward-orders'
     | '/login'
+    | '/inward-orders/$id'
     | '/print/$id'
     | '/settings/companies'
     | '/settings/connections'
@@ -259,6 +270,7 @@ export interface FileRouteTypes {
     | '/'
     | '/inward-orders'
     | '/login'
+    | '/inward-orders/$id'
     | '/print/$id'
     | '/settings/companies'
     | '/settings/connections'
@@ -281,7 +293,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  InwardOrdersRoute: typeof InwardOrdersRoute
+  InwardOrdersRoute: typeof InwardOrdersRouteWithChildren
   LoginRoute: typeof LoginRoute
   PrintIdRoute: typeof PrintIdRoute
   SettingsCompaniesRoute: typeof SettingsCompaniesRoute
@@ -438,6 +450,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrintIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inward-orders/$id': {
+      id: '/inward-orders/$id'
+      path: '/$id'
+      fullPath: '/inward-orders/$id'
+      preLoaderRoute: typeof InwardOrdersIdRouteImport
+      parentRoute: typeof InwardOrdersRoute
+    }
     '/projects/$id/wizard': {
       id: '/projects/$id/wizard'
       path: '/projects/$id/wizard'
@@ -455,9 +474,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface InwardOrdersRouteChildren {
+  InwardOrdersIdRoute: typeof InwardOrdersIdRoute
+}
+
+const InwardOrdersRouteChildren: InwardOrdersRouteChildren = {
+  InwardOrdersIdRoute: InwardOrdersIdRoute,
+}
+
+const InwardOrdersRouteWithChildren = InwardOrdersRoute._addFileChildren(
+  InwardOrdersRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  InwardOrdersRoute: InwardOrdersRoute,
+  InwardOrdersRoute: InwardOrdersRouteWithChildren,
   LoginRoute: LoginRoute,
   PrintIdRoute: PrintIdRoute,
   SettingsCompaniesRoute: SettingsCompaniesRoute,

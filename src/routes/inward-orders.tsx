@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { PackageCheck, CalendarCheck, User } from "lucide-react";
 import { useProposalStore } from "@/store/proposalStore";
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/inward-orders")({
 const STATUS_CHIP: Record<string, string> = {
   Open: "bg-indigo-50 text-indigo-600",
   "In Progress": "bg-amber-50 text-amber-700",
-  Closed: "bg-emerald-50 text-emerald-700",
+  Completed: "bg-emerald-50 text-emerald-700",
 };
 
 function InwardOrders() {
@@ -42,7 +42,12 @@ function InwardOrders() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {orders.map((o) => (
-            <div key={o.id} className="neo-surface p-5 rounded-2xl transition-all duration-300 hover:-translate-y-1">
+            <Link
+              key={o.id}
+              to="/inward-orders/$id"
+              params={{ id: o.id }}
+              className="neo-surface block p-5 rounded-2xl transition-all duration-300 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="font-mono font-semibold text-sm truncate text-slate-800" title={o.projectNumber}>
                   {o.projectNumber}
@@ -64,7 +69,7 @@ function InwardOrders() {
                   Readiness: <span className="text-slate-700">{o.readinessDate || "—"}</span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

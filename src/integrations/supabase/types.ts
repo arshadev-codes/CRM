@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      inward_order_attachments: {
+        Row: {
+          content_type: string | null
+          created_at: string
+          file_name: string
+          file_size: number
+          id: string
+          inward_order_id: string
+          storage_path: string
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string
+          file_name: string
+          file_size?: number
+          id?: string
+          inward_order_id: string
+          storage_path: string
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          id?: string
+          inward_order_id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inward_order_attachments_inward_order_id_fkey"
+            columns: ["inward_order_id"]
+            isOneToOne: false
+            referencedRelation: "inward_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inward_orders: {
         Row: {
           created_at: string
@@ -67,6 +105,53 @@ export type Database = {
           supervisor?: string
         }
         Relationships: []
+      }
+      project_stages: {
+        Row: {
+          assigned_to: string
+          created_at: string
+          display_order: number
+          expected_date: string | null
+          id: string
+          inward_order_id: string
+          remarks: string
+          stage_name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string
+          created_at?: string
+          display_order: number
+          expected_date?: string | null
+          id?: string
+          inward_order_id: string
+          remarks?: string
+          stage_name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string
+          created_at?: string
+          display_order?: number
+          expected_date?: string | null
+          id?: string
+          inward_order_id?: string
+          remarks?: string
+          stage_name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_stages_inward_order_id_fkey"
+            columns: ["inward_order_id"]
+            isOneToOne: false
+            referencedRelation: "inward_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

@@ -132,7 +132,7 @@ export interface InwardOrder {
   readinessDate: string;
   inspectionDate?: string;
   dispatchDate?: string;
-  status: "Open" | "In Progress" | "Closed";
+  status: "Open" | "In Progress" | "Completed";
   createdAt: number;
 }
 
@@ -211,6 +211,7 @@ interface ProposalStore {
   companies: Company[];
   inwardOrders: InwardOrder[];
   createInwardOrder: (o: Omit<InwardOrder, "id" | "createdAt" | "status">) => InwardOrder;
+  updateInwardOrder: (id: string, patch: Partial<InwardOrder>) => void;
   deleteInwardOrder: (id: string) => void;
   hydrateInwardOrders: () => Promise<void>;
   createProject: (name?: string, layout?: ProposalLayout) => Project;
@@ -321,6 +322,13 @@ export const useProposalStore = create<ProposalStore>()(
         void pushInwardOrder(order);
         return order;
       },
+      updateInwardOrder: (id, patch) =>
+        set(s => ({ inwardOrders: s.inwardOrders.map(o => {
+          if (o.id !== id) return o;
+          const merged = { ...o, ...patch };
+          void pushInwardOrder(merged);
+          return merged;
+        }) })),
       deleteInwardOrder: (id) => {
         set(s => ({ inwardOrders: s.inwardOrders.filter(o => o.id !== id) }));
         void (async () => {
@@ -347,7 +355,7 @@ export const useProposalStore = create<ProposalStore>()(
             readinessDate: r.readiness_date ?? "",
             inspectionDate: r.inspection_date ?? undefined,
             dispatchDate: r.dispatch_date ?? undefined,
-            status: (r.status ?? "Open") as InwardOrder["status"],
+            status: (r.status === "Closed" ? "Completed" : (r.status ?? "Open")) as InwardOrder["status"],
             createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
           }));
           const map = new Map<string, InwardOrder>();

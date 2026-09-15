@@ -1,0 +1,4 @@
+CREATE POLICY "inward attachments read" ON storage.objects FOR SELECT TO anon, authenticated USING (bucket_id = 'inward-order-attachments');
+CREATE POLICY "inward attachments insert" ON storage.objects FOR INSERT TO anon, authenticated WITH CHECK (bucket_id = 'inward-order-attachments');
+CREATE POLICY "inward attachments update" ON storage.objects FOR UPDATE TO anon, authenticated USING (bucket_id = 'inward-order-attachments') WITH CHECK (bucket_id = 'inward-order-attachments');
+CREATE POLICY "inward attachments delete" ON storage.objects FOR DELETE TO anon, authenticated USING (bucket_id = 'inward-order-attachments');
