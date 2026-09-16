@@ -280,7 +280,7 @@ async function pushInwardOrder(o: InwardOrder) {
       due_date: o.dueDate || null,
       supervisor: o.supervisor,
       qa_officer: o.qaOfficer,
-      readiness_date: o.readinessDate || null,
+      readiness_date: o.readinessDate,
       inspection_date: o.inspectionDate || null,
       dispatch_date: o.dispatchDate || null,
       status: o.status,
