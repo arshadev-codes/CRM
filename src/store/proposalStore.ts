@@ -12,6 +12,8 @@ import { getMajorSubsystems } from "@/data/proposalContent";
 import { employeesData, type Employee } from "@/data/employeesData";
 import { companiesData, type Company } from "@/data/companiesData";
 import { supabase } from "@/lib/supabaseClient";
+// Inward orders, stages and attachments live in the app's own cloud backend.
+import { supabase as cloud } from "@/integrations/supabase/client";
 import { buildOfferBase, buildOfferNumber, getFY, slugCompany } from "@/lib/offerNumber";
 import { freightLogisticsDefaults, type FreightLogisticsData } from "@/data/freightLogisticsData";
 import { defaultLayout, type ProposalLayout, type SavedProposalTemplate } from "@/data/proposalLayout";
