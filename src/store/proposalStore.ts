@@ -343,7 +343,7 @@ export const useProposalStore = create<ProposalStore>()(
           const { data, error } = await cloud
             .from("inward_orders").select("*").order("created_at", { ascending: false });
           if (error || !data) return;
-          const cloud: InwardOrder[] = data.map((r: any) => ({
+          const cloudOrders: InwardOrder[] = data.map((r: any) => ({
             id: r.id,
             projectId: r.project_id,
             projectNumber: r.project_number ?? "",
@@ -362,7 +362,7 @@ export const useProposalStore = create<ProposalStore>()(
           }));
           const map = new Map<string, InwardOrder>();
           for (const o of get().inwardOrders) map.set(o.id, o);
-          for (const o of cloud) map.set(o.id, o);
+          for (const o of cloudOrders) map.set(o.id, o);
           set({ inwardOrders: Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt) });
         } catch (e) { console.warn("[supabase] inward hydrate error:", e); }
       },
