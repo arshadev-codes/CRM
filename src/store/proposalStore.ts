@@ -269,7 +269,7 @@ async function pushProject(p: Project) {
 }
 async function pushInwardOrder(o: InwardOrder) {
   try {
-    const { error } = await supabase.from("inward_orders").upsert({
+    const { error } = await cloud.from("inward_orders").upsert({
       id: o.id,
       project_id: o.projectId,
       project_number: o.projectNumber,
@@ -334,13 +334,13 @@ export const useProposalStore = create<ProposalStore>()(
       deleteInwardOrder: (id) => {
         set(s => ({ inwardOrders: s.inwardOrders.filter(o => o.id !== id) }));
         void (async () => {
-          try { await supabase.from("inward_orders").delete().eq("id", id); }
+          try { await cloud.from("inward_orders").delete().eq("id", id); }
           catch (e) { console.warn("[supabase] inward delete error:", e); }
         })();
       },
       hydrateInwardOrders: async () => {
         try {
-          const { data, error } = await supabase
+          const { data, error } = await cloud
             .from("inward_orders").select("*").order("created_at", { ascending: false });
           if (error || !data) return;
           const cloud: InwardOrder[] = data.map((r: any) => ({
