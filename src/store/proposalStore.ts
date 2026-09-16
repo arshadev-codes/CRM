@@ -12,6 +12,8 @@ import { getMajorSubsystems } from "@/data/proposalContent";
 import { employeesData, type Employee } from "@/data/employeesData";
 import { companiesData, type Company } from "@/data/companiesData";
 import { supabase } from "@/lib/supabaseClient";
+// Inward orders, stages and attachments live in the app's own cloud backend.
+import { supabase as cloud } from "@/integrations/supabase/client";
 import { buildOfferBase, buildOfferNumber, getFY, slugCompany } from "@/lib/offerNumber";
 import { freightLogisticsDefaults, type FreightLogisticsData } from "@/data/freightLogisticsData";
 import { defaultLayout, type ProposalLayout, type SavedProposalTemplate } from "@/data/proposalLayout";
@@ -267,7 +269,7 @@ async function pushProject(p: Project) {
 }
 async function pushInwardOrder(o: InwardOrder) {
   try {
-    const { error } = await supabase.from("inward_orders").upsert({
+    const { error } = await cloud.from("inward_orders").upsert({
       id: o.id,
       project_id: o.projectId,
       project_number: o.projectNumber,
@@ -278,7 +280,7 @@ async function pushInwardOrder(o: InwardOrder) {
       due_date: o.dueDate || null,
       supervisor: o.supervisor,
       qa_officer: o.qaOfficer,
-      readiness_date: o.readinessDate || null,
+      readiness_date: o.readinessDate,
       inspection_date: o.inspectionDate || null,
       dispatch_date: o.dispatchDate || null,
       status: o.status,
@@ -332,16 +334,16 @@ export const useProposalStore = create<ProposalStore>()(
       deleteInwardOrder: (id) => {
         set(s => ({ inwardOrders: s.inwardOrders.filter(o => o.id !== id) }));
         void (async () => {
-          try { await supabase.from("inward_orders").delete().eq("id", id); }
+          try { await cloud.from("inward_orders").delete().eq("id", id); }
           catch (e) { console.warn("[supabase] inward delete error:", e); }
         })();
       },
       hydrateInwardOrders: async () => {
         try {
-          const { data, error } = await supabase
+          const { data, error } = await cloud
             .from("inward_orders").select("*").order("created_at", { ascending: false });
           if (error || !data) return;
-          const cloud: InwardOrder[] = data.map((r: any) => ({
+          const cloudOrders: InwardOrder[] = data.map((r: any) => ({
             id: r.id,
             projectId: r.project_id,
             projectNumber: r.project_number ?? "",
@@ -360,7 +362,7 @@ export const useProposalStore = create<ProposalStore>()(
           }));
           const map = new Map<string, InwardOrder>();
           for (const o of get().inwardOrders) map.set(o.id, o);
-          for (const o of cloud) map.set(o.id, o);
+          for (const o of cloudOrders) map.set(o.id, o);
           set({ inwardOrders: Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt) });
         } catch (e) { console.warn("[supabase] inward hydrate error:", e); }
       },

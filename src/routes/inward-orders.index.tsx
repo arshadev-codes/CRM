@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { PackageCheck, CalendarCheck, User } from "lucide-react";
 import { useProposalStore } from "@/store/proposalStore";
 
-export const Route = createFileRoute("/inward-orders")({
+export const Route = createFileRoute("/inward-orders/")({
   head: () => ({
     meta: [
       { title: "Inward Orders — Electrosoft Proposal Engine" },

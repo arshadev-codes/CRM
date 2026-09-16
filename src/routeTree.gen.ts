@@ -10,9 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as InwardOrdersRouteImport } from './routes/inward-orders'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as InwardOrdersIndexRouteImport } from './routes/inward-orders.index'
 import { Route as SettingsTestsRouteImport } from './routes/settings.tests'
 import { Route as SettingsTemplatesRouteImport } from './routes/settings.templates'
 import { Route as SettingsSubsystemsRouteImport } from './routes/settings.subsystems'
@@ -37,11 +37,6 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const InwardOrdersRoute = InwardOrdersRouteImport.update({
-  id: '/inward-orders',
-  path: '/inward-orders',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -50,6 +45,11 @@ const IndexRoute = IndexRouteImport.update({
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
   id: '/settings/',
   path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InwardOrdersIndexRoute = InwardOrdersIndexRouteImport.update({
+  id: '/inward-orders/',
+  path: '/inward-orders/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsTestsRoute = SettingsTestsRouteImport.update({
@@ -128,9 +128,9 @@ const PrintIdRoute = PrintIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const InwardOrdersIdRoute = InwardOrdersIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => InwardOrdersRoute,
+  id: '/inward-orders/$id',
+  path: '/inward-orders/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsIdWizardRoute = ProjectsIdWizardRouteImport.update({
   id: '/projects/$id/wizard',
@@ -145,7 +145,6 @@ const ProjectsIdPreviewRoute = ProjectsIdPreviewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/inward-orders': typeof InwardOrdersRouteWithChildren
   '/login': typeof LoginRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/print/$id': typeof PrintIdRoute
@@ -163,13 +162,13 @@ export interface FileRoutesByFullPath {
   '/settings/subsystems': typeof SettingsSubsystemsRoute
   '/settings/templates': typeof SettingsTemplatesRoute
   '/settings/tests': typeof SettingsTestsRoute
+  '/inward-orders/': typeof InwardOrdersIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
   '/projects/$id/wizard': typeof ProjectsIdWizardRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/inward-orders': typeof InwardOrdersRouteWithChildren
   '/login': typeof LoginRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/print/$id': typeof PrintIdRoute
@@ -187,6 +186,7 @@ export interface FileRoutesByTo {
   '/settings/subsystems': typeof SettingsSubsystemsRoute
   '/settings/templates': typeof SettingsTemplatesRoute
   '/settings/tests': typeof SettingsTestsRoute
+  '/inward-orders': typeof InwardOrdersIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
   '/projects/$id/wizard': typeof ProjectsIdWizardRoute
@@ -194,7 +194,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/inward-orders': typeof InwardOrdersRouteWithChildren
   '/login': typeof LoginRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/print/$id': typeof PrintIdRoute
@@ -212,6 +211,7 @@ export interface FileRoutesById {
   '/settings/subsystems': typeof SettingsSubsystemsRoute
   '/settings/templates': typeof SettingsTemplatesRoute
   '/settings/tests': typeof SettingsTestsRoute
+  '/inward-orders/': typeof InwardOrdersIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
   '/projects/$id/wizard': typeof ProjectsIdWizardRoute
@@ -220,7 +220,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/inward-orders'
     | '/login'
     | '/inward-orders/$id'
     | '/print/$id'
@@ -238,13 +237,13 @@ export interface FileRouteTypes {
     | '/settings/subsystems'
     | '/settings/templates'
     | '/settings/tests'
+    | '/inward-orders/'
     | '/settings/'
     | '/projects/$id/preview'
     | '/projects/$id/wizard'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/inward-orders'
     | '/login'
     | '/inward-orders/$id'
     | '/print/$id'
@@ -262,13 +261,13 @@ export interface FileRouteTypes {
     | '/settings/subsystems'
     | '/settings/templates'
     | '/settings/tests'
+    | '/inward-orders'
     | '/settings'
     | '/projects/$id/preview'
     | '/projects/$id/wizard'
   id:
     | '__root__'
     | '/'
-    | '/inward-orders'
     | '/login'
     | '/inward-orders/$id'
     | '/print/$id'
@@ -286,6 +285,7 @@ export interface FileRouteTypes {
     | '/settings/subsystems'
     | '/settings/templates'
     | '/settings/tests'
+    | '/inward-orders/'
     | '/settings/'
     | '/projects/$id/preview'
     | '/projects/$id/wizard'
@@ -293,8 +293,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  InwardOrdersRoute: typeof InwardOrdersRouteWithChildren
   LoginRoute: typeof LoginRoute
+  InwardOrdersIdRoute: typeof InwardOrdersIdRoute
   PrintIdRoute: typeof PrintIdRoute
   SettingsCompaniesRoute: typeof SettingsCompaniesRoute
   SettingsConnectionsRoute: typeof SettingsConnectionsRoute
@@ -310,6 +310,7 @@ export interface RootRouteChildren {
   SettingsSubsystemsRoute: typeof SettingsSubsystemsRoute
   SettingsTemplatesRoute: typeof SettingsTemplatesRoute
   SettingsTestsRoute: typeof SettingsTestsRoute
+  InwardOrdersIndexRoute: typeof InwardOrdersIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   ProjectsIdPreviewRoute: typeof ProjectsIdPreviewRoute
   ProjectsIdWizardRoute: typeof ProjectsIdWizardRoute
@@ -324,13 +325,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/inward-orders': {
-      id: '/inward-orders'
-      path: '/inward-orders'
-      fullPath: '/inward-orders'
-      preLoaderRoute: typeof InwardOrdersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -343,6 +337,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings/'
       preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inward-orders/': {
+      id: '/inward-orders/'
+      path: '/inward-orders'
+      fullPath: '/inward-orders/'
+      preLoaderRoute: typeof InwardOrdersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/tests': {
@@ -452,10 +453,10 @@ declare module '@tanstack/react-router' {
     }
     '/inward-orders/$id': {
       id: '/inward-orders/$id'
-      path: '/$id'
+      path: '/inward-orders/$id'
       fullPath: '/inward-orders/$id'
       preLoaderRoute: typeof InwardOrdersIdRouteImport
-      parentRoute: typeof InwardOrdersRoute
+      parentRoute: typeof rootRouteImport
     }
     '/projects/$id/wizard': {
       id: '/projects/$id/wizard'
@@ -474,22 +475,10 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface InwardOrdersRouteChildren {
-  InwardOrdersIdRoute: typeof InwardOrdersIdRoute
-}
-
-const InwardOrdersRouteChildren: InwardOrdersRouteChildren = {
-  InwardOrdersIdRoute: InwardOrdersIdRoute,
-}
-
-const InwardOrdersRouteWithChildren = InwardOrdersRoute._addFileChildren(
-  InwardOrdersRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  InwardOrdersRoute: InwardOrdersRouteWithChildren,
   LoginRoute: LoginRoute,
+  InwardOrdersIdRoute: InwardOrdersIdRoute,
   PrintIdRoute: PrintIdRoute,
   SettingsCompaniesRoute: SettingsCompaniesRoute,
   SettingsConnectionsRoute: SettingsConnectionsRoute,
@@ -505,6 +494,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsSubsystemsRoute: SettingsSubsystemsRoute,
   SettingsTemplatesRoute: SettingsTemplatesRoute,
   SettingsTestsRoute: SettingsTestsRoute,
+  InwardOrdersIndexRoute: InwardOrdersIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   ProjectsIdPreviewRoute: ProjectsIdPreviewRoute,
   ProjectsIdWizardRoute: ProjectsIdWizardRoute,
