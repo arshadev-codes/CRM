@@ -128,9 +128,9 @@ const PrintIdRoute = PrintIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const InwardOrdersIdRoute = InwardOrdersIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => InwardOrdersRoute,
+  id: '/inward-orders/$id',
+  path: '/inward-orders/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsIdWizardRoute = ProjectsIdWizardRouteImport.update({
   id: '/projects/$id/wizard',
@@ -294,6 +294,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  InwardOrdersIdRoute: typeof InwardOrdersIdRoute
   PrintIdRoute: typeof PrintIdRoute
   SettingsCompaniesRoute: typeof SettingsCompaniesRoute
   SettingsConnectionsRoute: typeof SettingsConnectionsRoute
@@ -452,10 +453,10 @@ declare module '@tanstack/react-router' {
     }
     '/inward-orders/$id': {
       id: '/inward-orders/$id'
-      path: '/$id'
+      path: '/inward-orders/$id'
       fullPath: '/inward-orders/$id'
       preLoaderRoute: typeof InwardOrdersIdRouteImport
-      parentRoute: typeof InwardOrdersRoute
+      parentRoute: typeof rootRouteImport
     }
     '/projects/$id/wizard': {
       id: '/projects/$id/wizard'
@@ -477,6 +478,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  InwardOrdersIdRoute: InwardOrdersIdRoute,
   PrintIdRoute: PrintIdRoute,
   SettingsCompaniesRoute: SettingsCompaniesRoute,
   SettingsConnectionsRoute: SettingsConnectionsRoute,
