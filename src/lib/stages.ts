@@ -25,7 +25,11 @@ export type Stage = {
 
 // Stages that have their own page, keyed by URL slug.
 export const STAGE_PAGES = {
-  design: { name: "Design", drawingLabel: "SLD", drawingTitle: "Single Line Diagram" },
+  design: { name: "Design", summary: "SLD drawing, remarks and progress" },
+  procurement: {
+    name: "Material Procurement",
+    summary: "Material requirements, stock check, enquiries and deliveries",
+  },
 } as const;
 export type StagePageSlug = keyof typeof STAGE_PAGES;
 export function stagePageSlug(stageName: string): StagePageSlug | undefined {

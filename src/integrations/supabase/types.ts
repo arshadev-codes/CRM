@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      inventory_items: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          item_name: string
+          location: string
+          make: string
+          model: string
+          qty_in_stock: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          item_name: string
+          location?: string
+          make?: string
+          model?: string
+          qty_in_stock?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          item_name?: string
+          location?: string
+          make?: string
+          model?: string
+          qty_in_stock?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inward_order_attachments: {
         Row: {
           content_type: string | null
@@ -105,6 +144,86 @@ export type Database = {
           supervisor?: string
         }
         Relationships: []
+      }
+      procurement_items: {
+        Row: {
+          category: string
+          created_at: string
+          display_order: number
+          enquiry_date: string | null
+          expected_date: string | null
+          id: string
+          inward_order_id: string
+          item_name: string
+          make: string
+          model: string
+          notes: string
+          qty_in_stock: number | null
+          qty_received: number
+          qty_required: number
+          received_at: string | null
+          specification: string
+          stock_checked_at: string | null
+          stock_checked_by: string
+          supplier: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          display_order?: number
+          enquiry_date?: string | null
+          expected_date?: string | null
+          id?: string
+          inward_order_id: string
+          item_name: string
+          make?: string
+          model?: string
+          notes?: string
+          qty_in_stock?: number | null
+          qty_received?: number
+          qty_required?: number
+          received_at?: string | null
+          specification?: string
+          stock_checked_at?: string | null
+          stock_checked_by?: string
+          supplier?: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          display_order?: number
+          enquiry_date?: string | null
+          expected_date?: string | null
+          id?: string
+          inward_order_id?: string
+          item_name?: string
+          make?: string
+          model?: string
+          notes?: string
+          qty_in_stock?: number | null
+          qty_received?: number
+          qty_required?: number
+          received_at?: string | null
+          specification?: string
+          stock_checked_at?: string | null
+          stock_checked_by?: string
+          supplier?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_items_inward_order_id_fkey"
+            columns: ["inward_order_id"]
+            isOneToOne: false
+            referencedRelation: "inward_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_stages: {
         Row: {

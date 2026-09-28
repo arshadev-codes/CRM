@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as InwardOrdersIndexRouteImport } from './routes/inward-orders.index'
@@ -36,6 +37,11 @@ import { Route as InwardOrdersIdStagesStageRouteImport } from './routes/inward-o
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryRoute = InventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -152,6 +158,7 @@ const InwardOrdersIdStagesStageRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/print/$id': typeof PrintIdRoute
@@ -177,6 +184,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/print/$id': typeof PrintIdRoute
@@ -203,6 +211,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/print/$id': typeof PrintIdRoute
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/inventory'
     | '/login'
     | '/inward-orders/$id'
     | '/print/$id'
@@ -255,6 +265,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/inventory'
     | '/login'
     | '/inward-orders/$id'
     | '/print/$id'
@@ -280,6 +291,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/inventory'
     | '/login'
     | '/inward-orders/$id'
     | '/print/$id'
@@ -306,6 +318,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  InventoryRoute: typeof InventoryRoute
   LoginRoute: typeof LoginRoute
   InwardOrdersIdRoute: typeof InwardOrdersIdRoute
   PrintIdRoute: typeof PrintIdRoute
@@ -337,6 +350,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory': {
+      id: '/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof InventoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -498,6 +518,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  InventoryRoute: InventoryRoute,
   LoginRoute: LoginRoute,
   InwardOrdersIdRoute: InwardOrdersIdRoute,
   PrintIdRoute: PrintIdRoute,
