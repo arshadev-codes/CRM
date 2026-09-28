@@ -104,6 +104,7 @@ export type StageBodyProps = {
 };
 
 // Design: the SLD drawing up top, then remarks and updates, newest first.
+// Stages without a drawing (Fabrication, Production) use the updates feed alone.
 export function DesignStage({
   orderId: id,
   slug,
@@ -113,9 +114,10 @@ export function DesignStage({
   author,
   employees,
   onAuthor,
-  drawingLabel,
-  drawingTitle,
-}: StageBodyProps & { drawingLabel: string; drawingTitle: string }) {
+  drawingLabel = "Drawing",
+  drawingTitle = "",
+  showDrawing = true,
+}: StageBodyProps & { drawingLabel?: string; drawingTitle?: string; showDrawing?: boolean }) {
   const [loading, setLoading] = useState(true);
   const [updates, setUpdates] = useState<StageUpdate[]>([]);
 
@@ -310,25 +312,29 @@ export function DesignStage({
 
   return (
     <>
-      <motion.section
-        initial={{ opacity: 0, y: 24, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.6, ease: EASE, delay: 0.08 }}
-        className="mx-auto w-full max-w-[80vw] max-lg:max-w-full"
-      >
-        <DrawingPanel
-          label={drawingLabel}
-          title={drawingTitle}
-          loading={loading}
-          drawing={currentDrawing}
-          revision={currentDrawing ? drawings.length - 1 : 0}
-          onUpload={uploadDrawing}
-          onOpen={(update) => void openFile(update, false)}
-          onDownload={(update) => void openFile(update, true)}
-        />
-      </motion.section>
+      {showDrawing && (
+        <motion.section
+          initial={{ opacity: 0, y: 24, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, ease: EASE, delay: 0.08 }}
+          className="mx-auto w-full max-w-[80vw] max-lg:max-w-full"
+        >
+          <DrawingPanel
+            label={drawingLabel}
+            title={drawingTitle}
+            loading={loading}
+            drawing={currentDrawing}
+            revision={currentDrawing ? drawings.length - 1 : 0}
+            onUpload={uploadDrawing}
+            onOpen={(update) => void openFile(update, false)}
+            onDownload={(update) => void openFile(update, true)}
+          />
+        </motion.section>
+      )}
 
-      <div className="mx-auto mt-8 grid w-full max-w-[80vw] gap-6 max-lg:max-w-full lg:grid-cols-[minmax(300px,380px)_1fr]">
+      <div
+        className={`mx-auto grid w-full ${showDrawing ? "mt-8" : ""} max-w-[80vw] gap-6 max-lg:max-w-full lg:grid-cols-[minmax(300px,380px)_1fr]`}
+      >
         <motion.div
           className="min-w-0"
           initial={{ opacity: 0, x: -20 }}
@@ -352,7 +358,7 @@ export function DesignStage({
           <Timeline
             loading={loading}
             updates={updates}
-            drawingLabel={drawingLabel}
+            drawingLabel={showDrawing ? drawingLabel : ""}
             revisionOf={revisionOf}
             onOpen={(update) => void openFile(update, false)}
             onDownload={(update) => void openFile(update, true)}
@@ -727,7 +733,7 @@ function Composer({
           rows={5}
           value={remarks}
           onChange={(event) => setRemarks(event.target.value)}
-          placeholder="What changed? e.g. Revised busbar rating on SLD, awaiting customer approval…"
+          placeholder="What changed? e.g. Work completed today, issue found, awaiting approval…"
           onKeyDown={(event) => {
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) void submit(event);
           }}
@@ -867,8 +873,10 @@ function Timeline({
           <CircleDot className="h-8 w-8 text-primary/60" />
           <div className="mt-3 font-semibold text-foreground">No updates yet</div>
           <div className="mt-1 max-w-xs text-sm text-muted-foreground">
-            Upload the {drawingLabel} or post the first remark. Every update will appear here,
-            newest on top.
+            {drawingLabel
+              ? `Upload the ${drawingLabel} or post the first remark.`
+              : "Post the first update."}{" "}
+            Every update will appear here, newest on top.
           </div>
         </motion.div>
       ) : (

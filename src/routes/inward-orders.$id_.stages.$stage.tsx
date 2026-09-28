@@ -1,15 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion, MotionConfig } from "framer-motion";
-import {
-  ArrowLeft,
-  FlaskConical,
-  LoaderCircle,
-  PackageSearch,
-  PenTool,
-  ShieldCheck,
-  Truck,
-} from "lucide-react";
+import { ArrowLeft, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useProposalStore } from "@/store/proposalStore";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,12 +11,15 @@ import {
   mapStage,
   stageProgress,
   STAGE_NAMES,
+  LAST_ORDER_KEY,
   STAGE_PAGES,
   type Stage,
   type StagePageSlug,
   type StageStatus,
 } from "@/lib/stages";
+import { STAGE_THEME } from "@/lib/stageTheme";
 import { Button } from "@/components/ui/button";
+import { OrderSwitcher } from "@/components/stages/OrderSwitcher";
 import { EASE, ProgressRing, StatusPicker, useStageAuthor } from "@/components/stages/shared";
 import { DesignStage, type StageBodyProps } from "@/components/stages/DesignStage";
 import { ProcurementStage } from "@/components/stages/ProcurementStage";
@@ -33,6 +28,9 @@ import { InspectionStage } from "@/components/stages/InspectionStage";
 import { DispatchStage } from "@/components/stages/DispatchStage";
 
 export const Route = createFileRoute("/inward-orders/$id_/stages/$stage")({
+  // ?pick=1 opens the order switcher (used when arriving from the sidebar).
+  validateSearch: (search: Record<string, unknown>): { pick?: 1 } =>
+    search.pick === 1 || search.pick === "1" ? { pick: 1 } : {},
   beforeLoad: ({ params }) => {
     if (!(params.stage in STAGE_PAGES)) throw notFound();
   },
@@ -54,16 +52,9 @@ export const Route = createFileRoute("/inward-orders/$id_/stages/$stage")({
   component: StagePage,
 });
 
-const STAGE_ICONS: Record<StagePageSlug, typeof PenTool> = {
-  design: PenTool,
-  procurement: PackageSearch,
-  testing: FlaskConical,
-  inspection: ShieldCheck,
-  dispatch: Truck,
-};
-
 function StagePage() {
   const { id, stage: slug } = Route.useParams();
+  const { pick } = Route.useSearch();
   const pageSlug = slug as StagePageSlug;
   const page = STAGE_PAGES[pageSlug];
   const orders = useProposalStore((s) => s.inwardOrders);
@@ -77,6 +68,14 @@ function StagePage() {
   useEffect(() => {
     void hydrateOrders();
   }, [hydrateOrders]);
+  useEffect(() => {
+    // Sidebar stage links reopen the order you were last working on.
+    try {
+      localStorage.setItem(LAST_ORDER_KEY, id);
+    } catch {
+      /* storage unavailable */
+    }
+  }, [id]);
 
   useEffect(() => {
     let active = true;
@@ -152,7 +151,8 @@ function StagePage() {
     );
 
   const stageIndex = STAGE_NAMES.indexOf(page.name);
-  const Icon = STAGE_ICONS[pageSlug];
+  const theme = STAGE_THEME[pageSlug];
+  const Icon = theme.icon;
   const body: StageBodyProps = {
     orderId: id,
     slug,
@@ -188,31 +188,42 @@ function StagePage() {
                 {order.projectNumber || "Order"}
               </Link>
               <span>/</span>
-              <span className="text-primary">
+              <span className={theme.text}>
                 Stage {stageIndex + 1} of {STAGE_NAMES.length}
               </span>
             </div>
             <h1 className="mt-1 flex items-center gap-3 text-2xl font-bold text-foreground sm:text-3xl">
-              <span className="neo-pop grid h-10 w-10 place-items-center rounded-xl text-primary">
+              <span
+                className={`grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br text-white shadow-md ${theme.gradient}`}
+              >
                 <Icon className="h-5 w-5" />
               </span>
               {page.name}
             </h1>
-            <p className="mt-1 truncate text-sm text-muted-foreground">
-              {[order.customerName, order.projectName].filter(Boolean).join(" · ")}
-            </p>
+            <OrderSwitcher
+              key={pick ? "pick" : "view"}
+              orderId={id}
+              slug={pageSlug}
+              defaultOpen={Boolean(pick)}
+            />
           </div>
           <StatusPicker status={stage?.status} onChange={(status) => void setStageStatus(status)} />
           <ProgressRing value={progress} caption={`${doneCount}/${STAGE_NAMES.length} stages`} />
         </motion.header>
 
-        {pageSlug === "design" && (
-          <DesignStage {...body} drawingLabel="SLD" drawingTitle="Single Line Diagram" />
-        )}
-        {pageSlug === "procurement" && <ProcurementStage {...body} />}
-        {pageSlug === "testing" && <TestingStage {...body} />}
-        {pageSlug === "inspection" && <InspectionStage {...body} />}
-        {pageSlug === "dispatch" && <DispatchStage {...body} />}
+        {/* Keyed by order so switching orders starts each page fresh. */}
+        <div key={id}>
+          {pageSlug === "design" && (
+            <DesignStage {...body} drawingLabel="SLD" drawingTitle="Single Line Diagram" />
+          )}
+          {(pageSlug === "fabrication" || pageSlug === "production") && (
+            <DesignStage {...body} showDrawing={false} />
+          )}
+          {pageSlug === "procurement" && <ProcurementStage {...body} />}
+          {pageSlug === "testing" && <TestingStage {...body} />}
+          {pageSlug === "inspection" && <InspectionStage {...body} />}
+          {pageSlug === "dispatch" && <DispatchStage {...body} />}
+        </div>
       </div>
     </MotionConfig>
   );

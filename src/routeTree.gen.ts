@@ -14,6 +14,7 @@ import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as InwardOrdersIndexRouteImport } from './routes/inward-orders.index'
+import { Route as StagesStageRouteImport } from './routes/stages.$stage'
 import { Route as SettingsTestsRouteImport } from './routes/settings.tests'
 import { Route as SettingsTemplatesRouteImport } from './routes/settings.templates'
 import { Route as SettingsSubsystemsRouteImport } from './routes/settings.subsystems'
@@ -58,6 +59,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
 const InwardOrdersIndexRoute = InwardOrdersIndexRouteImport.update({
   id: '/inward-orders/',
   path: '/inward-orders/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StagesStageRoute = StagesStageRouteImport.update({
+  id: '/stages/$stage',
+  path: '/stages/$stage',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsTestsRoute = SettingsTestsRouteImport.update({
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/settings/subsystems': typeof SettingsSubsystemsRoute
   '/settings/templates': typeof SettingsTemplatesRoute
   '/settings/tests': typeof SettingsTestsRoute
+  '/stages/$stage': typeof StagesStageRoute
   '/inward-orders/': typeof InwardOrdersIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/print/mom/$sessionId': typeof PrintMomSessionIdRoute
@@ -209,6 +216,7 @@ export interface FileRoutesByTo {
   '/settings/subsystems': typeof SettingsSubsystemsRoute
   '/settings/templates': typeof SettingsTemplatesRoute
   '/settings/tests': typeof SettingsTestsRoute
+  '/stages/$stage': typeof StagesStageRoute
   '/inward-orders': typeof InwardOrdersIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/print/mom/$sessionId': typeof PrintMomSessionIdRoute
@@ -237,6 +245,7 @@ export interface FileRoutesById {
   '/settings/subsystems': typeof SettingsSubsystemsRoute
   '/settings/templates': typeof SettingsTemplatesRoute
   '/settings/tests': typeof SettingsTestsRoute
+  '/stages/$stage': typeof StagesStageRoute
   '/inward-orders/': typeof InwardOrdersIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/print/mom/$sessionId': typeof PrintMomSessionIdRoute
@@ -266,6 +275,7 @@ export interface FileRouteTypes {
     | '/settings/subsystems'
     | '/settings/templates'
     | '/settings/tests'
+    | '/stages/$stage'
     | '/inward-orders/'
     | '/settings/'
     | '/print/mom/$sessionId'
@@ -293,6 +303,7 @@ export interface FileRouteTypes {
     | '/settings/subsystems'
     | '/settings/templates'
     | '/settings/tests'
+    | '/stages/$stage'
     | '/inward-orders'
     | '/settings'
     | '/print/mom/$sessionId'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/settings/subsystems'
     | '/settings/templates'
     | '/settings/tests'
+    | '/stages/$stage'
     | '/inward-orders/'
     | '/settings/'
     | '/print/mom/$sessionId'
@@ -348,6 +360,7 @@ export interface RootRouteChildren {
   SettingsSubsystemsRoute: typeof SettingsSubsystemsRoute
   SettingsTemplatesRoute: typeof SettingsTemplatesRoute
   SettingsTestsRoute: typeof SettingsTestsRoute
+  StagesStageRoute: typeof StagesStageRoute
   InwardOrdersIndexRoute: typeof InwardOrdersIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   PrintMomSessionIdRoute: typeof PrintMomSessionIdRoute
@@ -391,6 +404,13 @@ declare module '@tanstack/react-router' {
       path: '/inward-orders'
       fullPath: '/inward-orders/'
       preLoaderRoute: typeof InwardOrdersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stages/$stage': {
+      id: '/stages/$stage'
+      path: '/stages/$stage'
+      fullPath: '/stages/$stage'
+      preLoaderRoute: typeof StagesStageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/tests': {
@@ -556,6 +576,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsSubsystemsRoute: SettingsSubsystemsRoute,
   SettingsTemplatesRoute: SettingsTemplatesRoute,
   SettingsTestsRoute: SettingsTestsRoute,
+  StagesStageRoute: StagesStageRoute,
   InwardOrdersIndexRoute: InwardOrdersIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   PrintMomSessionIdRoute: PrintMomSessionIdRoute,

@@ -1,7 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { PackageCheck, CalendarCheck, User } from "lucide-react";
 import { useProposalStore } from "@/store/proposalStore";
+import { supabase } from "@/integrations/supabase/client";
+import { STAGE_PAGES, STAGE_SLUGS, type StageStatus } from "@/lib/stages";
+import { STAGE_THEME } from "@/lib/stageTheme";
 
 export const Route = createFileRoute("/inward-orders/")({
   head: () => ({
@@ -25,7 +28,16 @@ function InwardOrders() {
   const orders = useProposalStore((s) => s.inwardOrders);
   const hydrate = useProposalStore((s) => s.hydrateInwardOrders);
 
+  const [stageMap, setStageMap] = useState<Record<string, Record<string, StageStatus>>>({});
+
   useEffect(() => { void hydrate(); }, [hydrate]);
+  useEffect(() => {
+    void supabase.from("project_stages").select("inward_order_id, stage_name, status").then(({ data }) => {
+      const map: Record<string, Record<string, StageStatus>> = {};
+      for (const row of data ?? []) (map[row.inward_order_id] ??= {})[row.stage_name] = row.status as StageStatus;
+      setStageMap(map);
+    });
+  }, []);
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -69,10 +81,42 @@ function InwardOrders() {
                   Readiness: <span className="text-slate-700">{o.readinessDate || "—"}</span>
                 </div>
               </div>
+              <StageStrip statuses={stageMap[o.id] ?? {}} />
             </Link>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// Seven segments in the stage colours: full when done, half when in progress.
+function StageStrip({ statuses }: { statuses: Record<string, StageStatus> }) {
+  const current = STAGE_SLUGS.find((slug) => statuses[STAGE_PAGES[slug].name] === "in progress");
+  return (
+    <div className="mt-4">
+      <div className="flex gap-1">
+        {STAGE_SLUGS.map((slug) => {
+          const status = statuses[STAGE_PAGES[slug].name] ?? "not started";
+          return (
+            <span key={slug} title={`${STAGE_PAGES[slug].name}: ${status}`} className="neo-inset h-1.5 flex-1 overflow-hidden rounded-full">
+              <span
+                className={`block h-full rounded-full bg-gradient-to-r ${STAGE_THEME[slug].bar} transition-[width] duration-700`}
+                style={{ width: status === "done" ? "100%" : status === "in progress" ? "50%" : "0%" }}
+              />
+            </span>
+          );
+        })}
+      </div>
+      <div className="mt-1.5 text-[11px] text-slate-500">
+        {current ? (
+          <>Now: <span className={`font-semibold ${STAGE_THEME[current].text}`}>{STAGE_PAGES[current].name}</span></>
+        ) : Object.values(statuses).length && Object.values(statuses).every((s) => s === "done") ? (
+          <span className="font-semibold text-emerald-600">All stages done</span>
+        ) : (
+          "Not started"
+        )}
+      </div>
     </div>
   );
 }

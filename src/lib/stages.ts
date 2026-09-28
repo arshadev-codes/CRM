@@ -26,10 +26,12 @@ export type Stage = {
 // Stages that have their own page, keyed by URL slug.
 export const STAGE_PAGES = {
   design: { name: "Design", summary: "SLD drawing, remarks and progress" },
+  fabrication: { name: "Fabrication", summary: "Fabrication status, updates and remarks" },
   procurement: {
     name: "Material Procurement",
     summary: "Material requirements, stock check, enquiries and deliveries",
   },
+  production: { name: "Production", summary: "Production status, updates and remarks" },
   testing: { name: "Testing", summary: "Test checklist, testing sessions and minutes of meeting" },
   inspection: {
     name: "Inspection",
@@ -38,6 +40,11 @@ export const STAGE_PAGES = {
   dispatch: { name: "Dispatch", summary: "Packing, transport, documents and delivery" },
 } as const;
 export type StagePageSlug = keyof typeof STAGE_PAGES;
+// Remembers the order last opened on a stage page, for the sidebar stage links.
+export const LAST_ORDER_KEY = "last_inward_order";
+
+// Slugs in stage order, for navigation.
+export const STAGE_SLUGS = Object.keys(STAGE_PAGES) as (keyof typeof STAGE_PAGES)[];
 export function stagePageSlug(stageName: string): StagePageSlug | undefined {
   return (Object.keys(STAGE_PAGES) as StagePageSlug[]).find(
     (slug) => STAGE_PAGES[slug].name === stageName,
