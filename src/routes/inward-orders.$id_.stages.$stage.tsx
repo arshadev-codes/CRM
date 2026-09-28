@@ -1,7 +1,15 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion, MotionConfig } from "framer-motion";
-import { ArrowLeft, LoaderCircle, PackageSearch, PenTool } from "lucide-react";
+import {
+  ArrowLeft,
+  FlaskConical,
+  LoaderCircle,
+  PackageSearch,
+  PenTool,
+  ShieldCheck,
+  Truck,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useProposalStore } from "@/store/proposalStore";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +28,9 @@ import { Button } from "@/components/ui/button";
 import { EASE, ProgressRing, StatusPicker, useStageAuthor } from "@/components/stages/shared";
 import { DesignStage, type StageBodyProps } from "@/components/stages/DesignStage";
 import { ProcurementStage } from "@/components/stages/ProcurementStage";
+import { TestingStage } from "@/components/stages/TestingStage";
+import { InspectionStage } from "@/components/stages/InspectionStage";
+import { DispatchStage } from "@/components/stages/DispatchStage";
 
 export const Route = createFileRoute("/inward-orders/$id_/stages/$stage")({
   beforeLoad: ({ params }) => {
@@ -46,6 +57,9 @@ export const Route = createFileRoute("/inward-orders/$id_/stages/$stage")({
 const STAGE_ICONS: Record<StagePageSlug, typeof PenTool> = {
   design: PenTool,
   procurement: PackageSearch,
+  testing: FlaskConical,
+  inspection: ShieldCheck,
+  dispatch: Truck,
 };
 
 function StagePage() {
@@ -192,11 +206,13 @@ function StagePage() {
           <ProgressRing value={progress} caption={`${doneCount}/${STAGE_NAMES.length} stages`} />
         </motion.header>
 
-        {pageSlug === "design" ? (
+        {pageSlug === "design" && (
           <DesignStage {...body} drawingLabel="SLD" drawingTitle="Single Line Diagram" />
-        ) : (
-          <ProcurementStage {...body} />
         )}
+        {pageSlug === "procurement" && <ProcurementStage {...body} />}
+        {pageSlug === "testing" && <TestingStage {...body} />}
+        {pageSlug === "inspection" && <InspectionStage {...body} />}
+        {pageSlug === "dispatch" && <DispatchStage {...body} />}
       </div>
     </MotionConfig>
   );

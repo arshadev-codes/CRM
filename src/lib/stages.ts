@@ -30,6 +30,12 @@ export const STAGE_PAGES = {
     name: "Material Procurement",
     summary: "Material requirements, stock check, enquiries and deliveries",
   },
+  testing: { name: "Testing", summary: "Test checklist, testing sessions and minutes of meeting" },
+  inspection: {
+    name: "Inspection",
+    summary: "Client inspection visits, witnessed tests, minutes and outcome",
+  },
+  dispatch: { name: "Dispatch", summary: "Packing, transport, documents and delivery" },
 } as const;
 export type StagePageSlug = keyof typeof STAGE_PAGES;
 export function stagePageSlug(stageName: string): StagePageSlug | undefined {
