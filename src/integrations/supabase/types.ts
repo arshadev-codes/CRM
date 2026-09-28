@@ -153,6 +153,59 @@ export type Database = {
           },
         ]
       }
+      stage_updates: {
+        Row: {
+          author: string
+          content_type: string | null
+          created_at: string
+          file_name: string | null
+          file_size: number
+          id: string
+          inward_order_id: string
+          kind: string
+          remarks: string
+          stage_name: string
+          status: string | null
+          storage_path: string | null
+        }
+        Insert: {
+          author?: string
+          content_type?: string | null
+          created_at?: string
+          file_name?: string | null
+          file_size?: number
+          id?: string
+          inward_order_id: string
+          kind?: string
+          remarks?: string
+          stage_name: string
+          status?: string | null
+          storage_path?: string | null
+        }
+        Update: {
+          author?: string
+          content_type?: string | null
+          created_at?: string
+          file_name?: string | null
+          file_size?: number
+          id?: string
+          inward_order_id?: string
+          kind?: string
+          remarks?: string
+          stage_name?: string
+          status?: string | null
+          storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stage_updates_inward_order_id_fkey"
+            columns: ["inward_order_id"]
+            isOneToOne: false
+            referencedRelation: "inward_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -31,6 +31,7 @@ import { Route as PrintIdRouteImport } from './routes/print.$id'
 import { Route as InwardOrdersIdRouteImport } from './routes/inward-orders.$id'
 import { Route as ProjectsIdWizardRouteImport } from './routes/projects.$id.wizard'
 import { Route as ProjectsIdPreviewRouteImport } from './routes/projects.$id.preview'
+import { Route as InwardOrdersIdStagesStageRouteImport } from './routes/inward-orders.$id_.stages.$stage'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -142,6 +143,12 @@ const ProjectsIdPreviewRoute = ProjectsIdPreviewRouteImport.update({
   path: '/projects/$id/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InwardOrdersIdStagesStageRoute =
+  InwardOrdersIdStagesStageRouteImport.update({
+    id: '/inward-orders/$id_/stages/$stage',
+    path: '/inward-orders/$id/stages/$stage',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -166,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof SettingsIndexRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
   '/projects/$id/wizard': typeof ProjectsIdWizardRoute
+  '/inward-orders/$id/stages/$stage': typeof InwardOrdersIdStagesStageRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -190,6 +198,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsIndexRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
   '/projects/$id/wizard': typeof ProjectsIdWizardRoute
+  '/inward-orders/$id/stages/$stage': typeof InwardOrdersIdStagesStageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -215,6 +224,7 @@ export interface FileRoutesById {
   '/settings/': typeof SettingsIndexRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
   '/projects/$id/wizard': typeof ProjectsIdWizardRoute
+  '/inward-orders/$id_/stages/$stage': typeof InwardOrdersIdStagesStageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -241,6 +251,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/projects/$id/preview'
     | '/projects/$id/wizard'
+    | '/inward-orders/$id/stages/$stage'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -265,6 +276,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/projects/$id/preview'
     | '/projects/$id/wizard'
+    | '/inward-orders/$id/stages/$stage'
   id:
     | '__root__'
     | '/'
@@ -289,6 +301,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/projects/$id/preview'
     | '/projects/$id/wizard'
+    | '/inward-orders/$id_/stages/$stage'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -314,6 +327,7 @@ export interface RootRouteChildren {
   SettingsIndexRoute: typeof SettingsIndexRoute
   ProjectsIdPreviewRoute: typeof ProjectsIdPreviewRoute
   ProjectsIdWizardRoute: typeof ProjectsIdWizardRoute
+  InwardOrdersIdStagesStageRoute: typeof InwardOrdersIdStagesStageRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -472,6 +486,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsIdPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inward-orders/$id_/stages/$stage': {
+      id: '/inward-orders/$id_/stages/$stage'
+      path: '/inward-orders/$id/stages/$stage'
+      fullPath: '/inward-orders/$id/stages/$stage'
+      preLoaderRoute: typeof InwardOrdersIdStagesStageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -498,6 +519,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsIndexRoute: SettingsIndexRoute,
   ProjectsIdPreviewRoute: ProjectsIdPreviewRoute,
   ProjectsIdWizardRoute: ProjectsIdWizardRoute,
+  InwardOrdersIdStagesStageRoute: InwardOrdersIdStagesStageRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -6,6 +6,7 @@ import {
 import { toast } from "sonner";
 import { useProposalStore, type InwardOrder } from "@/store/proposalStore";
 import { supabase } from "@/integrations/supabase/client";
+import { loadStages, stagePageSlug, stageProgress, type Stage } from "@/lib/stages";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,14 +38,6 @@ export const Route = createFileRoute("/inward-orders/$id")({
   component: InwardOrderDetail,
 });
 
-const STAGE_NAMES = [
-  "Design", "Fabrication", "Material Procurement", "Production", "Testing", "Inspection", "Dispatch",
-] as const;
-type StageStatus = "not started" | "in progress" | "done";
-type Stage = {
-  id: string; inwardOrderId: string; stageName: string; status: StageStatus;
-  assignedTo: string; remarks: string; expectedDate?: string; displayOrder: number;
-};
 type Attachment = {
   id: string; inwardOrderId: string; fileName: string; storagePath: string;
   contentType?: string; fileSize: number; createdAt: string;
@@ -100,22 +93,14 @@ function InwardOrderDetail() {
     let active = true;
     async function loadDetails() {
       setLoading(true);
-      const defaultRows = STAGE_NAMES.map((stageName, index) => ({
-        inward_order_id: id, stage_name: stageName, display_order: index + 1,
-      }));
-      await supabase.from("project_stages").upsert(defaultRows, { onConflict: "inward_order_id,stage_name", ignoreDuplicates: true });
       const [stageResult, attachmentResult] = await Promise.all([
-        supabase.from("project_stages").select("*").eq("inward_order_id", id).order("display_order"),
+        loadStages(id),
         supabase.from("inward_order_attachments").select("*").eq("inward_order_id", id).order("created_at", { ascending: false }),
       ]);
       if (!active) return;
       if (stageResult.error) toast.error("Could not load project stages");
       if (attachmentResult.error) toast.error("Could not load attachments");
-      setStages((stageResult.data ?? []).map((row) => ({
-        id: row.id, inwardOrderId: row.inward_order_id, stageName: row.stage_name,
-        status: row.status as StageStatus, assignedTo: row.assigned_to,
-        remarks: row.remarks, expectedDate: row.expected_date ?? undefined, displayOrder: row.display_order,
-      })));
+      setStages(stageResult.stages);
       setAttachments((attachmentResult.data ?? []).map((row) => ({
         id: row.id, inwardOrderId: row.inward_order_id, fileName: row.file_name,
         storagePath: row.storage_path, contentType: row.content_type ?? undefined,
@@ -127,10 +112,7 @@ function InwardOrderDetail() {
     return () => { active = false; };
   }, [id]);
 
-  const progress = useMemo(() => {
-    const score = stages.reduce((total, stage) => total + (stage.status === "done" ? 1 : stage.status === "in progress" ? 0.5 : 0), 0);
-    return Math.round((score / STAGE_NAMES.length) * 100);
-  }, [stages]);
+  const progress = useMemo(() => stageProgress(stages), [stages]);
   const doneCount = stages.filter((stage) => stage.status === "done").length;
 
   async function uploadFiles(files: FileList | null) {
@@ -205,7 +187,7 @@ function InwardOrderDetail() {
           <div className="flex min-w-[760px] items-start">
             {stages.map((stage, index) => (
               <div key={stage.id} className="flex flex-1 items-start">
-                <button type="button" className="group flex w-24 shrink-0 flex-col items-center gap-2 text-center" onClick={() => setSelectedStage(stage)}>
+                <button type="button" className="group flex w-24 shrink-0 flex-col items-center gap-2 text-center" onClick={() => { const slug = stagePageSlug(stage.stageName); if (slug) void navigate({ to: "/inward-orders/$id/stages/$stage", params: { id, stage: slug } }); else setSelectedStage(stage); }}>
                   <span className={`grid h-11 w-11 place-items-center rounded-full border-2 text-sm font-bold transition-transform group-hover:scale-105 ${stage.status === "done" ? "border-emerald-500 bg-emerald-500 text-white" : stage.status === "in progress" ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/35 bg-card text-muted-foreground"}`}>
                     {stage.status === "done" ? <Check className="h-5 w-5" /> : index + 1}
                   </span>
