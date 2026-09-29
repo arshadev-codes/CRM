@@ -1,11 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
-  ArrowLeft, Check, Download, FileText, LoaderCircle, Pencil, Trash2, Upload,
+  ArrowLeft, Download, FileText, LoaderCircle, Pencil, Trash2, Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useProposalStore, type InwardOrder } from "@/store/proposalStore";
 import { supabase } from "@/integrations/supabase/client";
+import { loadStages, stageProgress, type Stage } from "@/lib/stages";
+import { StageCards } from "@/components/stages/StageCards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,9 +21,6 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
-} from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/inward-orders/$id")({
   head: () => ({
@@ -37,14 +36,6 @@ export const Route = createFileRoute("/inward-orders/$id")({
   component: InwardOrderDetail,
 });
 
-const STAGE_NAMES = [
-  "Design", "Fabrication", "Material Procurement", "Production", "Testing", "Inspection", "Dispatch",
-] as const;
-type StageStatus = "not started" | "in progress" | "done";
-type Stage = {
-  id: string; inwardOrderId: string; stageName: string; status: StageStatus;
-  assignedTo: string; remarks: string; expectedDate?: string; displayOrder: number;
-};
 type Attachment = {
   id: string; inwardOrderId: string; fileName: string; storagePath: string;
   contentType?: string; fileSize: number; createdAt: string;
@@ -89,7 +80,6 @@ function InwardOrderDetail() {
   const [loading, setLoading] = useState(true);
   const [stages, setStages] = useState<Stage[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [selectedStage, setSelectedStage] = useState<Stage | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -100,22 +90,14 @@ function InwardOrderDetail() {
     let active = true;
     async function loadDetails() {
       setLoading(true);
-      const defaultRows = STAGE_NAMES.map((stageName, index) => ({
-        inward_order_id: id, stage_name: stageName, display_order: index + 1,
-      }));
-      await supabase.from("project_stages").upsert(defaultRows, { onConflict: "inward_order_id,stage_name", ignoreDuplicates: true });
       const [stageResult, attachmentResult] = await Promise.all([
-        supabase.from("project_stages").select("*").eq("inward_order_id", id).order("display_order"),
+        loadStages(id),
         supabase.from("inward_order_attachments").select("*").eq("inward_order_id", id).order("created_at", { ascending: false }),
       ]);
       if (!active) return;
       if (stageResult.error) toast.error("Could not load project stages");
       if (attachmentResult.error) toast.error("Could not load attachments");
-      setStages((stageResult.data ?? []).map((row) => ({
-        id: row.id, inwardOrderId: row.inward_order_id, stageName: row.stage_name,
-        status: row.status as StageStatus, assignedTo: row.assigned_to,
-        remarks: row.remarks, expectedDate: row.expected_date ?? undefined, displayOrder: row.display_order,
-      })));
+      setStages(stageResult.stages);
       setAttachments((attachmentResult.data ?? []).map((row) => ({
         id: row.id, inwardOrderId: row.inward_order_id, fileName: row.file_name,
         storagePath: row.storage_path, contentType: row.content_type ?? undefined,
@@ -127,10 +109,7 @@ function InwardOrderDetail() {
     return () => { active = false; };
   }, [id]);
 
-  const progress = useMemo(() => {
-    const score = stages.reduce((total, stage) => total + (stage.status === "done" ? 1 : stage.status === "in progress" ? 0.5 : 0), 0);
-    return Math.round((score / STAGE_NAMES.length) * 100);
-  }, [stages]);
+  const progress = useMemo(() => stageProgress(stages), [stages]);
   const doneCount = stages.filter((stage) => stage.status === "done").length;
 
   async function uploadFiles(files: FileList | null) {
@@ -201,20 +180,8 @@ function InwardOrderDetail() {
           <div className="h-full rounded-full bg-gradient-to-r from-primary to-chart-2 transition-[width] duration-700 ease-out" style={{ width: `${progress}%` }} />
         </div>
 
-        <div className="mt-9 overflow-x-auto pb-2">
-          <div className="flex min-w-[760px] items-start">
-            {stages.map((stage, index) => (
-              <div key={stage.id} className="flex flex-1 items-start">
-                <button type="button" className="group flex w-24 shrink-0 flex-col items-center gap-2 text-center" onClick={() => setSelectedStage(stage)}>
-                  <span className={`grid h-11 w-11 place-items-center rounded-full border-2 text-sm font-bold transition-transform group-hover:scale-105 ${stage.status === "done" ? "border-emerald-500 bg-emerald-500 text-white" : stage.status === "in progress" ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/35 bg-card text-muted-foreground"}`}>
-                    {stage.status === "done" ? <Check className="h-5 w-5" /> : index + 1}
-                  </span>
-                  <span className="text-xs font-medium leading-tight text-foreground">{stage.stageName}</span>
-                </button>
-                {index < stages.length - 1 && <div className={`mt-5 h-0.5 flex-1 ${stage.status === "done" ? "bg-emerald-500" : "bg-muted"}`} />}
-              </div>
-            ))}
-          </div>
+        <div className="mt-8">
+          <StageCards orderId={id} stages={stages} />
         </div>
       </section>
 
@@ -229,7 +196,6 @@ function InwardOrderDetail() {
 
       <EditOrderDialog order={order} open={editOpen} onOpenChange={setEditOpen} onSave={(patch) => { updateOrder(order.id, patch); setEditOpen(false); toast.success("Inward order updated"); }} />
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this inward order?</AlertDialogTitle><AlertDialogDescription>This removes the inward order, its stages, and attachment records. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => { deleteOrder(order.id); void navigate({ to: "/inward-orders" }); toast.success("Inward order deleted"); }}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-      <StageSheet stage={selectedStage} onOpenChange={(open) => { if (!open) setSelectedStage(null); }} />
     </div>
   );
 }
@@ -245,8 +211,4 @@ function EditOrderDialog({ order, open, onOpenChange, onSave }: { order: InwardO
   ];
   function submit(event: FormEvent) { event.preventDefault(); onSave(form); }
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-h-[88vh] max-w-2xl overflow-y-auto"><DialogHeader><DialogTitle>Edit inward order</DialogTitle><DialogDescription>Update the order details and current status.</DialogDescription></DialogHeader><form onSubmit={submit} className="space-y-5"><div className="grid gap-4 sm:grid-cols-2">{textFields.map(([key, label, type]) => <div key={key}><Label htmlFor={`edit-${key}`} className="text-xs font-semibold text-primary">{label}</Label><Input id={`edit-${key}`} className="mt-1.5" type={type} value={String(form[key] ?? "")} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))} /></div>)}</div><div><Label className="text-xs font-semibold text-primary">Status</Label><Select value={form.status} onValueChange={(status: InwardOrder["status"]) => setForm((current) => ({ ...current, status }))}><SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Open">Open</SelectItem><SelectItem value="In Progress">In Progress</SelectItem><SelectItem value="Completed">Completed</SelectItem></SelectContent></Select></div><DialogFooter><Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button><Button type="submit">Save changes</Button></DialogFooter></form></DialogContent></Dialog>;
-}
-
-function StageSheet({ stage, onOpenChange }: { stage: Stage | null; onOpenChange: (open: boolean) => void }) {
-  return <Sheet open={Boolean(stage)} onOpenChange={onOpenChange}><SheetContent className="w-full sm:max-w-md"><SheetHeader><SheetTitle>{stage?.stageName ?? "Stage"}</SheetTitle><SheetDescription>Current stage information</SheetDescription></SheetHeader>{stage && <div className="mt-8 space-y-7"><DetailField label="Status" value={stage.status.replace(/^./, (letter) => letter.toUpperCase())} /><DetailField label="Assigned to" value={stage.assignedTo} /><DetailField label="Expected date" value={formatDate(stage.expectedDate)} /><DetailField label="Remarks" value={stage.remarks} /></div>}</SheetContent></Sheet>;
 }

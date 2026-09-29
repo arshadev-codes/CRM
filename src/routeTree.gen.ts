@@ -10,9 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as InwardOrdersIndexRouteImport } from './routes/inward-orders.index'
+import { Route as StagesStageRouteImport } from './routes/stages.$stage'
 import { Route as SettingsTestsRouteImport } from './routes/settings.tests'
 import { Route as SettingsTemplatesRouteImport } from './routes/settings.templates'
 import { Route as SettingsSubsystemsRouteImport } from './routes/settings.subsystems'
@@ -31,10 +33,17 @@ import { Route as PrintIdRouteImport } from './routes/print.$id'
 import { Route as InwardOrdersIdRouteImport } from './routes/inward-orders.$id'
 import { Route as ProjectsIdWizardRouteImport } from './routes/projects.$id.wizard'
 import { Route as ProjectsIdPreviewRouteImport } from './routes/projects.$id.preview'
+import { Route as PrintMomSessionIdRouteImport } from './routes/print.mom.$sessionId'
+import { Route as InwardOrdersIdStagesStageRouteImport } from './routes/inward-orders.$id_.stages.$stage'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryRoute = InventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -50,6 +59,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
 const InwardOrdersIndexRoute = InwardOrdersIndexRouteImport.update({
   id: '/inward-orders/',
   path: '/inward-orders/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StagesStageRoute = StagesStageRouteImport.update({
+  id: '/stages/$stage',
+  path: '/stages/$stage',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsTestsRoute = SettingsTestsRouteImport.update({
@@ -142,9 +156,21 @@ const ProjectsIdPreviewRoute = ProjectsIdPreviewRouteImport.update({
   path: '/projects/$id/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrintMomSessionIdRoute = PrintMomSessionIdRouteImport.update({
+  id: '/print/mom/$sessionId',
+  path: '/print/mom/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InwardOrdersIdStagesStageRoute =
+  InwardOrdersIdStagesStageRouteImport.update({
+    id: '/inward-orders/$id_/stages/$stage',
+    path: '/inward-orders/$id/stages/$stage',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/print/$id': typeof PrintIdRoute
@@ -162,13 +188,17 @@ export interface FileRoutesByFullPath {
   '/settings/subsystems': typeof SettingsSubsystemsRoute
   '/settings/templates': typeof SettingsTemplatesRoute
   '/settings/tests': typeof SettingsTestsRoute
+  '/stages/$stage': typeof StagesStageRoute
   '/inward-orders/': typeof InwardOrdersIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/print/mom/$sessionId': typeof PrintMomSessionIdRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
   '/projects/$id/wizard': typeof ProjectsIdWizardRoute
+  '/inward-orders/$id/stages/$stage': typeof InwardOrdersIdStagesStageRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/print/$id': typeof PrintIdRoute
@@ -186,14 +216,18 @@ export interface FileRoutesByTo {
   '/settings/subsystems': typeof SettingsSubsystemsRoute
   '/settings/templates': typeof SettingsTemplatesRoute
   '/settings/tests': typeof SettingsTestsRoute
+  '/stages/$stage': typeof StagesStageRoute
   '/inward-orders': typeof InwardOrdersIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/print/mom/$sessionId': typeof PrintMomSessionIdRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
   '/projects/$id/wizard': typeof ProjectsIdWizardRoute
+  '/inward-orders/$id/stages/$stage': typeof InwardOrdersIdStagesStageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/print/$id': typeof PrintIdRoute
@@ -211,15 +245,19 @@ export interface FileRoutesById {
   '/settings/subsystems': typeof SettingsSubsystemsRoute
   '/settings/templates': typeof SettingsTemplatesRoute
   '/settings/tests': typeof SettingsTestsRoute
+  '/stages/$stage': typeof StagesStageRoute
   '/inward-orders/': typeof InwardOrdersIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/print/mom/$sessionId': typeof PrintMomSessionIdRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
   '/projects/$id/wizard': typeof ProjectsIdWizardRoute
+  '/inward-orders/$id_/stages/$stage': typeof InwardOrdersIdStagesStageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/inventory'
     | '/login'
     | '/inward-orders/$id'
     | '/print/$id'
@@ -237,13 +275,17 @@ export interface FileRouteTypes {
     | '/settings/subsystems'
     | '/settings/templates'
     | '/settings/tests'
+    | '/stages/$stage'
     | '/inward-orders/'
     | '/settings/'
+    | '/print/mom/$sessionId'
     | '/projects/$id/preview'
     | '/projects/$id/wizard'
+    | '/inward-orders/$id/stages/$stage'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/inventory'
     | '/login'
     | '/inward-orders/$id'
     | '/print/$id'
@@ -261,13 +303,17 @@ export interface FileRouteTypes {
     | '/settings/subsystems'
     | '/settings/templates'
     | '/settings/tests'
+    | '/stages/$stage'
     | '/inward-orders'
     | '/settings'
+    | '/print/mom/$sessionId'
     | '/projects/$id/preview'
     | '/projects/$id/wizard'
+    | '/inward-orders/$id/stages/$stage'
   id:
     | '__root__'
     | '/'
+    | '/inventory'
     | '/login'
     | '/inward-orders/$id'
     | '/print/$id'
@@ -285,14 +331,18 @@ export interface FileRouteTypes {
     | '/settings/subsystems'
     | '/settings/templates'
     | '/settings/tests'
+    | '/stages/$stage'
     | '/inward-orders/'
     | '/settings/'
+    | '/print/mom/$sessionId'
     | '/projects/$id/preview'
     | '/projects/$id/wizard'
+    | '/inward-orders/$id_/stages/$stage'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  InventoryRoute: typeof InventoryRoute
   LoginRoute: typeof LoginRoute
   InwardOrdersIdRoute: typeof InwardOrdersIdRoute
   PrintIdRoute: typeof PrintIdRoute
@@ -310,10 +360,13 @@ export interface RootRouteChildren {
   SettingsSubsystemsRoute: typeof SettingsSubsystemsRoute
   SettingsTemplatesRoute: typeof SettingsTemplatesRoute
   SettingsTestsRoute: typeof SettingsTestsRoute
+  StagesStageRoute: typeof StagesStageRoute
   InwardOrdersIndexRoute: typeof InwardOrdersIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
+  PrintMomSessionIdRoute: typeof PrintMomSessionIdRoute
   ProjectsIdPreviewRoute: typeof ProjectsIdPreviewRoute
   ProjectsIdWizardRoute: typeof ProjectsIdWizardRoute
+  InwardOrdersIdStagesStageRoute: typeof InwardOrdersIdStagesStageRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -323,6 +376,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory': {
+      id: '/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof InventoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -344,6 +404,13 @@ declare module '@tanstack/react-router' {
       path: '/inward-orders'
       fullPath: '/inward-orders/'
       preLoaderRoute: typeof InwardOrdersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stages/$stage': {
+      id: '/stages/$stage'
+      path: '/stages/$stage'
+      fullPath: '/stages/$stage'
+      preLoaderRoute: typeof StagesStageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/tests': {
@@ -472,11 +539,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsIdPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/print/mom/$sessionId': {
+      id: '/print/mom/$sessionId'
+      path: '/print/mom/$sessionId'
+      fullPath: '/print/mom/$sessionId'
+      preLoaderRoute: typeof PrintMomSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inward-orders/$id_/stages/$stage': {
+      id: '/inward-orders/$id_/stages/$stage'
+      path: '/inward-orders/$id/stages/$stage'
+      fullPath: '/inward-orders/$id/stages/$stage'
+      preLoaderRoute: typeof InwardOrdersIdStagesStageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  InventoryRoute: InventoryRoute,
   LoginRoute: LoginRoute,
   InwardOrdersIdRoute: InwardOrdersIdRoute,
   PrintIdRoute: PrintIdRoute,
@@ -494,10 +576,13 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsSubsystemsRoute: SettingsSubsystemsRoute,
   SettingsTemplatesRoute: SettingsTemplatesRoute,
   SettingsTestsRoute: SettingsTestsRoute,
+  StagesStageRoute: StagesStageRoute,
   InwardOrdersIndexRoute: InwardOrdersIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
+  PrintMomSessionIdRoute: PrintMomSessionIdRoute,
   ProjectsIdPreviewRoute: ProjectsIdPreviewRoute,
   ProjectsIdWizardRoute: ProjectsIdWizardRoute,
+  InwardOrdersIdStagesStageRoute: InwardOrdersIdStagesStageRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
