@@ -25,7 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/db";
 import type { Database } from "@/integrations/supabase/types";
 import { STAGE_STATUSES, type Stage, type StageStatus } from "@/lib/stages";
 import { PdfFirstPage } from "@/components/PdfFirstPage";
@@ -676,7 +676,7 @@ function Composer({
   const [status, setStatus] = useState<StageStatus | "same">("same");
   const [file, setFile] = useState<File | null>(null);
   const [posting, setPosting] = useState(false);
-  const canPost = Boolean(author) && (remarks.trim() || file || status !== "same") && !posting;
+  const canPost = Boolean(remarks.trim() || file || status !== "same") && !posting;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -818,7 +818,9 @@ function Composer({
         </Button>
       </motion.div>
       {!author && (
-        <p className="-mt-2 text-center text-xs text-muted-foreground">Select your name to post</p>
+        <p className="-mt-2 text-center text-xs text-muted-foreground">
+          Tip: pick your name so the team knows who posted
+        </p>
       )}
     </form>
   );

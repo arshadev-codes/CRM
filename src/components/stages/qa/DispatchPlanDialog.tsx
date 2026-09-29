@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import { Check, LoaderCircle, Truck } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/db";
 import { useProposalStore } from "@/store/proposalStore";
 import { todayIso } from "@/lib/qa";
 import { Button } from "@/components/ui/button";

@@ -4,7 +4,7 @@ import { motion, MotionConfig } from "framer-motion";
 import { ArrowLeft, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useProposalStore } from "@/store/proposalStore";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/db";
 import type { Database } from "@/integrations/supabase/types";
 import {
   loadStages,

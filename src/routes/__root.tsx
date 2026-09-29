@@ -12,6 +12,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { NeoBackground } from "@/components/NeoBackground";
 import { PageTransition } from "@/components/PageTransition";
+import { DemoModeBadge } from "@/components/DemoModeBadge";
 import { QuotationNav } from "@/components/QuotationNav";
 
 
@@ -90,8 +91,11 @@ function RootComponent() {
                 <div className="ml-3 font-semibold text-sm text-indigo-600 tracking-wide">
                   Electrosoft · Proposal Engine
                 </div>
-                <div className="ml-auto mr-1 h-9 w-9 rounded-full neo-pop grid place-items-center text-xs font-bold text-indigo-600" aria-label="User profile">
-                  ES
+                <div className="ml-auto mr-1 flex items-center gap-2">
+                  <DemoModeBadge />
+                  <div className="h-9 w-9 rounded-full neo-pop grid place-items-center text-xs font-bold text-indigo-600" aria-label="User profile">
+                    ES
+                  </div>
                 </div>
               </header>
               {isQuotation && <QuotationNav />}

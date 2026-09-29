@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/db";
 import { MILESTONES, OUTCOME_META, type Milestone, type Outcome } from "@/lib/qa";
 import { STAGE_PAGES, type Stage, type StagePageSlug, type StageStatus } from "@/lib/stages";
 

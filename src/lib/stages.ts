@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/db";
 import type { Database } from "@/integrations/supabase/types";
 
 export const STAGE_NAMES = [

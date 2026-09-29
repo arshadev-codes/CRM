@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/db";
 import type { Database, Json } from "@/integrations/supabase/types";
 import type { StageStatus } from "@/lib/stages";
 

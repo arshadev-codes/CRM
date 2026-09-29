@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/db";
 import { formatQty, readSpreadsheet, rowsToItems, type InventoryRow } from "@/lib/procurement";
 import { EASE, timeAgo } from "@/components/stages/shared";
 import { Button } from "@/components/ui/button";

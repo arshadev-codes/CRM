@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { PackageCheck, CalendarCheck, User } from "lucide-react";
 import { useProposalStore } from "@/store/proposalStore";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/db";
 import { STAGE_PAGES, STAGE_SLUGS, type StageStatus } from "@/lib/stages";
 import { STAGE_THEME } from "@/lib/stageTheme";
 

@@ -23,6 +23,8 @@ export function useStageAuthor() {
     }
   }, []);
   const chooseAuthor = (name: string) => {
+    // The select can report an empty value while mounting; never wipe the saved name with it.
+    if (!name) return;
     setAuthor(name);
     try {
       localStorage.setItem(AUTHOR_KEY, name);

@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useProposalStore, type InwardOrder } from "@/store/proposalStore";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/db";
 import { loadStages, stageProgress, type Stage } from "@/lib/stages";
 import { StageCards } from "@/components/stages/StageCards";
 import { Button } from "@/components/ui/button";
