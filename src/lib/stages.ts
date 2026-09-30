@@ -25,7 +25,7 @@ export type Stage = {
 
 // Stages that have their own page, keyed by URL slug.
 export const STAGE_PAGES = {
-  design: { name: "Design", summary: "SLD drawing, remarks and progress" },
+  design: { name: "Design", summary: "Design documents, BOM, remarks and progress" },
   fabrication: { name: "Fabrication", summary: "Fabrication status, updates and remarks" },
   procurement: {
     name: "Material Procurement",

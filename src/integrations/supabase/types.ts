@@ -550,6 +550,7 @@ export type Database = {
           author: string
           content_type: string | null
           created_at: string
+          document_id: string | null
           file_name: string | null
           file_size: number
           id: string
@@ -559,11 +560,13 @@ export type Database = {
           stage_name: string
           status: string | null
           storage_path: string | null
+          title: string
         }
         Insert: {
           author?: string
           content_type?: string | null
           created_at?: string
+          document_id?: string | null
           file_name?: string | null
           file_size?: number
           id?: string
@@ -573,11 +576,13 @@ export type Database = {
           stage_name: string
           status?: string | null
           storage_path?: string | null
+          title?: string
         }
         Update: {
           author?: string
           content_type?: string | null
           created_at?: string
+          document_id?: string | null
           file_name?: string | null
           file_size?: number
           id?: string
@@ -587,6 +592,7 @@ export type Database = {
           stage_name?: string
           status?: string | null
           storage_path?: string | null
+          title?: string
         }
         Relationships: [
           {

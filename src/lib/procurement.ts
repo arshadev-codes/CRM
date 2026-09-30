@@ -1,4 +1,11 @@
 import type { Database } from "@/integrations/supabase/types";
+import {
+  analyzeWorkbook,
+  detectTable,
+  extractItems,
+  readWorkbook,
+  type ImportedItem,
+} from "./bomParser";
 
 export type ProcurementRow = Database["public"]["Tables"]["procurement_items"]["Row"];
 export type ProcurementInsert = Database["public"]["Tables"]["procurement_items"]["Insert"];
@@ -181,174 +188,28 @@ export function daysFromToday(value: string, today = todayIso()) {
 
 /* ---------- Excel / CSV import ---------- */
 
-export type ImportedItem = {
-  itemName: string;
-  category: string;
-  make: string;
-  model: string;
-  specification: string;
-  unit: string;
-  qtyRequired: number;
-  notes: string;
-  qtyMissing: boolean;
-};
-
-type Field = Exclude<keyof ImportedItem, "qtyMissing">;
-
-// Header names are matched loosely, so "Qty.", "Quantity" and "Req Qty" all work.
-const HEADER_ALIASES: Record<Field, string[]> = {
-  itemName: [
-    "item",
-    "itemname",
-    "items",
-    "description",
-    "itemdescription",
-    "material",
-    "materialdescription",
-    "particulars",
-    "component",
-    "equipment",
-    "name",
-  ],
-  category: ["category", "type", "group", "itemtype", "section"],
-  make: ["make", "brand", "manufacturer", "mfr", "oem"],
-  model: ["model", "modelno", "partno", "partnumber", "catno", "catalogueno", "catalogno", "code"],
-  specification: ["specification", "specifications", "spec", "specs", "rating", "details"],
-  unit: ["unit", "units", "uom", "unitofmeasure"],
-  qtyRequired: [
-    "qty",
-    "quantity",
-    "qtyrequired",
-    "requiredqty",
-    "reqqty",
-    "required",
-    "nos",
-    "qtynos",
-  ],
-  notes: ["remarks", "remark", "notes", "note", "comments", "comment"],
-};
-
-function normalizeHeader(value: unknown) {
-  return String(value ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-}
-
-// Inventory sheets carry a stock count instead of a required quantity.
-const STOCK_ALIASES = ["stock", "qtyinstock", "instock", "stockqty", "available", "balance"];
-
-function matchHeader(cell: unknown, stockSheet = false): Field | undefined {
-  const key = normalizeHeader(cell);
-  if (!key) return undefined;
-  const aliases = (field: Field) =>
-    field === "qtyRequired" && stockSheet
-      ? [...STOCK_ALIASES, ...HEADER_ALIASES.qtyRequired]
-      : HEADER_ALIASES[field];
-  const fields = Object.keys(HEADER_ALIASES) as Field[];
-  return (
-    fields.find((field) => aliases(field).includes(key)) ??
-    fields.find((field) => aliases(field).some((alias) => alias.length > 3 && key.includes(alias)))
-  );
-}
-
-function toNumber(value: unknown) {
-  if (typeof value === "number") return value;
-  const parsed = Number(String(value ?? "").replace(/[^0-9.]/g, ""));
-  return Number.isFinite(parsed) && String(value ?? "").trim() !== "" ? parsed : NaN;
-}
+export type { ImportedItem } from "./bomParser";
 
 // For an inventory sheet (stockSheet), qtyRequired holds the stock count.
 export function rowsToItems(
   rows: unknown[][],
   stockSheet = false,
 ): { items: ImportedItem[]; error?: string } {
-  const headerIndex = rows
-    .slice(0, 15)
-    .findIndex((row) => row.some((cell) => matchHeader(cell) === "itemName"));
-  if (headerIndex === -1)
+  const table = detectTable({ name: "", rows }, stockSheet);
+  if (!table)
     return {
       items: [],
       error: "Could not find a header row with an Item / Description column.",
     };
-
-  const columns = new Map<Field, number>();
-  rows[headerIndex].forEach((cell, index) => {
-    const field = matchHeader(cell, stockSheet);
-    if (field && !columns.has(field)) columns.set(field, index);
-  });
-
-  const read = (row: unknown[], field: Field) => {
-    const index = columns.get(field);
-    return index === undefined ? "" : String(row[index] ?? "").trim();
-  };
-
-  const items: ImportedItem[] = [];
-  for (const row of rows.slice(headerIndex + 1)) {
-    const itemName = read(row, "itemName");
-    if (!itemName) continue;
-    const qtyIndex = columns.get("qtyRequired");
-    const qty = qtyIndex === undefined ? NaN : toNumber(row[qtyIndex]);
-    items.push({
-      itemName,
-      category: read(row, "category"),
-      make: read(row, "make"),
-      model: read(row, "model"),
-      specification: read(row, "specification"),
-      unit: read(row, "unit") || "Nos",
-      qtyRequired: Number.isFinite(qty) && qty >= 0 ? qty : stockSheet ? 0 : 1,
-      notes: read(row, "notes"),
-      qtyMissing: !Number.isFinite(qty),
-    });
-  }
-  return { items };
+  return { items: extractItems(table, stockSheet).items };
 }
 
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cell = "";
-  let quoted = false;
-  const delimiter =
-    text.split("\n", 1)[0].split(";").length > text.split("\n", 1)[0].split(",").length ? ";" : ",";
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (quoted) {
-      if (char === '"' && text[i + 1] === '"') {
-        cell += '"';
-        i++;
-      } else if (char === '"') quoted = false;
-      else cell += char;
-    } else if (char === '"') quoted = true;
-    else if (char === delimiter) {
-      row.push(cell);
-      cell = "";
-    } else if (char === "\n" || char === "\r") {
-      if (char === "\r" && text[i + 1] === "\n") i++;
-      row.push(cell);
-      rows.push(row);
-      row = [];
-      cell = "";
-    } else cell += char;
-  }
-  if (cell || row.length) {
-    row.push(cell);
-    rows.push(row);
-  }
-  return rows;
-}
-
+// Rows of the sheet with the most items.
 export async function readSpreadsheet(file: File): Promise<unknown[][]> {
-  const name = file.name.toLowerCase();
-  if (name.endsWith(".csv") || file.type === "text/csv") return parseCsv(await file.text());
-  if (name.endsWith(".xls"))
-    throw new Error("Old .xls files are not supported. Save it as .xlsx or .csv and try again.");
-  const { default: readXlsxFile } = await import("read-excel-file/universal");
-  const sheets = await readXlsxFile(file);
-  // Use the first sheet that has an item column.
-  for (const sheet of sheets) {
-    if (rowsToItems(sheet.data as unknown[][]).items.length) return sheet.data as unknown[][];
-  }
-  return (sheets[0]?.data as unknown[][]) ?? [];
+  const sheets = await readWorkbook(file);
+  const { tables } = analyzeWorkbook(sheets);
+  const best = [...tables].sort((a, b) => b.itemCount - a.itemCount)[0];
+  return best?.rows ?? sheets[0]?.rows ?? [];
 }
 
 const TEMPLATE_HEADERS = [
@@ -368,7 +229,7 @@ const TEMPLATE_EXAMPLES: (string | number)[][] = [
   ["Control cable", "Cable", "Polycab", "", "1.5 sq mm, 12 core", 150, "m", ""],
 ];
 
-export async function downloadTemplate(fileName = "material-list-template.xlsx") {
+export async function downloadTemplate(fileName = "bom-template.xlsx") {
   const { default: writeXlsxFile } = await import("write-excel-file/browser");
   const header = TEMPLATE_HEADERS.map((value) => ({
     value,
@@ -399,4 +260,74 @@ export function findInventoryMatch(item: ProcurementItem, inventory: InventoryRo
     const entryModel = key(entry.model);
     return !model || !entryModel || entryModel === model;
   });
+}
+
+/* ---------- BOM revisions ---------- */
+
+export type BomChange = {
+  item: ProcurementItem;
+  next: ImportedItem;
+  changes: string[];
+};
+export type BomPlan = {
+  added: ImportedItem[];
+  changed: BomChange[];
+  unchanged: number;
+  removed: ProcurementItem[];
+};
+
+function bomKey(item: { itemName: string; model: string }) {
+  return `${key(item.itemName)}|${key(item.model)}`;
+}
+
+// Compares a new BOM with the current material list, so a revision keeps the stock checks,
+// enquiries and deliveries already recorded against matching items.
+export function planBomUpdate(current: ProcurementItem[], incoming: ImportedItem[]): BomPlan {
+  const pool = new Map<string, ProcurementItem[]>();
+  for (const item of [...current].sort((a, b) => a.displayOrder - b.displayOrder)) {
+    const k = bomKey(item);
+    pool.set(k, [...(pool.get(k) ?? []), item]);
+  }
+  const takeMatch = (next: ImportedItem) => {
+    const exact = pool.get(bomKey(next));
+    if (exact?.length) return exact.shift();
+    // Same item name where one side has no model number.
+    for (const [k, list] of pool) {
+      const [name, model] = k.split("|");
+      if (name === key(next.itemName) && (!model || !key(next.model)) && list.length)
+        return list.shift();
+    }
+    return undefined;
+  };
+
+  const plan: BomPlan = { added: [], changed: [], unchanged: 0, removed: [] };
+  for (const next of incoming) {
+    const item = takeMatch(next);
+    if (!item) {
+      plan.added.push(next);
+      continue;
+    }
+    const changes: string[] = [];
+    if (item.qtyRequired !== next.qtyRequired)
+      changes.push(`qty ${formatQty(item.qtyRequired)} → ${formatQty(next.qtyRequired)}`);
+    if (next.make && item.make !== next.make) changes.push(`make ${next.make}`);
+    if (next.model && item.model !== next.model) changes.push(`model ${next.model}`);
+    if (next.specification && item.specification !== next.specification)
+      changes.push("specification");
+    if (next.unit && item.unit !== next.unit) changes.push(`unit ${next.unit}`);
+    if (next.category && item.category !== next.category) changes.push(`category ${next.category}`);
+    if (changes.length) plan.changed.push({ item, next, changes });
+    else plan.unchanged++;
+  }
+  plan.removed = [...pool.values()].flat();
+  return plan;
+}
+
+// Items with stock checked, an enquiry or a delivery recorded.
+export function hasProgress(item: ProcurementItem) {
+  return (
+    item.qtyInStock !== null ||
+    item.qtyReceived > 0 ||
+    Boolean(item.supplier || item.enquiryDate || item.expectedDate)
+  );
 }

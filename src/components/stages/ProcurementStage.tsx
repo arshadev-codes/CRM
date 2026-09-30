@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -18,19 +10,20 @@ import {
   ChevronDown,
   ClipboardCheck,
   Clock,
-  Download,
   FileSpreadsheet,
+  Filter as FilterIcon,
   History,
+  LayoutGrid,
   LoaderCircle,
   PackageCheck,
   PackageOpen,
   Plus,
+  Rows3,
   Search,
   Send,
   Sparkles,
   Trash2,
   Truck,
-  UploadCloud,
   UserRound,
   X,
 } from "lucide-react";
@@ -39,7 +32,6 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import {
   daysFromToday,
-  downloadTemplate,
   findInventoryMatch,
   formatDay,
   formatQty,
@@ -47,8 +39,6 @@ import {
   mapProcurement,
   qtyAvailable,
   qtyToProcure,
-  readSpreadsheet,
-  rowsToItems,
   sortItems,
   STATE_META,
   STATE_ORDER,
@@ -63,6 +53,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -70,14 +62,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Sheet,
   SheetContent,
@@ -101,6 +85,46 @@ import { EASE, initials, timeAgo } from "./shared";
 type ItemPatch = Database["public"]["Tables"]["procurement_items"]["Update"];
 type ActivityRow = Database["public"]["Tables"]["stage_updates"]["Row"];
 type Filter = "all" | ItemState;
+type View = "cards" | "list";
+type GroupBy = "status" | "make" | "category";
+const VIEW_KEY = "procurement_view";
+const NO_VALUE = "__none";
+
+// Makes and categories are grouped ignoring case and spacing ("SIEMENS" = "Siemens ").
+function facetKey(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ") || NO_VALUE;
+}
+
+type FacetOption = { value: string; label: string; count: number };
+function facetOptions(
+  items: ProcurementItem[],
+  field: "make" | "category",
+  emptyLabel: string,
+): FacetOption[] {
+  const map = new Map<string, FacetOption>();
+  for (const item of items) {
+    const value = facetKey(item[field]);
+    const current = map.get(value);
+    map.set(value, {
+      value,
+      label: current?.label ?? (value === NO_VALUE ? emptyLabel : item[field].trim()),
+      count: (current?.count ?? 0) + 1,
+    });
+  }
+  return [...map.values()].sort((a, b) =>
+    a.value === NO_VALUE
+      ? 1
+      : b.value === NO_VALUE
+        ? -1
+        : b.count - a.count || a.label.localeCompare(b.label),
+  );
+}
+
+function without(set: Set<string>, value: string) {
+  const next = new Set(set);
+  next.delete(value);
+  return next;
+}
 
 const GROUPS: { key: string; title: string; hint: string; states: ItemState[] }[] = [
   {
@@ -144,14 +168,13 @@ export function ProcurementStage({
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<ProcurementItem | "new" | null>(null);
-  const [importing, setImporting] = useState<{ fileName: string; items: ImportedItem[] } | null>(
-    null,
-  );
   const [inventoryPlan, setInventoryPlan] = useState<
     { item: ProcurementItem; match: InventoryRow }[] | null
   >(null);
-  const [reading, setReading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [makes, setMakes] = useState<Set<string>>(new Set());
+  const [categories, setCategories] = useState<Set<string>>(new Set());
+  const [groupBy, setGroupBy] = useState<GroupBy>("status");
+  const [viewPref, setViewPref] = useState<View | null>(null);
   const today = todayIso();
 
   const upsertLocal = useCallback((row: ProcurementRow) => {
@@ -325,23 +348,6 @@ export function ProcurementStage({
     toast.success("Item removed");
   }
 
-  async function readFile(file: File | undefined) {
-    if (!file) return;
-    setReading(true);
-    try {
-      const rows = await readSpreadsheet(file);
-      const result = rowsToItems(rows);
-      if (result.error || !result.items.length) {
-        toast.error(result.error ?? "No items found in this file");
-      } else setImporting({ fileName: file.name, items: result.items });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not read this file");
-    } finally {
-      setReading(false);
-      if (fileRef.current) fileRef.current.value = "";
-    }
-  }
-
   async function planInventoryFill() {
     const { data, error } = await supabase.from("inventory_items").select("*");
     if (error) {
@@ -407,27 +413,76 @@ export function ProcurementStage({
     const needle = query.trim().toLowerCase();
     return sortItems(items, today).filter((item) => {
       if (filter !== "all" && itemState(item, today) !== filter) return false;
+      if (makes.size && !makes.has(facetKey(item.make))) return false;
+      if (categories.size && !categories.has(facetKey(item.category))) return false;
       if (!needle) return true;
-      return [item.itemName, item.category, item.make, item.model, item.supplier]
+      return [
+        item.itemName,
+        item.category,
+        item.make,
+        item.model,
+        item.specification,
+        item.supplier,
+      ]
         .join(" ")
         .toLowerCase()
         .includes(needle);
     });
-  }, [items, filter, query, today]);
+  }, [items, filter, query, today, makes, categories]);
+
+  const makeOptions = useMemo(() => facetOptions(items, "make", "No make"), [items]);
+  const categoryOptions = useMemo(() => facetOptions(items, "category", "No category"), [items]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(VIEW_KEY);
+      if (stored === "cards" || stored === "list") setViewPref(stored);
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  // Long lists read better as rows; a choice made with the toggle is remembered.
+  const view: View = viewPref ?? (items.length > 24 ? "list" : "cards");
+  function chooseView(next: View) {
+    setViewPref(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  const groups = useMemo(() => {
+    if (groupBy === "status")
+      return GROUPS.map((group) => ({
+        key: group.key,
+        title: group.title,
+        hint: group.hint,
+        tone: group.key,
+        items: visible.filter((item) => group.states.includes(itemState(item, today))),
+      }));
+    const field = groupBy === "make" ? "make" : "category";
+    return facetOptions(visible, field, groupBy === "make" ? "No make" : "No category").map(
+      (option) => {
+        const groupItems = visible.filter((item) => facetKey(item[field]) === option.value);
+        const done = groupItems.filter((item) => itemState(item, today) === "complete").length;
+        return {
+          key: option.value,
+          title: option.label,
+          hint: `${done} of ${groupItems.length} available`,
+          tone: "",
+          items: groupItems,
+        };
+      },
+    );
+  }, [groupBy, visible, today]);
+  const filtersActive = makes.size + categories.size > 0 || filter !== "all" || Boolean(query);
 
   const readyPercent = items.length ? Math.round((counts.complete / items.length) * 100) : 0;
   const allReady = items.length > 0 && counts.complete === items.length;
 
   return (
     <div className="mx-auto w-full max-w-[80vw] space-y-6 max-lg:max-w-full">
-      <input
-        ref={fileRef}
-        type="file"
-        accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-        className="hidden"
-        onChange={(event) => void readFile(event.target.files?.[0])}
-      />
-
       <motion.section
         initial={{ opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -527,12 +582,10 @@ export function ProcurementStage({
         transition={{ duration: 0.5, ease: EASE, delay: 0.16 }}
         className="flex flex-wrap items-center gap-3"
       >
-        <Button onClick={() => fileRef.current?.click()} disabled={reading}>
-          {reading ? <LoaderCircle className="animate-spin" /> : <FileSpreadsheet />}
-          Upload Excel
-        </Button>
-        <Button variant="outline" onClick={() => void downloadTemplate()}>
-          <Download /> Template
+        <Button asChild variant="outline">
+          <Link to="/inward-orders/$id/stages/$stage" params={{ id: orderId, stage: "design" }}>
+            <FileSpreadsheet /> BOM in Design
+          </Link>
         </Button>
         <Button variant="outline" onClick={() => setEditing("new")}>
           <Plus /> Add item
@@ -553,27 +606,84 @@ export function ProcurementStage({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search items, make, supplier…"
+            placeholder="Search item, make, model, supplier…"
             className="pl-9"
             aria-label="Search items"
           />
         </div>
       </motion.div>
 
-      {filter !== "all" && (
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Showing</span>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${STATE_META[filter].chip}`}
-          >
-            {STATE_META[filter].label}
+      {items.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterMenu label="Make" options={makeOptions} selected={makes} onChange={setMakes} />
+          <FilterMenu
+            label="Category"
+            options={categoryOptions}
+            selected={categories}
+            onChange={setCategories}
+          />
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Group by
+            </span>
+            <Segmented
+              value={groupBy}
+              onChange={setGroupBy}
+              options={[
+                { value: "status", label: "Status" },
+                { value: "make", label: "Make" },
+                { value: "category", label: "Category" },
+              ]}
+            />
+            <Segmented
+              value={view}
+              onChange={chooseView}
+              options={[
+                { value: "cards", label: "Cards", icon: LayoutGrid },
+                { value: "list", label: "List", icon: Rows3 },
+              ]}
+            />
+          </div>
+        </div>
+      )}
+
+      {filtersActive && items.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">
+            Showing {visible.length} of {items.length}
           </span>
+          {filter !== "all" && (
+            <FilterChip
+              className={STATE_META[filter].chip}
+              label={STATE_META[filter].label}
+              onRemove={() => setFilter("all")}
+            />
+          )}
+          {[...makes].map((value) => (
+            <FilterChip
+              key={`m-${value}`}
+              label={makeOptions.find((option) => option.value === value)?.label ?? value}
+              onRemove={() => setMakes((current) => without(current, value))}
+            />
+          ))}
+          {[...categories].map((value) => (
+            <FilterChip
+              key={`c-${value}`}
+              label={categoryOptions.find((option) => option.value === value)?.label ?? value}
+              onRemove={() => setCategories((current) => without(current, value))}
+            />
+          ))}
           <button
             type="button"
             className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-            onClick={() => setFilter("all")}
+            onClick={() => {
+              setFilter("all");
+              setMakes(new Set());
+              setCategories(new Set());
+              setQuery("");
+            }}
           >
-            <X className="h-3 w-3" /> Show all
+            <X className="h-3 w-3" /> Clear all
           </button>
         </div>
       )}
@@ -585,18 +695,14 @@ export function ProcurementStage({
           ))}
         </div>
       ) : items.length === 0 ? (
-        <EmptyList
-          reading={reading}
-          onUpload={() => fileRef.current?.click()}
-          onDrop={(file) => void readFile(file)}
-          onAdd={() => setEditing("new")}
-        />
+        <EmptyList orderId={orderId} onAdd={() => setEditing("new")} />
       ) : visible.length === 0 ? (
         <div className="neo-inset rounded-3xl px-6 py-14 text-center text-sm text-muted-foreground">
           No items match this view.
         </div>
-      ) : filter !== "all" ? (
-        <CardGrid
+      ) : filter !== "all" && groupBy === "status" ? (
+        <ItemCollection
+          view={view}
           items={visible}
           today={today}
           onOpen={setEditing}
@@ -604,31 +710,28 @@ export function ProcurementStage({
           author={author}
         />
       ) : (
-        GROUPS.map((group) => {
-          const groupItems = visible.filter((item) =>
-            group.states.includes(itemState(item, today)),
-          );
-          if (!groupItems.length) return null;
-          return (
+        groups.map((group) =>
+          group.items.length ? (
             <ItemGroup
-              key={group.key}
+              key={`${groupBy}-${group.key}`}
               title={group.title}
               hint={group.hint}
-              count={groupItems.length}
-              tone={group.key}
-              collapsible={group.key === "complete"}
+              count={group.items.length}
+              tone={group.tone}
+              defaultOpen={groupBy === "status" || groups.length <= 6}
             >
-              <CardGrid
-                items={groupItems}
+              <ItemCollection
+                view={view}
+                items={group.items}
                 today={today}
                 onOpen={setEditing}
                 onUpdate={updateItem}
                 author={author}
-                spotlight={group.key === "today"}
+                spotlight={group.key === "today" && groupBy === "status"}
               />
             </ItemGroup>
-          );
-        })
+          ) : null,
+        )
       )}
 
       <ActivityFeed activity={activity} />
@@ -649,17 +752,6 @@ export function ProcurementStage({
         onDelete={async (item) => {
           setEditing(null);
           await deleteItem(item);
-        }}
-      />
-
-      <ImportDialog
-        data={importing}
-        hasItems={items.length > 0}
-        onClose={() => setImporting(null)}
-        onConfirm={async (replace) => {
-          if (!importing) return;
-          const ok = await addItems(importing.items, replace, importing.fileName);
-          if (ok) setImporting(null);
         }}
       />
 
@@ -696,6 +788,155 @@ export function ProcurementStage({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+function FilterMenu({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  options: FacetOption[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const needle = search.trim().toLowerCase();
+  const shown = options.filter((option) => option.label.toLowerCase().includes(needle));
+  if (options.length < 2 && !selected.size) return null;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={selected.size ? "border-primary/50 text-primary" : ""}
+        >
+          <FilterIcon className="h-3.5 w-3.5" /> {label}
+          {selected.size > 0 && (
+            <span className="rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+              {selected.size}
+            </span>
+          )}
+          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 p-2">
+        {options.length > 6 && (
+          <div className="relative mb-2">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={`Search ${label.toLowerCase()}…`}
+              className="h-8 pl-8 text-sm"
+              aria-label={`Search ${label.toLowerCase()}`}
+            />
+          </div>
+        )}
+        <div className="max-h-64 space-y-0.5 overflow-y-auto">
+          {shown.map((option) => {
+            const checked = selected.has(option.value);
+            return (
+              <label
+                key={option.value}
+                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+              >
+                <Checkbox
+                  checked={checked}
+                  onCheckedChange={() =>
+                    onChange(
+                      checked
+                        ? without(selected, option.value)
+                        : new Set(selected).add(option.value),
+                    )
+                  }
+                />
+                <span
+                  className={`min-w-0 flex-1 truncate ${option.value === NO_VALUE ? "italic text-muted-foreground" : ""}`}
+                >
+                  {option.label}
+                </span>
+                <span className="text-xs text-muted-foreground">{option.count}</span>
+              </label>
+            );
+          })}
+          {!shown.length && (
+            <div className="px-2 py-3 text-center text-xs text-muted-foreground">No match</div>
+          )}
+        </div>
+        {selected.size > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-1 w-full"
+            onClick={() => onChange(new Set())}
+          >
+            Clear {label.toLowerCase()} filter
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function FilterChip({
+  label,
+  onRemove,
+  className = "bg-primary/10 text-primary",
+}: {
+  label: string;
+  onRemove: () => void;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full py-1 pl-3 pr-1.5 text-xs font-semibold ${className}`}
+    >
+      {label}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove ${label} filter`}
+        className="rounded-full p-0.5 hover:bg-black/10"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </span>
+  );
+}
+
+function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  options: { value: T; label: string; icon?: typeof Clock }[];
+}) {
+  return (
+    <div className="neo-inset flex gap-0.5 rounded-xl p-0.5" role="radiogroup">
+      {options.map((option) => {
+        const Icon = option.icon;
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(option.value)}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all ${active ? "neo-pop text-primary" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {Icon && <Icon className="h-3.5 w-3.5" />}
+            {option.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -791,17 +1032,17 @@ function ItemGroup({
   hint,
   count,
   tone,
-  collapsible,
+  defaultOpen = true,
   children,
 }: {
   title: string;
   hint: string;
   count: number;
   tone: string;
-  collapsible?: boolean;
+  defaultOpen?: boolean;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(defaultOpen);
   const toneClass =
     tone === "today"
       ? "text-sky-600"
@@ -814,8 +1055,8 @@ function ItemGroup({
     <section>
       <button
         type="button"
-        onClick={() => collapsible && setOpen((value) => !value)}
-        className={`mb-3 flex w-full items-center gap-3 text-left ${collapsible ? "cursor-pointer" : "cursor-default"}`}
+        onClick={() => setOpen((value) => !value)}
+        className="mb-3 flex w-full cursor-pointer items-center gap-3 text-left"
         aria-expanded={open}
       >
         <h2 className={`text-lg font-bold ${toneClass}`}>{title}</h2>
@@ -823,11 +1064,9 @@ function ItemGroup({
           {count}
         </span>
         <span className="hidden text-xs text-muted-foreground sm:inline">{hint}</span>
-        {collapsible && (
-          <ChevronDown
-            className={`ml-auto h-4 w-4 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`}
-          />
-        )}
+        <ChevronDown
+          className={`ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`}
+        />
       </button>
       <AnimatePresence initial={false}>
         {open && (
@@ -843,6 +1082,175 @@ function ItemGroup({
         )}
       </AnimatePresence>
     </section>
+  );
+}
+
+function ItemCollection({
+  view,
+  ...props
+}: {
+  view: View;
+  items: ProcurementItem[];
+  today: string;
+  onOpen: (item: ProcurementItem) => void;
+  onUpdate: (item: ProcurementItem, patch: ItemPatch, log?: string) => Promise<boolean>;
+  author: string;
+  spotlight?: boolean;
+}) {
+  return view === "list" ? <ItemList {...props} /> : <CardGrid {...props} />;
+}
+
+// Compact rows for long material lists: one line per item, the same quick actions as a card.
+function ItemList({
+  items,
+  today,
+  onOpen,
+  onUpdate,
+  author,
+}: {
+  items: ProcurementItem[];
+  today: string;
+  onOpen: (item: ProcurementItem) => void;
+  onUpdate: (item: ProcurementItem, patch: ItemPatch, log?: string) => Promise<boolean>;
+  author: string;
+}) {
+  return (
+    <div className="neo-surface overflow-hidden rounded-2xl">
+      <div className="hidden grid-cols-[minmax(0,2.4fr)_76px_76px_84px_minmax(0,1.5fr)_minmax(150px,auto)] items-center gap-3 border-b border-border/50 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground lg:grid">
+        <span>Item</span>
+        <span className="text-right">Required</span>
+        <span className="text-right">In stock</span>
+        <span className="text-right">To procure</span>
+        <span>Status</span>
+        <span className="text-right">Action</span>
+      </div>
+      <ul className="divide-y divide-border/40">
+        {items.map((item) => (
+          <ItemRow
+            key={item.id}
+            item={item}
+            state={itemState(item, today)}
+            today={today}
+            onOpen={() => onOpen(item)}
+            onUpdate={onUpdate}
+            author={author}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ItemRow({
+  item,
+  state,
+  today,
+  onOpen,
+  onUpdate,
+  author,
+}: {
+  item: ProcurementItem;
+  state: ItemState;
+  today: string;
+  onOpen: () => void;
+  onUpdate: (item: ProcurementItem, patch: ItemPatch, log?: string) => Promise<boolean>;
+  author: string;
+}) {
+  const meta = STATE_META[state];
+  const quick = useQuickEntry(item, onUpdate, author);
+  const unit = item.unit || "Nos";
+  const unchecked = item.qtyInStock === null && item.qtyReceived === 0;
+  const toProcure = qtyToProcure(item);
+  return (
+    <li
+      className={`group/row relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-2.5 transition-colors hover:bg-primary/[0.04] lg:grid-cols-[minmax(0,2.4fr)_76px_76px_84px_minmax(0,1.5fr)_minmax(150px,auto)] ${state === "today" ? "bg-sky-50/60" : ""}`}
+    >
+      <span className={`absolute inset-y-0 left-0 w-1 bg-gradient-to-b ${meta.accent}`} />
+      <button
+        type="button"
+        onClick={onOpen}
+        className="min-w-0 text-left focus-visible:outline-none"
+      >
+        <div className="flex items-center gap-2">
+          <span className={`h-2 w-2 shrink-0 rounded-full ${meta.dot}`} />
+          <span
+            className={`truncate text-sm font-semibold group-hover/row:text-primary ${state === "complete" ? "text-foreground/70" : "text-foreground"}`}
+          >
+            {item.itemName}
+          </span>
+          {item.category && (
+            <span className="hidden shrink-0 truncate rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground xl:inline">
+              {item.category}
+            </span>
+          )}
+        </div>
+        {(item.make || item.model || item.specification) && (
+          <div className="truncate pl-4 text-xs text-muted-foreground">
+            {item.make && <span className="font-semibold text-foreground/70">{item.make}</span>}
+            {item.make && (item.model || item.specification) ? " · " : ""}
+            {[item.model, item.specification].filter(Boolean).join(" · ")}
+          </div>
+        )}
+        {/* Quantities on small screens, where the columns are hidden. */}
+        <div className="mt-0.5 pl-4 text-xs lg:hidden">
+          <span className="font-semibold">{formatQty(item.qtyRequired)}</span> {unit} req ·{" "}
+          {unchecked ? (
+            <span className="text-muted-foreground">stock not checked</span>
+          ) : (
+            <span className={toProcure > 0 ? "font-semibold text-amber-600" : "text-emerald-600"}>
+              {toProcure > 0 ? `${formatQty(toProcure)} to procure` : "available"}
+            </span>
+          )}
+        </div>
+      </button>
+      <RowQty value={formatQty(item.qtyRequired)} unit={unit} />
+      <RowQty
+        value={item.qtyInStock === null ? "—" : formatQty(item.qtyInStock)}
+        unit={item.qtyInStock === null ? "" : unit}
+        tone={
+          item.qtyInStock === null
+            ? "text-muted-foreground"
+            : item.qtyInStock === 0
+              ? "text-rose-600"
+              : "text-emerald-600"
+        }
+      />
+      <RowQty
+        value={unchecked ? "?" : formatQty(toProcure)}
+        unit={unchecked ? "" : unit}
+        tone={
+          unchecked
+            ? "text-muted-foreground"
+            : toProcure > 0
+              ? "text-amber-600"
+              : "text-emerald-600"
+        }
+      />
+      <div className="hidden min-w-0 lg:block">
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${meta.chip}`}
+        >
+          {meta.short}
+        </span>
+        <div
+          className={`mt-0.5 truncate text-[11px] ${state === "overdue" ? "text-rose-600" : "text-muted-foreground"}`}
+        >
+          {itemFooter(item, state, today)}
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <QuickArea quick={quick} state={state} unit={unit} onOpen={onOpen} compact />
+      </div>
+    </li>
+  );
+}
+
+function RowQty({ value, unit, tone }: { value: string; unit: string; tone?: string }) {
+  return (
+    <div className={`hidden text-right text-sm font-bold lg:block ${tone ?? "text-foreground"}`}>
+      {value}
+      {unit && <span className="ml-0.5 text-[10px] font-medium text-muted-foreground">{unit}</span>}
+    </div>
   );
 }
 
@@ -936,70 +1344,10 @@ function ItemCard({
 }) {
   const meta = STATE_META[state];
   const Icon = STATE_ICONS[state];
-  const [quick, setQuick] = useState<"stock" | "receive" | null>(null);
-  const [value, setValue] = useState("");
-  const [saving, setSaving] = useState(false);
+  const quick = useQuickEntry(item, onUpdate, author);
   const toProcure = qtyToProcure(item);
   const unit = item.unit || "Nos";
-
-  function openQuick(kind: "stock" | "receive") {
-    setQuick(kind);
-    setValue(kind === "receive" ? formatQty(toProcure) : "");
-  }
-
-  async function submitQuick(event: FormEvent) {
-    event.preventDefault();
-    const amount = Number(value);
-    if (!Number.isFinite(amount) || amount < 0 || value.trim() === "") return;
-    setSaving(true);
-    const ok =
-      quick === "stock"
-        ? await onUpdate(
-            item,
-            {
-              qty_in_stock: amount,
-              stock_checked_by: author,
-              stock_checked_at: new Date().toISOString(),
-            },
-            `Stock checked: ${item.itemName}, ${formatQty(amount)} of ${formatQty(item.qtyRequired)} ${unit} in stock`,
-          )
-        : await onUpdate(
-            item,
-            { qty_received: item.qtyReceived + amount, received_at: new Date().toISOString() },
-            `Received ${formatQty(amount)} ${unit} of ${item.itemName}`,
-          );
-    setSaving(false);
-    if (ok) {
-      setQuick(null);
-      if (quick === "receive" && amount >= toProcure)
-        toast.success(`${item.itemName} is now complete`);
-    }
-  }
-
-  const footer = (() => {
-    switch (state) {
-      case "today":
-        return `Arriving today${item.supplier ? ` from ${item.supplier}` : ""}`;
-      case "overdue": {
-        const late = -daysFromToday(item.expectedDate!, today);
-        return `${late} day${late === 1 ? "" : "s"} late · expected ${formatDay(item.expectedDate)}${item.supplier ? ` · ${item.supplier}` : ""}`;
-      }
-      case "incoming": {
-        const days = daysFromToday(item.expectedDate!, today);
-        return `Arrives ${days === 1 ? "tomorrow" : `in ${days} days`} · ${formatDay(item.expectedDate)}${item.supplier ? ` · ${item.supplier}` : ""}`;
-      }
-      case "enquired":
-        return `Enquired${item.enquiryDate ? ` on ${formatDay(item.enquiryDate)}` : ""}${item.supplier ? ` with ${item.supplier}` : ""} · awaiting date`;
-      case "shortage":
-        return `Short by ${formatQty(toProcure)} ${unit} · no enquiry yet`;
-      case "unchecked":
-        return "Waiting for the store to check stock";
-      case "complete":
-        return item.qtyReceived > 0
-          ? `All ${formatQty(item.qtyRequired)} ${unit} available · ${formatQty(item.qtyReceived)} received`
-          : `All ${formatQty(item.qtyRequired)} ${unit} in stock`;
-    }
-  })();
+  const footer = itemFooter(item, state, today);
 
   const card = (
     <div
@@ -1082,96 +1430,7 @@ function ItemCard({
       </div>
 
       <div className="mt-auto pt-3">
-        <AnimatePresence mode="wait" initial={false}>
-          {quick ? (
-            <motion.form
-              key="quick"
-              onSubmit={submitQuick}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              className="flex items-center gap-2"
-            >
-              <Input
-                autoFocus
-                type="number"
-                min={0}
-                step="any"
-                value={value}
-                onChange={(event) => setValue(event.target.value)}
-                className="h-9"
-                aria-label={quick === "stock" ? "Quantity in stock" : "Quantity received"}
-                placeholder={quick === "stock" ? "Qty in stock" : "Qty received"}
-              />
-              <span className="text-xs text-muted-foreground">{unit}</span>
-              <Button
-                size="icon"
-                type="submit"
-                className="h-9 w-9 shrink-0"
-                disabled={saving}
-                aria-label="Save"
-              >
-                {saving ? <LoaderCircle className="animate-spin" /> : <Check />}
-              </Button>
-              <Button
-                size="icon"
-                type="button"
-                variant="ghost"
-                className="h-9 w-9 shrink-0"
-                onClick={() => setQuick(null)}
-                aria-label="Cancel"
-              >
-                <X />
-              </Button>
-            </motion.form>
-          ) : (
-            <motion.div
-              key="actions"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="flex flex-wrap gap-2"
-            >
-              {state === "unchecked" && (
-                <Button size="sm" onClick={() => openQuick("stock")}>
-                  <ClipboardCheck /> Check stock
-                </Button>
-              )}
-              {(state === "today" ||
-                state === "overdue" ||
-                state === "incoming" ||
-                state === "enquired") && (
-                <Button
-                  size="sm"
-                  variant={state === "today" ? "default" : "outline"}
-                  onClick={() => openQuick("receive")}
-                >
-                  <PackageCheck /> Mark received
-                </Button>
-              )}
-              {state === "shortage" && (
-                <Button size="sm" onClick={onOpen}>
-                  <Send /> Log enquiry
-                </Button>
-              )}
-              {state !== "complete" && (
-                <Button size="sm" variant="ghost" onClick={onOpen}>
-                  Details
-                </Button>
-              )}
-              {state === "complete" && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={onOpen}
-                  className="text-muted-foreground"
-                >
-                  Details
-                </Button>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <QuickArea quick={quick} state={state} unit={unit} onOpen={onOpen} />
       </div>
     </div>
   );
@@ -1202,6 +1461,191 @@ function ItemCard({
       />
       <div className="relative h-full rounded-2xl bg-[var(--neo-bg)]">{card}</div>
     </motion.div>
+  );
+}
+
+function itemFooter(item: ProcurementItem, state: ItemState, today: string) {
+  const unit = item.unit || "Nos";
+  const toProcure = qtyToProcure(item);
+  switch (state) {
+    case "today":
+      return `Arriving today${item.supplier ? ` from ${item.supplier}` : ""}`;
+    case "overdue": {
+      const late = -daysFromToday(item.expectedDate!, today);
+      return `${late} day${late === 1 ? "" : "s"} late · expected ${formatDay(item.expectedDate)}${item.supplier ? ` · ${item.supplier}` : ""}`;
+    }
+    case "incoming": {
+      const days = daysFromToday(item.expectedDate!, today);
+      return `Arrives ${days === 1 ? "tomorrow" : `in ${days} days`} · ${formatDay(item.expectedDate)}${item.supplier ? ` · ${item.supplier}` : ""}`;
+    }
+    case "enquired":
+      return `Enquired${item.enquiryDate ? ` on ${formatDay(item.enquiryDate)}` : ""}${item.supplier ? ` with ${item.supplier}` : ""} · awaiting date`;
+    case "shortage":
+      return `Short by ${formatQty(toProcure)} ${unit} · no enquiry yet`;
+    case "unchecked":
+      return "Waiting for the store to check stock";
+    case "complete":
+      return item.qtyReceived > 0
+        ? `All ${formatQty(item.qtyRequired)} ${unit} available · ${formatQty(item.qtyReceived)} received`
+        : `All ${formatQty(item.qtyRequired)} ${unit} in stock`;
+  }
+}
+
+// Inline "check stock" / "mark received" entry, shared by cards and list rows.
+function useQuickEntry(
+  item: ProcurementItem,
+  onUpdate: (item: ProcurementItem, patch: ItemPatch, log?: string) => Promise<boolean>,
+  author: string,
+) {
+  const [kind, setKind] = useState<"stock" | "receive" | null>(null);
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+  const toProcure = qtyToProcure(item);
+  const unit = item.unit || "Nos";
+
+  function open(next: "stock" | "receive") {
+    setKind(next);
+    setValue(next === "receive" ? formatQty(toProcure) : "");
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount < 0 || value.trim() === "") return;
+    setSaving(true);
+    const ok =
+      kind === "stock"
+        ? await onUpdate(
+            item,
+            {
+              qty_in_stock: amount,
+              stock_checked_by: author,
+              stock_checked_at: new Date().toISOString(),
+            },
+            `Stock checked: ${item.itemName}, ${formatQty(amount)} of ${formatQty(item.qtyRequired)} ${unit} in stock`,
+          )
+        : await onUpdate(
+            item,
+            { qty_received: item.qtyReceived + amount, received_at: new Date().toISOString() },
+            `Received ${formatQty(amount)} ${unit} of ${item.itemName}`,
+          );
+    setSaving(false);
+    if (ok) {
+      setKind(null);
+      if (kind === "receive" && amount >= toProcure)
+        toast.success(`${item.itemName} is now complete`);
+    }
+  }
+
+  return { kind, value, setValue, saving, open, close: () => setKind(null), submit };
+}
+
+function QuickArea({
+  quick,
+  state,
+  unit,
+  onOpen,
+  compact,
+}: {
+  quick: ReturnType<typeof useQuickEntry>;
+  state: ItemState;
+  unit: string;
+  onOpen: () => void;
+  compact?: boolean;
+}) {
+  const size = compact ? "h-8" : "h-9";
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      {quick.kind ? (
+        <motion.form
+          key="quick"
+          onSubmit={quick.submit}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          className="flex items-center gap-2"
+        >
+          <Input
+            autoFocus
+            type="number"
+            min={0}
+            step="any"
+            value={quick.value}
+            onChange={(event) => quick.setValue(event.target.value)}
+            className={`${size} ${compact ? "w-24" : ""}`}
+            aria-label={quick.kind === "stock" ? "Quantity in stock" : "Quantity received"}
+            placeholder={quick.kind === "stock" ? "Qty in stock" : "Qty received"}
+          />
+          <span className="text-xs text-muted-foreground">{unit}</span>
+          <Button
+            size="icon"
+            type="submit"
+            className={`${size} w-8 shrink-0`}
+            disabled={quick.saving}
+            aria-label="Save"
+          >
+            {quick.saving ? <LoaderCircle className="animate-spin" /> : <Check />}
+          </Button>
+          <Button
+            size="icon"
+            type="button"
+            variant="ghost"
+            className={`${size} w-8 shrink-0`}
+            onClick={quick.close}
+            aria-label="Cancel"
+          >
+            <X />
+          </Button>
+        </motion.form>
+      ) : (
+        <motion.div
+          key="actions"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className={`flex flex-wrap gap-2 ${compact ? "justify-end" : ""}`}
+        >
+          {state === "unchecked" && (
+            <Button size="sm" className={compact ? "h-8" : ""} onClick={() => quick.open("stock")}>
+              <ClipboardCheck /> Check stock
+            </Button>
+          )}
+          {(state === "today" ||
+            state === "overdue" ||
+            state === "incoming" ||
+            state === "enquired") && (
+            <Button
+              size="sm"
+              className={compact ? "h-8" : ""}
+              variant={state === "today" ? "default" : "outline"}
+              onClick={() => quick.open("receive")}
+            >
+              <PackageCheck /> {compact ? "Received" : "Mark received"}
+            </Button>
+          )}
+          {state === "shortage" && (
+            <Button size="sm" className={compact ? "h-8" : ""} onClick={onOpen}>
+              <Send /> {compact ? "Enquiry" : "Log enquiry"}
+            </Button>
+          )}
+          {!compact && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onOpen}
+              className={state === "complete" ? "text-muted-foreground" : ""}
+            >
+              Details
+            </Button>
+          )}
+          {compact && state === "complete" && (
+            <span className="inline-flex h-8 items-center gap-1 px-2 text-xs font-semibold text-emerald-600">
+              <CheckCircle2 className="h-4 w-4" /> Available
+            </span>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -1241,33 +1685,12 @@ function Qty({
   );
 }
 
-function EmptyList({
-  reading,
-  onUpload,
-  onDrop,
-  onAdd,
-}: {
-  reading: boolean;
-  onUpload: () => void;
-  onDrop: (file: File | undefined) => void;
-  onAdd: () => void;
-}) {
-  const [dragging, setDragging] = useState(false);
+function EmptyList({ orderId, onAdd }: { orderId: string; onAdd: () => void }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      onDragOver={(event) => {
-        event.preventDefault();
-        setDragging(true);
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={(event) => {
-        event.preventDefault();
-        setDragging(false);
-        onDrop(event.dataTransfer.files?.[0]);
-      }}
-      className={`neo-surface rounded-3xl p-3 transition-shadow ${dragging ? "ring-4 ring-primary/40" : ""}`}
+      className="neo-surface rounded-3xl p-3"
     >
       <div className="flex flex-col items-center justify-center gap-5 rounded-2xl border-2 border-dashed border-primary/25 px-6 py-16 text-center">
         <motion.span
@@ -1275,25 +1698,20 @@ function EmptyList({
           transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
           className="neo-pop grid h-20 w-20 place-items-center rounded-3xl text-primary"
         >
-          {reading ? (
-            <LoaderCircle className="h-9 w-9 animate-spin" />
-          ) : (
-            <UploadCloud className="h-9 w-9" />
-          )}
+          <FileSpreadsheet className="h-9 w-9" />
         </motion.span>
         <div>
-          <div className="text-xl font-bold text-foreground">Upload the material list</div>
+          <div className="text-xl font-bold text-foreground">No BOM yet</div>
           <div className="mt-1 max-w-md text-sm text-muted-foreground">
-            Drop an Excel (.xlsx) or CSV file with the required equipment: PLCs, relays, meters,
-            cables and so on. Each row becomes a card here.
+            The Bill of Materials is uploaded in the Design stage. Each item in it becomes a card
+            here for stock checks, enquiries and deliveries.
           </div>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
-          <Button onClick={onUpload} disabled={reading}>
-            <FileSpreadsheet /> Choose Excel file
-          </Button>
-          <Button variant="outline" onClick={() => void downloadTemplate()}>
-            <Download /> Download template
+          <Button asChild>
+            <Link to="/inward-orders/$id/stages/$stage" params={{ id: orderId, stage: "design" }}>
+              <FileSpreadsheet /> Upload BOM in Design
+            </Link>
           </Button>
           <Button variant="ghost" onClick={onAdd}>
             <Plus /> Add by hand
@@ -1301,101 +1719,6 @@ function EmptyList({
         </div>
       </div>
     </motion.div>
-  );
-}
-
-function ImportDialog({
-  data,
-  hasItems,
-  onClose,
-  onConfirm,
-}: {
-  data: { fileName: string; items: ImportedItem[] } | null;
-  hasItems: boolean;
-  onClose: () => void;
-  onConfirm: (replace: boolean) => Promise<void>;
-}) {
-  const [saving, setSaving] = useState<"add" | "replace" | null>(null);
-  const missingQty = data?.items.filter((item) => item.qtyMissing).length ?? 0;
-
-  async function confirm(replace: boolean) {
-    setSaving(replace ? "replace" : "add");
-    await onConfirm(replace);
-    setSaving(null);
-  }
-
-  return (
-    <Dialog open={Boolean(data)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[88vh] max-w-3xl overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5 text-primary" /> {data?.items.length} items found
-          </DialogTitle>
-          <DialogDescription className="truncate">
-            From {data?.fileName}. Check the list, then add it.
-          </DialogDescription>
-        </DialogHeader>
-        {missingQty > 0 && (
-          <div className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            {missingQty} row{missingQty === 1 ? " has" : "s have"} no quantity and will be set to 1.
-            You can change it on the card.
-          </div>
-        )}
-        <div className="neo-inset max-h-[50vh] overflow-auto rounded-xl">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-[var(--neo-bg)] text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2">Item</th>
-                <th className="px-3 py-2">Make / Model</th>
-                <th className="px-3 py-2 text-right">Qty</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data?.items.map((item, index) => (
-                <motion.tr
-                  key={index}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: Math.min(index, 20) * 0.02 }}
-                  className="border-t border-border/40"
-                >
-                  <td className="px-3 py-2">
-                    <div className="font-medium">{item.itemName}</div>
-                    {item.category && (
-                      <div className="text-xs text-muted-foreground">{item.category}</div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">
-                    {[item.make, item.model].filter(Boolean).join(" · ") || "—"}
-                  </td>
-                  <td
-                    className={`px-3 py-2 text-right font-semibold ${item.qtyMissing ? "text-amber-600" : ""}`}
-                  >
-                    {formatQty(item.qtyRequired)} {item.unit}
-                  </td>
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <DialogFooter className="gap-2">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          {hasItems && (
-            <Button variant="outline" onClick={() => void confirm(true)} disabled={Boolean(saving)}>
-              {saving === "replace" && <LoaderCircle className="animate-spin" />} Replace current
-              list
-            </Button>
-          )}
-          <Button onClick={() => void confirm(false)} disabled={Boolean(saving)}>
-            {saving === "add" ? <LoaderCircle className="animate-spin" /> : <Plus />}
-            {hasItems ? "Add to list" : "Create cards"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
