@@ -82,9 +82,9 @@ function RootComponent() {
       {isPrint || isLogin ? <><Outlet /><Toaster /></> : (
         <SidebarProvider>
           <NeoBackground />
-          <div className="min-h-screen flex w-full">
+          <div className="h-svh flex w-full overflow-hidden">
             <AppSidebar />
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 min-h-0">
               <header className="h-14 mx-3 mt-3 rounded-2xl flex items-center neo-surface shrink-0 px-2">
                 <SidebarTrigger className="ml-1 neo-pop !h-9 !w-9 rounded-xl" />
                 <div className="ml-3 font-semibold text-sm text-indigo-600 tracking-wide">

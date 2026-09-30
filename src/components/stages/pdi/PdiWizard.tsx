@@ -5,7 +5,6 @@ import {
   ArrowRight,
   Check,
   CheckCheck,
-  ChevronDown,
   CircuitBoard,
   ClipboardList,
   Cpu,
@@ -208,7 +207,7 @@ export function PdiWizard({
     );
 
   return (
-    <div ref={topRef} className="mx-auto w-full max-w-3xl scroll-mt-4">
+    <div ref={topRef} className="mx-auto w-full max-w-6xl scroll-mt-4">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -231,7 +230,9 @@ export function PdiWizard({
           </Button>
         </div>
 
-        <Stepper step={step} onStep={(index) => (index < step || reportId) && go(index)} />
+        <div className="mx-auto max-w-2xl">
+          <Stepper step={step} onStep={(index) => (index < step || reportId) && go(index)} />
+        </div>
 
         <div className="px-5 pb-6 pt-2 sm:px-7">
           <AnimatePresence mode="wait" initial={false}>
@@ -258,7 +259,7 @@ export function PdiWizard({
                   </span>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   <Field
                     label="Customer name"
                     value={details.customer}
@@ -397,91 +398,103 @@ export function PdiWizard({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3, ease: EASE }}
-                className="space-y-5"
+                className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6"
               >
-                <div className="grid gap-2 rounded-2xl bg-gradient-to-br from-primary/10 to-chart-2/10 p-4 text-sm sm:grid-cols-2">
-                  <Summary label="Panel" value={`${details.serial} · ${details.panelName}`} />
-                  <Summary
-                    label="Category"
-                    value={PDI_CATEGORIES.find((c) => c.value === details.category)?.label ?? ""}
-                  />
-                  <Summary label="Project" value={details.project} />
-                  <Summary label="Customer" value={details.customer || "—"} />
-                  <Summary label="Inspected by" value={fullName(identity)} />
-                  <Summary label="Date" value={formatLongDate(todayIso())} />
-                </div>
+                <div className="space-y-5">
+                  <div className="grid gap-2 rounded-2xl bg-gradient-to-br from-primary/10 to-chart-2/10 p-4 text-sm sm:grid-cols-3">
+                    <Summary label="Panel" value={`${details.serial} · ${details.panelName}`} />
+                    <Summary
+                      label="Category"
+                      value={PDI_CATEGORIES.find((c) => c.value === details.category)?.label ?? ""}
+                    />
+                    <Summary label="Project" value={details.project} />
+                    <Summary label="Customer" value={details.customer || "—"} />
+                    <Summary label="Inspected by" value={fullName(identity)} />
+                    <Summary label="Date" value={formatLongDate(todayIso())} />
+                  </div>
 
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {sections.map((section) => {
-                    const p = sectionProgress(section, responses);
-                    const na = section.items.filter((item) => responses[item.key] === "na").length;
-                    return (
-                      <button
-                        key={section.key}
-                        type="button"
-                        onClick={() => {
-                          setFocusSection(section.key);
-                          go(1);
-                        }}
-                        className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${p.complete ? "neo-pop" : "bg-amber-50 ring-1 ring-amber-200"}`}
-                      >
-                        <span
-                          className={`grid h-6 w-6 shrink-0 place-items-center rounded-full ${p.complete ? "bg-emerald-500 text-white" : "bg-amber-200 text-amber-800"}`}
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {sections.map((section) => {
+                      const p = sectionProgress(section, responses);
+                      const na = section.items.filter(
+                        (item) => responses[item.key] === "na",
+                      ).length;
+                      return (
+                        <button
+                          key={section.key}
+                          type="button"
+                          onClick={() => {
+                            setFocusSection(section.key);
+                            go(1);
+                          }}
+                          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${p.complete ? "neo-pop" : "bg-amber-50 ring-1 ring-amber-200"}`}
                         >
-                          {p.complete ? (
-                            <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                          ) : (
-                            <span className="text-[10px] font-bold">{p.total - p.done}</span>
-                          )}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate font-medium">{section.title}</span>
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          {p.complete ? (na ? `${na} N/A` : "All OK") : `${p.total - p.done} left`}
-                        </span>
-                      </button>
-                    );
-                  })}
+                          <span
+                            className={`grid h-6 w-6 shrink-0 place-items-center rounded-full ${p.complete ? "bg-emerald-500 text-white" : "bg-amber-200 text-amber-800"}`}
+                          >
+                            {p.complete ? (
+                              <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                            ) : (
+                              <span className="text-[10px] font-bold">{p.total - p.done}</span>
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate font-medium">
+                            {section.title}
+                          </span>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {p.complete
+                              ? na
+                                ? `${na} N/A`
+                                : "All OK"
+                              : `${p.total - p.done} left`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="pdi-remarks" className="text-xs font-semibold text-primary">
-                    Remarks (optional)
-                  </Label>
-                  <Textarea
-                    id="pdi-remarks"
-                    rows={3}
-                    value={remarks}
-                    onChange={(event) => setRemarks(event.target.value)}
-                    placeholder="Observations, deviations agreed with the client, pending minor points…"
-                  />
-                </div>
+                <div className="space-y-5 lg:sticky lg:top-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pdi-remarks" className="text-xs font-semibold text-primary">
+                      Remarks (optional)
+                    </Label>
+                    <Textarea
+                      id="pdi-remarks"
+                      rows={5}
+                      value={remarks}
+                      onChange={(event) => setRemarks(event.target.value)}
+                      placeholder="Observations, deviations agreed with the client, pending minor points…"
+                    />
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={() => progress.complete && setDeclared((value) => !value)}
-                  disabled={!progress.complete}
-                  aria-pressed={declared}
-                  className={`flex w-full items-start gap-3 rounded-2xl p-4 text-left transition-all ${declared ? "bg-emerald-50 ring-2 ring-emerald-400" : "neo-pop"} ${progress.complete ? "" : "cursor-not-allowed opacity-60"}`}
-                >
-                  <span
-                    className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg border-2 transition-colors ${declared ? "border-emerald-500 bg-emerald-500 text-white" : "border-muted-foreground/40"}`}
+                  <button
+                    type="button"
+                    onClick={() => progress.complete && setDeclared((value) => !value)}
+                    disabled={!progress.complete}
+                    aria-pressed={declared}
+                    className={`flex w-full items-start gap-3 rounded-2xl p-4 text-left transition-all ${declared ? "bg-emerald-50 ring-2 ring-emerald-400" : "neo-pop"} ${progress.complete ? "" : "cursor-not-allowed opacity-60"}`}
                   >
-                    {declared && <Check className="h-4 w-4" strokeWidth={3} />}
-                  </span>
-                  <span>
-                    <span className="block text-xs font-bold uppercase tracking-wider text-primary">
-                      Final declaration
+                    <span
+                      className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg border-2 transition-colors ${declared ? "border-emerald-500 bg-emerald-500 text-white" : "border-muted-foreground/40"}`}
+                    >
+                      {declared && <Check className="h-4 w-4" strokeWidth={3} />}
                     </span>
-                    <span className="mt-1 block text-sm font-medium text-foreground">
-                      {DECLARATION}
-                    </span>
-                    {!progress.complete && (
-                      <span className="mt-1 block text-xs text-amber-700">
-                        Complete the {progress.total - progress.done} remaining checks first.
+                    <span>
+                      <span className="block text-xs font-bold uppercase tracking-wider text-primary">
+                        Final declaration
                       </span>
-                    )}
-                  </span>
-                </button>
+                      <span className="mt-1 block text-sm font-medium text-foreground">
+                        {DECLARATION}
+                      </span>
+                      {!progress.complete && (
+                        <span className="mt-1 block text-xs text-amber-700">
+                          Complete the {progress.total - progress.done} remaining checks first.
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -589,6 +602,8 @@ function Stepper({ step, onStep }: { step: number; onStep: (index: number) => vo
   );
 }
 
+// Desktop: every section open, with a pinned section list that follows the scroll.
+// Small screens get a row of section chips instead of the list.
 function Checklist({
   sections,
   responses,
@@ -606,201 +621,238 @@ function Checklist({
   readinessDate: string;
   onReadinessToday: () => void;
 }) {
-  const firstOpen =
-    focus ?? sections.find((section) => !sectionProgress(section, responses).complete)?.key ?? null;
-  const [open, setOpen] = useState<string | null>(firstOpen);
   const refs = useRef<Record<string, HTMLElement | null>>({});
-  const wasComplete = useRef<Record<string, boolean>>({});
+  const [active, setActive] = useState(focus ?? sections[0]?.key ?? "");
+  const progress = sections.reduce(
+    (sum, section) => {
+      const p = sectionProgress(section, responses);
+      return { done: sum.done + p.done, total: sum.total + p.total };
+    },
+    { done: 0, total: 0 },
+  );
+  const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
+  const nextOpen = sections.find((section) => !sectionProgress(section, responses).complete);
+
+  function scrollTo(key: string) {
+    setActive(key);
+    refs.current[key]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   useEffect(() => {
-    if (open)
-      window.setTimeout(
-        () => refs.current[open]?.scrollIntoView({ behavior: "smooth", block: "start" }),
-        50,
-      );
-    // Only on first show.
+    if (focus) window.setTimeout(() => scrollTo(focus), 80);
+    // Only when the checklist opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // When a section is finished, fold it and open the next one that still needs answers.
+  // Highlight the section being read.
   useEffect(() => {
-    for (const [index, section] of sections.entries()) {
-      const complete = sectionProgress(section, responses).complete;
-      const before = wasComplete.current[section.key];
-      wasComplete.current[section.key] = complete;
-      if (complete && before === false && open === section.key) {
-        const next = [...sections.slice(index + 1), ...sections.slice(0, index)].find(
-          (item) => !sectionProgress(item, responses).complete,
-        );
-        const timer = window.setTimeout(() => {
-          setOpen(next?.key ?? null);
-          if (next)
-            window.setTimeout(
-              () => refs.current[next.key]?.scrollIntoView({ behavior: "smooth", block: "start" }),
-              320,
-            );
-        }, 450);
-        return () => window.clearTimeout(timer);
-      }
-    }
-  }, [responses, sections, open]);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((entry) => entry.isIntersecting);
+        if (visible[0]) setActive((visible[0].target as HTMLElement).dataset.section ?? "");
+      },
+      { rootMargin: "-20% 0px -70% 0px" },
+    );
+    for (const element of Object.values(refs.current)) if (element) observer.observe(element);
+    return () => observer.disconnect();
+  }, [sections]);
 
   return (
-    <div className="space-y-3">
-      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2">
+    <div className="grid gap-6 lg:grid-cols-[270px_minmax(0,1fr)]">
+      <aside className="hidden lg:block">
+        <div className="sticky top-4 space-y-3">
+          <div className="neo-inset rounded-2xl p-4">
+            <div className="flex items-baseline justify-between">
+              <span className="text-3xl font-bold text-foreground">{pct}%</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                {progress.done} of {progress.total} checks
+              </span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+              <motion.div
+                className="h-full rounded-full bg-gradient-to-r from-primary to-emerald-500"
+                animate={{ width: `${pct}%` }}
+                transition={{ duration: 0.4, ease: EASE }}
+              />
+            </div>
+            {nextOpen && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-3 w-full"
+                onClick={() => scrollTo(nextOpen.key)}
+              >
+                Next unanswered <ArrowRight />
+              </Button>
+            )}
+          </div>
+          <nav className="max-h-[calc(100vh-14rem)] space-y-0.5 overflow-y-auto pr-1">
+            {sections.map((section, index) => {
+              const p = sectionProgress(section, responses);
+              const current = active === section.key;
+              return (
+                <button
+                  key={section.key}
+                  type="button"
+                  onClick={() => scrollTo(section.key)}
+                  className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm transition-colors ${current ? "bg-primary/10 text-primary" : "text-foreground/80 hover:bg-muted/60"}`}
+                >
+                  <span
+                    className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-[10px] font-bold ${p.complete ? "bg-emerald-500 text-white" : current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                  >
+                    {p.complete ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : index + 1}
+                  </span>
+                  <span className="line-clamp-2 min-w-0 flex-1 font-medium leading-snug">
+                    {section.title}
+                  </span>
+                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                    {p.done}/{p.total}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </aside>
+
+      <div className="min-w-0 space-y-4">
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 lg:hidden">
+          {sections.map((section, index) => {
+            const p = sectionProgress(section, responses);
+            return (
+              <button
+                key={section.key}
+                type="button"
+                onClick={() => scrollTo(section.key)}
+                title={section.title}
+                className={`grid h-8 min-w-8 shrink-0 place-items-center rounded-full px-2 text-xs font-bold ${p.complete ? "bg-emerald-500 text-white" : active === section.key ? "bg-primary text-primary-foreground" : "neo-pop text-muted-foreground"}`}
+              >
+                {p.complete ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : index + 1}
+              </button>
+            );
+          })}
+        </div>
+
         {sections.map((section, index) => {
           const p = sectionProgress(section, responses);
           return (
-            <button
+            <section
               key={section.key}
-              type="button"
-              onClick={() => {
-                setOpen(section.key);
-                window.setTimeout(
-                  () =>
-                    refs.current[section.key]?.scrollIntoView({
-                      behavior: "smooth",
-                      block: "start",
-                    }),
-                  50,
-                );
+              data-section={section.key}
+              ref={(element) => {
+                refs.current[section.key] = element;
               }}
-              title={section.title}
-              className={`grid h-8 min-w-8 shrink-0 place-items-center rounded-full px-2 text-xs font-bold transition-all ${p.complete ? "bg-emerald-500 text-white" : open === section.key ? "bg-primary text-primary-foreground" : p.done ? "bg-amber-100 text-amber-800" : "neo-pop text-muted-foreground"}`}
+              className={`scroll-mt-4 rounded-2xl p-4 transition-shadow sm:p-5 ${p.complete ? "neo-pop" : "neo-surface"} ${active === section.key ? "ring-1 ring-primary/25" : ""}`}
             >
-              {p.complete ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : index + 1}
-            </button>
+              <div className="mb-3 flex flex-wrap items-center gap-3">
+                <span
+                  className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl text-xs font-bold ${p.complete ? "bg-emerald-500 text-white" : "bg-primary/10 text-primary"}`}
+                >
+                  {p.complete ? (
+                    <Check className="h-4 w-4" strokeWidth={3} />
+                  ) : section.plcOnly ? (
+                    <CircuitBoard className="h-4 w-4" />
+                  ) : (
+                    index + 1
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-foreground">
+                    {section.title}
+                    {section.plcOnly && (
+                      <span className="ml-2 rounded-full bg-violet-100 px-1.5 py-0.5 align-middle text-[9px] font-bold text-violet-700">
+                        PLC
+                      </span>
+                    )}
+                  </h3>
+                  <div className="text-xs text-muted-foreground">
+                    {p.done} of {p.total} {section.kind === "check" ? "ticked" : "answered"}
+                    {section.kind === "check" && !p.complete ? " · every box must be ticked" : ""}
+                  </div>
+                </div>
+                {!p.complete && section.kind !== "choice" && (
+                  <button
+                    type="button"
+                    onClick={() => onAllOk(section)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-200"
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" />
+                    {section.kind === "check" ? "Tick all" : "All Checked OK"}
+                  </button>
+                )}
+              </div>
+
+              {section.kind === "check" ? (
+                <div className="grid gap-2 xl:grid-cols-2">
+                  {section.items.map((item) => {
+                    const value = responses[item.key];
+                    return (
+                      <div key={item.key}>
+                        <CheckRow
+                          label={item.label}
+                          checked={value === true}
+                          onToggle={() => onAnswer(item.key, value === true ? undefined : true)}
+                        />
+                        {item.key === READINESS_ITEM && (
+                          <div className="ml-11 mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            Readiness date:{" "}
+                            <span className="font-semibold text-foreground">
+                              {readinessDate ? formatLongDate(readinessDate) : "not set"}
+                            </span>
+                            {readinessDate !== todayIso() && (
+                              <button
+                                type="button"
+                                onClick={onReadinessToday}
+                                className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary hover:bg-primary/20"
+                              >
+                                Set to today & tick
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {section.kind === "matrix" && (
+                    <div className="hidden grid-cols-[minmax(0,1fr)_16rem] px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:grid">
+                      <span>Check</span>
+                      <span className="grid grid-cols-2 text-center">
+                        <span>Checked OK</span>
+                        <span>Not applicable</span>
+                      </span>
+                    </div>
+                  )}
+                  {section.items.map((item) => {
+                    const value = responses[item.key];
+                    return (
+                      <ChoiceRow
+                        key={item.key}
+                        label={item.label}
+                        value={value}
+                        options={
+                          section.kind === "matrix"
+                            ? [
+                                { value: "ok", label: "Checked OK" },
+                                { value: "na", label: "N/A" },
+                              ]
+                            : [
+                                { value: "yes", label: "Yes" },
+                                { value: "na", label: "Not applicable" },
+                              ]
+                        }
+                        onChange={(next) => onAnswer(item.key, next === value ? undefined : next)}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </section>
           );
         })}
       </div>
-
-      {sections.map((section, index) => {
-        const p = sectionProgress(section, responses);
-        const isOpen = open === section.key;
-        return (
-          <section
-            key={section.key}
-            ref={(element) => {
-              refs.current[section.key] = element;
-            }}
-            className={`scroll-mt-4 overflow-hidden rounded-2xl transition-shadow ${isOpen ? "neo-surface ring-1 ring-primary/20" : "neo-pop"}`}
-          >
-            <button
-              type="button"
-              onClick={() => setOpen(isOpen ? null : section.key)}
-              aria-expanded={isOpen}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left"
-            >
-              <span
-                className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl text-xs font-bold ${p.complete ? "bg-emerald-500 text-white" : "bg-primary/10 text-primary"}`}
-              >
-                {p.complete ? (
-                  <Check className="h-4 w-4" strokeWidth={3} />
-                ) : section.plcOnly ? (
-                  <CircuitBoard className="h-4 w-4" />
-                ) : (
-                  index + 1
-                )}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-foreground">
-                  {section.title}
-                  {section.plcOnly && (
-                    <span className="ml-2 rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-violet-700">
-                      PLC
-                    </span>
-                  )}
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  {p.done} of {p.total} {section.kind === "check" ? "ticked" : "answered"}
-                </span>
-              </span>
-              <ChevronDown
-                className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-            <AnimatePresence initial={false}>
-              {isOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: EASE }}
-                  className="overflow-hidden"
-                >
-                  <div className="space-y-2 px-3 pb-4 sm:px-4">
-                    {!p.complete && section.kind !== "choice" && (
-                      <button
-                        type="button"
-                        onClick={() => onAllOk(section)}
-                        className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-200"
-                      >
-                        <CheckCheck className="h-3.5 w-3.5" />
-                        {section.kind === "check" ? "Tick all" : "Mark all Checked OK"}
-                      </button>
-                    )}
-                    {section.items.map((item) => {
-                      const value = responses[item.key];
-                      if (section.kind === "check")
-                        return (
-                          <div key={item.key}>
-                            <CheckRow
-                              label={item.label}
-                              checked={value === true}
-                              onToggle={() => onAnswer(item.key, value === true ? undefined : true)}
-                            />
-                            {item.key === READINESS_ITEM && (
-                              <div className="ml-11 mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                Readiness date:{" "}
-                                <span className="font-semibold text-foreground">
-                                  {readinessDate ? formatLongDate(readinessDate) : "not set"}
-                                </span>
-                                {readinessDate !== todayIso() && (
-                                  <button
-                                    type="button"
-                                    onClick={onReadinessToday}
-                                    className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary hover:bg-primary/20"
-                                  >
-                                    Set to today & tick
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      return (
-                        <ChoiceRow
-                          key={item.key}
-                          label={item.label}
-                          value={value}
-                          options={
-                            section.kind === "matrix"
-                              ? [
-                                  { value: "ok", label: "Checked OK" },
-                                  { value: "na", label: "N/A" },
-                                ]
-                              : [
-                                  { value: "yes", label: "Yes" },
-                                  { value: "na", label: "Not applicable" },
-                                ]
-                          }
-                          onChange={(next) => onAnswer(item.key, next === value ? undefined : next)}
-                        />
-                      );
-                    })}
-                    {section.items.some((item) => !isAnswered(section, responses[item.key])) &&
-                      section.kind === "check" && (
-                        <p className="px-1 pt-1 text-[11px] text-muted-foreground">
-                          Every box must be ticked to submit.
-                        </p>
-                      )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </section>
-        );
-      })}
     </div>
   );
 }
@@ -851,7 +903,7 @@ function ChoiceRow({
 }) {
   return (
     <div
-      className={`flex flex-col gap-2 rounded-xl px-3 py-3 sm:flex-row sm:items-center ${value ? "bg-emerald-50/60" : "neo-inset"}`}
+      className={`flex flex-col gap-2 rounded-xl px-3 py-2.5 sm:flex-row sm:items-center ${value ? "bg-emerald-50/60" : "neo-inset"}`}
     >
       <span className="flex-1 text-sm leading-snug text-foreground">{label}</span>
       <div className="grid shrink-0 grid-cols-2 gap-1.5 sm:w-64">

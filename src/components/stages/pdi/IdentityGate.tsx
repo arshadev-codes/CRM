@@ -100,7 +100,41 @@ export function IdentityGate({
   }
 
   return (
-    <div className="mx-auto w-full max-w-md py-4 sm:py-8">
+    <div className="mx-auto grid w-full max-w-md py-4 sm:py-8 lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_460px] lg:items-stretch lg:gap-6">
+      <motion.aside
+        initial={{ opacity: 0, x: -24 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.6, ease: EASE }}
+        className="relative hidden overflow-hidden rounded-[28px] bg-gradient-to-br from-primary via-primary to-chart-2 p-10 text-primary-foreground shadow-xl shadow-primary/25 lg:flex lg:flex-col"
+      >
+        <div className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-white/10" />
+        <div className="pointer-events-none absolute -top-16 right-20 h-40 w-40 rounded-full bg-white/10" />
+        <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/15">
+          <ShieldCheck className="h-7 w-7" />
+        </span>
+        <h2 className="mt-8 text-3xl font-bold leading-tight">Pre-dispatch inspection</h2>
+        <p className="mt-3 max-w-sm text-base text-white/85">
+          Every panel is checked and signed off by a verified person before it leaves the factory.
+        </p>
+        <ol className="mt-10 space-y-5">
+          {[
+            ["Verify your email", "A one-time code confirms who is signing the report."],
+            ["Enter the panel details", "Customer and project come from the inward order."],
+            ["Tick the checklist", "Whole sections can be marked OK in one click."],
+            ["Declare and submit", "The report is saved with your name and the date."],
+          ].map(([title, hint], index) => (
+            <li key={title} className="flex gap-4">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/20 text-sm font-bold">
+                {index + 1}
+              </span>
+              <span>
+                <span className="block font-semibold">{title}</span>
+                <span className="block text-sm text-white/75">{hint}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </motion.aside>
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}

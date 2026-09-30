@@ -77,7 +77,7 @@ export function PdiReports({
       </div>
 
       {sorted.length > 0 && (
-        <ul className="mt-5 grid gap-3 md:grid-cols-2">
+        <ul className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {sorted.map((report) => {
             const category = report.panel_category as PdiCategory;
             const progress = reportProgress(category, (report.responses ?? {}) as PdiResponses);
