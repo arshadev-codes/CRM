@@ -359,6 +359,74 @@ export type Database = {
           },
         ]
       }
+      pdi_reports: {
+        Row: {
+          created_at: string
+          customer_name: string
+          declared: boolean
+          email_verified_at: string | null
+          id: string
+          inspector_email: string
+          inspector_name: string
+          inward_order_id: string
+          panel_category: string
+          panel_name: string
+          panel_serial: string
+          project_number: string
+          remarks: string
+          responses: Json
+          status: string
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_name?: string
+          declared?: boolean
+          email_verified_at?: string | null
+          id?: string
+          inspector_email?: string
+          inspector_name?: string
+          inward_order_id: string
+          panel_category?: string
+          panel_name?: string
+          panel_serial?: string
+          project_number?: string
+          remarks?: string
+          responses?: Json
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          declared?: boolean
+          email_verified_at?: string | null
+          id?: string
+          inspector_email?: string
+          inspector_name?: string
+          inward_order_id?: string
+          panel_category?: string
+          panel_name?: string
+          panel_serial?: string
+          project_number?: string
+          remarks?: string
+          responses?: Json
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdi_reports_inward_order_id_fkey"
+            columns: ["inward_order_id"]
+            isOneToOne: false
+            referencedRelation: "inward_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       procurement_items: {
         Row: {
           category: string

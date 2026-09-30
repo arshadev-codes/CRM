@@ -53,6 +53,16 @@ import {
 import { BUCKET, type StageBodyProps } from "./DesignStage";
 import { EASE, formatSize, safeName, timeAgo } from "./shared";
 import { DispatchPlanDialog, planDispatch } from "./qa/DispatchPlanDialog";
+import { IdentityGate } from "./pdi/IdentityGate";
+import { PdiReports } from "./pdi/PdiReports";
+import { PdiWizard } from "./pdi/PdiWizard";
+import {
+  fullName,
+  loadIdentity,
+  saveIdentity,
+  type DispatchIdentity,
+  type PdiRow,
+} from "@/lib/pdi";
 
 type DispatchPatch = Database["public"]["Tables"]["dispatch_details"]["Update"];
 type DocRow = Database["public"]["Tables"]["stage_updates"]["Row"];
@@ -64,6 +74,7 @@ export function DispatchStage({
   setStageStatus,
   author,
   employees,
+  onAuthor,
 }: StageBodyProps) {
   const [loading, setLoading] = useState(true);
   const [details, setDetails] = useState<DispatchRow | null>(null);
@@ -71,6 +82,75 @@ export function DispatchStage({
   const [planning, setPlanning] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const updateOrder = useProposalStore((s) => s.updateInwardOrder);
+  const order = useProposalStore((s) => s.inwardOrders.find((item) => item.id === orderId));
+  const [identity, setIdentity] = useState<DispatchIdentity | null>(null);
+  const [identityChecked, setIdentityChecked] = useState(false);
+  const [reports, setReports] = useState<PdiRow[]>([]);
+  // The PDI being filled: a draft to continue, or null for a new panel.
+  const [wizard, setWizard] = useState<{ key: number; report: PdiRow | null } | null>(null);
+
+  useEffect(() => {
+    setIdentity(loadIdentity());
+    setIdentityChecked(true);
+  }, []);
+
+  const upsertReport = useCallback((row: PdiRow) => {
+    setReports((current) =>
+      current.some((item) => item.id === row.id)
+        ? current.map((item) => (item.id === row.id ? row : item))
+        : [...current, row],
+    );
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void supabase
+      .from("pdi_reports")
+      .select("*")
+      .eq("inward_order_id", orderId)
+      .order("created_at")
+      .then(({ data }) => {
+        if (active) setReports(data ?? []);
+      });
+    const channel = supabase
+      .channel(`pdi-${orderId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "pdi_reports",
+          filter: `inward_order_id=eq.${orderId}`,
+        },
+        (payload) => {
+          if (payload.eventType === "DELETE") {
+            const removed = (payload.old as Partial<PdiRow>).id;
+            if (removed) setReports((current) => current.filter((item) => item.id !== removed));
+          } else upsertReport(payload.new as PdiRow);
+        },
+      )
+      .subscribe();
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [orderId, upsertReport]);
+
+  async function deleteReport(report: PdiRow) {
+    const { error } = await supabase.from("pdi_reports").delete().eq("id", report.id);
+    if (error) {
+      toast.error("Could not delete the draft");
+      return;
+    }
+    setReports((current) => current.filter((item) => item.id !== report.id));
+    toast.success("Draft deleted");
+  }
+
+  function signOut() {
+    saveIdentity(null);
+    setIdentity(null);
+    setWizard(null);
+  }
 
   useEffect(() => {
     let active = true;
@@ -129,6 +209,12 @@ export function DispatchStage({
   );
 
   async function advance(next: Milestone) {
+    // A panel is packed only after its pre-dispatch inspection is submitted.
+    if (next === "packed" && !reports.some((report) => report.status === "submitted")) {
+      toast.error("Submit the PDI checklist before marking the dispatch packed");
+      document.getElementById("pdi")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     const today = todayIso();
     const patch: DispatchPatch = { milestone: next };
     if (next === "packed" && !details?.packing_date) patch.packing_date = today;
@@ -148,7 +234,7 @@ export function DispatchStage({
     }
   }
 
-  if (loading)
+  if (loading || !identityChecked)
     return (
       <div className="mx-auto w-full max-w-[80vw] space-y-4 max-lg:max-w-full">
         <div className="h-56 animate-pulse" />
@@ -162,8 +248,72 @@ export function DispatchStage({
   const next = MILESTONES[step + 1];
   const checklist = (details?.checklist ?? {}) as Record<string, boolean>;
 
+  if (!identity)
+    return (
+      <IdentityGate
+        employees={employees}
+        defaultName={author}
+        onVerified={(verified) => {
+          saveIdentity(verified);
+          setIdentity(verified);
+          onAuthor(fullName(verified));
+        }}
+      />
+    );
+
+  const signedIn = (
+    <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
+      <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 py-1 pl-1 pr-3 font-medium text-emerald-800">
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-emerald-500 text-white">
+          <Check className="h-3.5 w-3.5" strokeWidth={3} />
+        </span>
+        {fullName(identity)} · {identity.email}
+      </span>
+      <button
+        type="button"
+        onClick={signOut}
+        className="font-semibold text-primary hover:underline"
+      >
+        Not you?
+      </button>
+    </div>
+  );
+
+  if (wizard) {
+    const lastSerial =
+      [...reports].reverse().find((report) => report.panel_serial)?.panel_serial ?? "";
+    return (
+      <div className="mx-auto w-full max-w-[80vw] space-y-4 max-lg:max-w-full">
+        {signedIn}
+        <PdiWizard
+          key={wizard.key}
+          orderId={orderId}
+          identity={identity}
+          report={wizard.report}
+          defaults={{ customer: order?.customerName ?? "", project: order?.projectNumber ?? "" }}
+          previousSerial={lastSerial}
+          readinessDate={order?.readinessDate ?? ""}
+          onReadinessToday={() => {
+            updateOrder(orderId, { readinessDate: todayIso() });
+            toast.success("Readiness date set to today");
+          }}
+          onClose={() => setWizard(null)}
+          onSaved={upsertReport}
+          onAnother={() => setWizard({ key: Date.now(), report: null })}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-[80vw] space-y-6 max-lg:max-w-full">
+      {signedIn}
+      <PdiReports
+        reports={reports}
+        onStart={() => setWizard({ key: Date.now(), report: null })}
+        onContinue={(report) => setWizard({ key: Date.now(), report })}
+        onDelete={(report) => void deleteReport(report)}
+      />
       {!planned ? (
         <motion.section
           initial={{ opacity: 0, y: 24 }}
