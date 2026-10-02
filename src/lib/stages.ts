@@ -25,7 +25,7 @@ export type Stage = {
 
 // Stages that have their own page, keyed by URL slug.
 export const STAGE_PAGES = {
-  design: { name: "Design", summary: "SLD drawing, remarks and progress" },
+  design: { name: "Design", summary: "Design documents, BOM, remarks and progress" },
   fabrication: { name: "Fabrication", summary: "Fabrication status, updates and remarks" },
   procurement: {
     name: "Material Procurement",
@@ -37,7 +37,7 @@ export const STAGE_PAGES = {
     name: "Inspection",
     summary: "Client inspection visits, witnessed tests, minutes and outcome",
   },
-  dispatch: { name: "Dispatch", summary: "Packing, transport, documents and delivery" },
+  dispatch: { name: "Dispatch", summary: "Pre-dispatch inspection, packing, transport and delivery" },
 } as const;
 export type StagePageSlug = keyof typeof STAGE_PAGES;
 // Remembers the order last opened on a stage page, for the sidebar stage links.

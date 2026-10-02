@@ -13,6 +13,7 @@ import {
   CircleDot,
   Download,
   ExternalLink,
+  FilePlus2,
   FileText,
   History,
   LoaderCircle,
@@ -30,6 +31,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { STAGE_STATUSES, type Stage, type StageStatus } from "@/lib/stages";
 import { PdfFirstPage } from "@/components/PdfFirstPage";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -50,6 +52,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { BomPanel } from "./BomPanel";
+import {
   EASE,
   formatSize,
   formatStamp,
@@ -64,11 +75,13 @@ import {
 export const BUCKET = "inward-order-attachments";
 
 type UpdateRow = Database["public"]["Tables"]["stage_updates"]["Row"];
-type StageUpdate = {
+export type StageUpdate = {
   id: string;
-  kind: "update" | "sld";
+  kind: "update" | "sld" | "bom";
   author: string;
   remarks: string;
+  title: string;
+  documentId?: string;
   status?: StageStatus;
   fileName?: string;
   storagePath?: string;
@@ -80,9 +93,11 @@ type StageUpdate = {
 function mapUpdate(row: UpdateRow): StageUpdate {
   return {
     id: row.id,
-    kind: row.kind === "sld" ? "sld" : "update",
+    kind: row.kind === "sld" || row.kind === "bom" ? row.kind : "update",
     author: row.author,
     remarks: row.remarks,
+    title: row.title ?? "",
+    documentId: row.document_id ?? undefined,
     status: (row.status as StageStatus | null) ?? undefined,
     fileName: row.file_name ?? undefined,
     storagePath: row.storage_path ?? undefined,
@@ -91,6 +106,38 @@ function mapUpdate(row: UpdateRow): StageUpdate {
     createdAt: row.created_at,
   };
 }
+
+// Drawings uploaded before documents had titles share this key and read as one document.
+const LEGACY_DOCUMENT = "legacy";
+const BOM_GROUP = "bom";
+
+export type DesignDocument = {
+  id: string;
+  title: string;
+  // Oldest first, so the index is the revision number.
+  revisions: StageUpdate[];
+};
+
+function groupKey(update: StageUpdate) {
+  if (update.kind === "bom") return BOM_GROUP;
+  return update.documentId ?? LEGACY_DOCUMENT;
+}
+
+function isPdf(update: { fileName?: string; contentType?: string }) {
+  return (
+    update.contentType === "application/pdf" ||
+    Boolean(update.fileName?.toLowerCase().endsWith(".pdf"))
+  );
+}
+
+const TITLE_SUGGESTIONS = [
+  "Single Line Diagram",
+  "GA Drawing",
+  "Wiring Diagram",
+  "Control Schematic",
+  "Panel Layout",
+  "Cable Schedule",
+];
 
 export type StageBodyProps = {
   orderId: string;
@@ -103,8 +150,10 @@ export type StageBodyProps = {
   onAuthor: (name: string) => void;
 };
 
-// Design: the SLD drawing up top, then remarks and updates, newest first.
-// Stages without a drawing (Fabrication, Production) use the updates feed alone.
+type UploadIntent = { file: File; mode: "new" | "revision"; documentId?: string };
+
+// Design: the design documents (SLD and any others) and the BOM up top, then remarks and
+// updates, newest first. Stages without documents (Fabrication, Production) use the feed alone.
 export function DesignStage({
   orderId: id,
   slug,
@@ -120,6 +169,10 @@ export function DesignStage({
 }: StageBodyProps & { drawingLabel?: string; drawingTitle?: string; showDrawing?: boolean }) {
   const [loading, setLoading] = useState(true);
   const [updates, setUpdates] = useState<StageUpdate[]>([]);
+  const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
+  const [intent, setIntent] = useState<UploadIntent | null>(null);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [uploadedAt, setUploadedAt] = useState(0);
 
   const addUpdate = useCallback((update: StageUpdate) => {
     setUpdates((current) =>
@@ -182,17 +235,45 @@ export function DesignStage({
     };
   }, [id, slug, stageName, addUpdate]);
 
-  const drawings = useMemo(
+  // Revisions of every document and of the BOM, oldest first.
+  const groups = useMemo(() => {
+    const map = new Map<string, StageUpdate[]>();
+    for (const update of [...updates].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
+      if (update.kind === "update" || !update.storagePath) continue;
+      const key = groupKey(update);
+      map.set(key, [...(map.get(key) ?? []), update]);
+    }
+    return map;
+  }, [updates]);
+
+  const documents = useMemo<DesignDocument[]>(
     () =>
-      updates
-        .filter((item) => item.kind === "sld" && item.storagePath)
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-    [updates],
+      [...groups.entries()]
+        .filter(([key]) => key !== BOM_GROUP)
+        .map(([key, revisions]) => ({
+          id: key,
+          title:
+            revisions.find((item) => item.title)?.title ||
+            (key === LEGACY_DOCUMENT ? drawingTitle || drawingLabel : "Document"),
+          revisions,
+        }))
+        .sort((a, b) => a.revisions[0].createdAt.localeCompare(b.revisions[0].createdAt)),
+    [groups, drawingTitle, drawingLabel],
   );
-  const currentDrawing = drawings.at(-1);
+  const bomRevisions = groups.get(BOM_GROUP) ?? [];
+  const currentDoc = documents.find((doc) => doc.id === selectedDoc) ?? documents[0];
+
   const revisionOf = useCallback(
-    (update: StageUpdate) => drawings.findIndex((item) => item.id === update.id),
-    [drawings],
+    (update: StageUpdate) =>
+      (groups.get(groupKey(update)) ?? []).findIndex((item) => item.id === update.id),
+    [groups],
+  );
+  const titleOf = useCallback(
+    (update: StageUpdate) =>
+      update.kind === "bom"
+        ? "BOM"
+        : (documents.find((doc) => doc.id === groupKey(update))?.title ?? drawingLabel),
+    [documents, drawingLabel],
   );
 
   async function uploadFile(file: File, folder: string) {
@@ -220,35 +301,67 @@ export function DesignStage({
     return update;
   }
 
-  async function uploadDrawing(file: File, remarks = "") {
-    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-    if (!isPdf) {
-      toast.error(`${drawingLabel} must be a PDF file`);
-      return false;
-    }
-    const storagePath = await uploadFile(file, "drawings");
+  // Stores a file as a new document, a new revision of one, or a BOM revision.
+  async function saveFile(
+    file: File,
+    values: { kind: "sld" | "bom"; title: string; documentId: string | null; remarks: string },
+  ) {
+    const storagePath = await uploadFile(file, values.kind === "bom" ? "bom" : "drawings");
     if (!storagePath) {
       toast.error(`Could not upload ${file.name}`);
-      return false;
+      return null;
     }
     const startsStage = stage?.status === "not started";
+    const rowId = crypto.randomUUID();
     const update = await insertUpdate({
-      kind: "sld",
+      id: rowId,
+      kind: values.kind,
       author,
-      remarks,
+      remarks: values.remarks,
+      title: values.title,
+      // A new document is identified by its first revision.
+      document_id: values.documentId ?? (values.kind === "sld" ? rowId : null),
       file_name: file.name,
       storage_path: storagePath,
-      content_type: "application/pdf",
+      content_type:
+        file.type || (file.name.toLowerCase().endsWith(".pdf") ? "application/pdf" : null),
       file_size: file.size,
       status: startsStage ? "in progress" : null,
     });
     if (!update) {
       await supabase.storage.from(BUCKET).remove([storagePath]);
       toast.error(`Could not save ${file.name}`);
-      return false;
+      return null;
     }
     if (startsStage) await setStageStatus("in progress");
-    toast.success(`${drawingLabel} R${drawings.length} uploaded`);
+    return update;
+  }
+
+  async function uploadDocument(values: {
+    file: File;
+    mode: "new" | "revision";
+    documentId?: string;
+    title: string;
+    remarks: string;
+  }) {
+    const doc = documents.find((item) => item.id === values.documentId);
+    setUploading(values.file.name);
+    const update = await saveFile(values.file, {
+      kind: "sld",
+      title: values.mode === "new" ? values.title : (doc?.title ?? values.title),
+      documentId: values.mode === "revision" && doc && doc.id !== LEGACY_DOCUMENT ? doc.id : null,
+      remarks: values.remarks,
+    });
+    setUploading(null);
+    if (!update) return false;
+    const key = groupKey(update);
+    setSelectedDoc(key);
+    setUploadedAt(Date.now());
+    toast.success(
+      values.mode === "new"
+        ? `${values.title} uploaded`
+        : `${doc?.title ?? drawingLabel} R${doc?.revisions.length ?? 0} uploaded`,
+    );
     return true;
   }
 
@@ -313,23 +426,69 @@ export function DesignStage({
   return (
     <>
       {showDrawing && (
-        <motion.section
-          initial={{ opacity: 0, y: 24, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.6, ease: EASE, delay: 0.08 }}
-          className="mx-auto w-full max-w-[80vw] max-lg:max-w-full"
-        >
-          <DrawingPanel
-            label={drawingLabel}
-            title={drawingTitle}
-            loading={loading}
-            drawing={currentDrawing}
-            revision={currentDrawing ? drawings.length - 1 : 0}
-            onUpload={uploadDrawing}
-            onOpen={(update) => void openFile(update, false)}
-            onDownload={(update) => void openFile(update, true)}
+        <>
+          <motion.section
+            initial={{ opacity: 0, y: 24, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.6, ease: EASE, delay: 0.08 }}
+            className="mx-auto w-full max-w-[80vw] max-lg:max-w-full"
+          >
+            <DocumentsPanel
+              label={drawingLabel}
+              title={drawingTitle}
+              loading={loading}
+              documents={documents}
+              current={currentDoc}
+              onSelect={setSelectedDoc}
+              uploading={uploading}
+              uploadedAt={uploadedAt}
+              onPick={setIntent}
+              onOpen={(update) => void openFile(update, false)}
+              onDownload={(update) => void openFile(update, true)}
+            />
+          </motion.section>
+
+          <motion.section
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: EASE, delay: 0.12 }}
+            className="mx-auto mt-8 w-full max-w-[80vw] max-lg:max-w-full"
+          >
+            <BomPanel
+              orderId={id}
+              author={author}
+              employees={employees}
+              onAuthor={onAuthor}
+              loading={loading}
+              revisions={bomRevisions}
+              onSaveFile={(file, remarks) =>
+                saveFile(file, {
+                  kind: "bom",
+                  title: "Bill of Materials",
+                  documentId: null,
+                  remarks,
+                })
+              }
+              onOpen={(update) => void openFile(update, false)}
+              onDownload={(update) => void openFile(update, true)}
+            />
+          </motion.section>
+
+          <DocumentUploadDialog
+            key={intent ? `${intent.file.name}-${intent.mode}-${intent.documentId}` : "closed"}
+            intent={intent}
+            documents={documents}
+            author={author}
+            employees={employees}
+            onAuthor={onAuthor}
+            onClose={() => setIntent(null)}
+            onSubmit={async (values) => {
+              const ok = await uploadDocument(values);
+              if (ok) setIntent(null);
+              return ok;
+            }}
           />
-        </motion.section>
+        </>
       )}
 
       <div
@@ -346,6 +505,7 @@ export function DesignStage({
             employees={employees}
             onAuthor={onAuthor}
             currentStatus={stage?.status}
+            allowFiles={!showDrawing}
             onPost={postUpdate}
           />
         </motion.div>
@@ -360,6 +520,7 @@ export function DesignStage({
             updates={updates}
             drawingLabel={showDrawing ? drawingLabel : ""}
             revisionOf={revisionOf}
+            titleOf={titleOf}
             onOpen={(update) => void openFile(update, false)}
             onDownload={(update) => void openFile(update, true)}
             onDelete={deleteUpdate}
@@ -370,37 +531,53 @@ export function DesignStage({
   );
 }
 
-function DrawingPanel({
+function DocumentsPanel({
   label,
   title,
   loading,
-  drawing,
-  revision,
-  onUpload,
+  documents,
+  current,
+  onSelect,
+  uploading,
+  uploadedAt,
+  onPick,
   onOpen,
   onDownload,
 }: {
   label: string;
   title: string;
   loading: boolean;
-  drawing?: StageUpdate;
-  revision: number;
-  onUpload: (file: File) => Promise<boolean>;
+  documents: DesignDocument[];
+  current?: DesignDocument;
+  onSelect: (id: string) => void;
+  uploading: string | null;
+  uploadedAt: number;
+  onPick: (intent: UploadIntent) => void;
   onOpen: (update: StageUpdate) => void;
   onDownload: (update: StageUpdate) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const pendingMode = useRef<"new" | "revision">("new");
   const [dragging, setDragging] = useState(false);
-  const [uploading, setUploading] = useState<string | null>(null);
   const [justUploaded, setJustUploaded] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [pageCount, setPageCount] = useState<number | null>(null);
+  const drawing = current?.revisions.at(-1);
+  const revision = current ? current.revisions.length - 1 : 0;
+  const previewable = drawing ? isPdf(drawing) : false;
+
+  useEffect(() => {
+    if (!uploadedAt) return;
+    setJustUploaded(true);
+    const timer = window.setTimeout(() => setJustUploaded(false), 1600);
+    return () => window.clearTimeout(timer);
+  }, [uploadedAt]);
 
   useEffect(() => {
     let active = true;
     setPreviewUrl(null);
     setPageCount(null);
-    if (!drawing?.storagePath) return;
+    if (!drawing?.storagePath || !isPdf(drawing)) return;
     void supabase.storage
       .from(BUCKET)
       .createSignedUrl(drawing.storagePath, 60 * 60)
@@ -410,19 +587,22 @@ function DrawingPanel({
     return () => {
       active = false;
     };
-  }, [drawing?.storagePath]);
+  }, [drawing]);
 
-  async function handle(files: FileList | null) {
+  function choose(mode: "new" | "revision") {
+    pendingMode.current = mode;
+    inputRef.current?.click();
+  }
+
+  function handle(files: FileList | null, mode = pendingMode.current) {
     const file = files?.[0];
-    if (!file || uploading) return;
-    setUploading(file.name);
-    const ok = await onUpload(file);
-    setUploading(null);
     if (inputRef.current) inputRef.current.value = "";
-    if (ok) {
-      setJustUploaded(true);
-      window.setTimeout(() => setJustUploaded(false), 1600);
-    }
+    if (!file || uploading) return;
+    onPick({
+      file,
+      mode: current ? mode : "new",
+      documentId: current?.id,
+    });
   }
 
   const dragProps = {
@@ -436,7 +616,7 @@ function DrawingPanel({
     onDrop: (event: DragEvent) => {
       event.preventDefault();
       setDragging(false);
-      void handle(event.dataTransfer.files);
+      handle(event.dataTransfer.files, "revision");
     },
   };
 
@@ -448,10 +628,46 @@ function DrawingPanel({
       <input
         ref={inputRef}
         type="file"
-        accept="application/pdf,.pdf"
         className="hidden"
-        onChange={(event) => void handle(event.target.files)}
+        onChange={(event) => handle(event.target.files)}
       />
+
+      {documents.length > 0 && (
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1" role="tablist">
+            {documents.map((doc) => {
+              const active = doc.id === current?.id;
+              return (
+                <button
+                  key={doc.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => onSelect(doc.id)}
+                  className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-all ${active ? "neo-pressed text-primary" : "neo-pop text-foreground hover:text-primary"}`}
+                >
+                  <FileText className="h-4 w-4 shrink-0" />
+                  <span className="max-w-[220px] truncate font-semibold">{doc.title}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}
+                  >
+                    R{doc.revisions.length - 1}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0"
+            onClick={() => choose("new")}
+            disabled={Boolean(uploading)}
+          >
+            <FilePlus2 /> <span className="hidden sm:inline">Add document</span>
+          </Button>
+        </div>
+      )}
 
       <div className="relative h-[40vh] min-h-[280px] overflow-hidden rounded-2xl neo-inset">
         <AnimatePresence mode="wait">
@@ -463,7 +679,7 @@ function DrawingPanel({
             >
               <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
             </motion.div>
-          ) : drawing && previewUrl ? (
+          ) : drawing && previewable && previewUrl ? (
             <motion.div
               key={drawing.id}
               initial={{ opacity: 0, scale: 1.03 }}
@@ -474,7 +690,7 @@ function DrawingPanel({
             >
               <PdfFirstPage url={previewUrl} onRendered={setPageCount} />
             </motion.div>
-          ) : drawing ? (
+          ) : drawing && previewable ? (
             <motion.div
               key="signing"
               exit={{ opacity: 0 }}
@@ -482,11 +698,29 @@ function DrawingPanel({
             >
               <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
             </motion.div>
+          ) : drawing ? (
+            <motion.div
+              key={`file-${drawing.id}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex h-full flex-col items-center justify-center gap-3 text-center"
+            >
+              <span className="neo-pop grid h-20 w-20 place-items-center rounded-3xl text-primary">
+                <FileText className="h-9 w-9" />
+              </span>
+              <div className="max-w-sm truncate px-4 font-semibold text-foreground">
+                {drawing.fileName}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Preview is shown for PDF files. Open or download to view this file.
+              </div>
+            </motion.div>
           ) : (
             <motion.button
               key="empty"
               type="button"
-              onClick={() => inputRef.current?.click()}
+              onClick={() => choose("new")}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -501,14 +735,15 @@ function DrawingPanel({
               </motion.span>
               <span>
                 <span className="block text-xl font-bold text-foreground sm:text-2xl">
-                  Upload {label} PDF
+                  Upload design documents
                 </span>
                 <span className="mt-1 block text-sm text-muted-foreground">
-                  {title} · click or drop a PDF here · the first page is shown
+                  {title ? `${title} (${label}) and any other drawings` : "Drawings and documents"}{" "}
+                  · click or drop a file · give each one a title
                 </span>
               </span>
               <span className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-chart-2 px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition-all duration-300 group-hover/upload:-translate-y-0.5 group-hover/upload:shadow-xl group-hover/upload:shadow-primary/40">
-                <UploadCloud className="h-4 w-4" /> Choose {label}
+                <UploadCloud className="h-4 w-4" /> Choose file
               </span>
             </motion.button>
           )}
@@ -518,12 +753,12 @@ function DrawingPanel({
           <div className="pointer-events-none absolute inset-0 flex items-end justify-center bg-gradient-to-t from-foreground/35 via-transparent to-transparent p-4 opacity-0 transition-opacity duration-300 group-hover/panel:pointer-events-auto group-hover/panel:opacity-100 group-focus-within/panel:pointer-events-auto group-focus-within/panel:opacity-100">
             <div className="flex translate-y-3 flex-wrap justify-center gap-2 transition-transform duration-300 group-hover/panel:translate-y-0">
               <Button size="sm" variant="secondary" onClick={() => onOpen(drawing)}>
-                <ExternalLink /> Open full PDF
+                <ExternalLink /> Open {previewable ? "full PDF" : "file"}
               </Button>
               <Button size="sm" variant="secondary" onClick={() => onDownload(drawing)}>
                 <Download /> Download
               </Button>
-              <Button size="sm" onClick={() => inputRef.current?.click()}>
+              <Button size="sm" onClick={() => choose("revision")}>
                 <RefreshCw /> Upload new revision
               </Button>
             </div>
@@ -544,7 +779,7 @@ function DrawingPanel({
                 className="neo-surface flex items-center gap-3 rounded-2xl px-6 py-4 text-base font-semibold text-primary"
               >
                 <UploadCloud className="h-6 w-6" /> Drop to upload{" "}
-                {drawing ? "a new revision" : label}
+                {drawing ? "a new revision or document" : "a document"}
               </motion.div>
             </motion.div>
           )}
@@ -553,10 +788,10 @@ function DrawingPanel({
         </AnimatePresence>
       </div>
 
-      {drawing && (
+      {drawing && current && (
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-sm">
           <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-            {label} · R{revision}
+            {current.title} · R{revision}
           </span>
           <span className="flex min-w-0 items-center gap-2 font-medium text-foreground">
             <FileText className="h-4 w-4 shrink-0 text-primary" />
@@ -572,18 +807,231 @@ function DrawingPanel({
               .filter(Boolean)
               .join(" · ")}
           </span>
-          <Button
-            size="sm"
-            variant="outline"
-            className="ml-auto"
-            onClick={() => inputRef.current?.click()}
-            disabled={Boolean(uploading)}
-          >
-            <RefreshCw /> New revision
-          </Button>
+          {current.revisions.length > 1 && (
+            <span className="flex items-center gap-1" aria-label="Earlier revisions">
+              {current.revisions.slice(0, -1).map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onOpen(item)}
+                  title={`Open R${index}${item.remarks ? `: ${item.remarks}` : ""}`}
+                  className="rounded-full px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                >
+                  R{index}
+                </button>
+              ))}
+            </span>
+          )}
+          <div className="ml-auto flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => choose("revision")}
+              disabled={Boolean(uploading)}
+            >
+              <RefreshCw /> New revision
+            </Button>
+          </div>
         </div>
       )}
+      {drawing?.remarks && current && current.revisions.length > 1 && (
+        <p className="mt-2 px-1 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">R{revision} change:</span>{" "}
+          {drawing.remarks}
+        </p>
+      )}
     </div>
+  );
+}
+
+// A new document needs a title; a new revision of an existing one needs a remark on what changed.
+function DocumentUploadDialog({
+  intent,
+  documents,
+  author,
+  employees,
+  onAuthor,
+  onClose,
+  onSubmit,
+}: {
+  intent: UploadIntent | null;
+  documents: DesignDocument[];
+  author: string;
+  employees: string[];
+  onAuthor: (name: string) => void;
+  onClose: () => void;
+  onSubmit: (values: {
+    file: File;
+    mode: "new" | "revision";
+    documentId?: string;
+    title: string;
+    remarks: string;
+  }) => Promise<boolean>;
+}) {
+  const [mode, setMode] = useState<"new" | "revision">(intent?.mode ?? "new");
+  const [documentId, setDocumentId] = useState(intent?.documentId ?? documents[0]?.id ?? "");
+  const [title, setTitle] = useState("");
+  const [remarks, setRemarks] = useState("");
+  const [saving, setSaving] = useState(false);
+  const existingTitles = new Set(documents.map((doc) => doc.title.toLowerCase()));
+  const titleTaken = mode === "new" && existingTitles.has(title.trim().toLowerCase());
+  const doc = documents.find((item) => item.id === documentId);
+  const valid =
+    Boolean(author) &&
+    (mode === "new" ? Boolean(title.trim()) && !titleTaken : Boolean(doc && remarks.trim()));
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!intent || !valid || saving) return;
+    setSaving(true);
+    await onSubmit({
+      file: intent.file,
+      mode,
+      documentId: mode === "revision" ? documentId : undefined,
+      title: title.trim(),
+      remarks: mode === "revision" ? remarks.trim() : "",
+    });
+    setSaving(false);
+  }
+
+  return (
+    <Dialog open={Boolean(intent)} onOpenChange={(open) => !open && !saving && onClose()}>
+      <DialogContent className="max-w-lg">
+        <form onSubmit={submit} className="space-y-5">
+          <DialogHeader>
+            <DialogTitle>{mode === "new" ? "Add a document" : "Upload a new revision"}</DialogTitle>
+            <DialogDescription>
+              {mode === "new"
+                ? "Give the document a title. It gets its own tab and revision history."
+                : "Say what changed. The remark is saved with this revision."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {intent && (
+            <div className="neo-inset flex items-center gap-3 rounded-xl px-3 py-2.5">
+              <Paperclip className="h-4 w-4 shrink-0 text-primary" />
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                {intent.file.name}
+              </span>
+              <span className="text-xs text-muted-foreground">{formatSize(intent.file.size)}</span>
+            </div>
+          )}
+
+          {documents.length > 0 && (
+            <div className="neo-inset grid grid-cols-2 gap-1 rounded-xl p-1" role="radiogroup">
+              {(["revision", "new"] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === value}
+                  onClick={() => setMode(value)}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition-all ${mode === value ? "neo-pop text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {value === "revision" ? "New revision" : "New document"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {mode === "new" ? (
+            <div className="space-y-2">
+              <Label htmlFor="doc-title" className="text-xs font-semibold text-primary">
+                Document title <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="doc-title"
+                autoFocus
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="e.g. Single Line Diagram, GA Drawing"
+                aria-invalid={titleTaken}
+              />
+              {titleTaken && (
+                <p className="text-xs text-destructive">
+                  A document with this title exists. Upload a new revision of it instead.
+                </p>
+              )}
+              <div className="flex flex-wrap gap-1.5">
+                {TITLE_SUGGESTIONS.filter((item) => !existingTitles.has(item.toLowerCase())).map(
+                  (item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setTitle(item)}
+                      className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                    >
+                      {item}
+                    </button>
+                  ),
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-primary">Document</Label>
+                <Select value={documentId} onValueChange={setDocumentId}>
+                  <SelectTrigger aria-label="Document">
+                    <SelectValue placeholder="Choose the document" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {documents.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.title} · now R{item.revisions.length - 1}, this becomes R
+                        {item.revisions.length}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="rev-remarks" className="text-xs font-semibold text-primary">
+                  What changed? <span className="text-destructive">*</span>
+                </Label>
+                <Textarea
+                  id="rev-remarks"
+                  autoFocus
+                  rows={3}
+                  value={remarks}
+                  onChange={(event) => setRemarks(event.target.value)}
+                  placeholder="e.g. Client comments incorporated, incomer rating changed to 630A"
+                />
+              </div>
+            </>
+          )}
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-primary">Uploaded by</Label>
+            <Select value={author || undefined} onValueChange={onAuthor}>
+              <SelectTrigger
+                aria-label="Uploaded by"
+                className={author ? "" : "ring-2 ring-amber-300"}
+              >
+                <SelectValue placeholder="Select your name" />
+              </SelectTrigger>
+              <SelectContent>
+                {employees.map((name) => (
+                  <SelectItem key={name} value={name}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!valid || saving}>
+              {saving ? <LoaderCircle className="animate-spin" /> : <UploadCloud />}
+              {mode === "new" ? "Upload document" : `Upload R${doc?.revisions.length ?? 1}`}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -663,12 +1111,14 @@ function Composer({
   employees,
   onAuthor,
   currentStatus,
+  allowFiles = true,
   onPost,
 }: {
   author: string;
   employees: string[];
   onAuthor: (name: string) => void;
   currentStatus?: StageStatus;
+  allowFiles?: boolean;
   onPost: (values: { remarks: string; status?: StageStatus; file?: File }) => Promise<boolean>;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -704,7 +1154,11 @@ function Composer({
         </span>
         <div>
           <h2 className="text-lg font-semibold text-foreground">Post an update</h2>
-          <p className="text-xs text-muted-foreground">Remarks, status changes and files</p>
+          <p className="text-xs text-muted-foreground">
+            {allowFiles
+              ? "Remarks, status changes and files"
+              : "Remarks and status changes. Upload drawings and the BOM above."}
+          </p>
         </div>
       </div>
 
@@ -762,14 +1216,16 @@ function Composer({
         </Select>
       </div>
 
-      <input
-        ref={fileRef}
-        type="file"
-        className="hidden"
-        onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-      />
+      {allowFiles && (
+        <input
+          ref={fileRef}
+          type="file"
+          className="hidden"
+          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+        />
+      )}
       <AnimatePresence mode="wait" initial={false}>
-        {file ? (
+        {!allowFiles ? null : file ? (
           <motion.div
             key="file"
             initial={{ opacity: 0, y: 6 }}
@@ -831,6 +1287,7 @@ function Timeline({
   updates,
   drawingLabel,
   revisionOf,
+  titleOf,
   onOpen,
   onDownload,
   onDelete,
@@ -839,6 +1296,7 @@ function Timeline({
   updates: StageUpdate[];
   drawingLabel: string;
   revisionOf: (update: StageUpdate) => number;
+  titleOf: (update: StageUpdate) => string;
   onOpen: (update: StageUpdate) => void;
   onDownload: (update: StageUpdate) => void;
   onDelete: (update: StageUpdate) => Promise<void>;
@@ -876,7 +1334,7 @@ function Timeline({
           <div className="mt-3 font-semibold text-foreground">No updates yet</div>
           <div className="mt-1 max-w-xs text-sm text-muted-foreground">
             {drawingLabel
-              ? `Upload the ${drawingLabel} or post the first remark.`
+              ? "Upload a design document or the BOM, or post the first remark."
               : "Post the first update."}{" "}
             Every update will appear here, newest on top.
           </div>
@@ -902,8 +1360,8 @@ function Timeline({
                 <UpdateCard
                   update={update}
                   latest={index === 0}
-                  drawingLabel={drawingLabel}
-                  revision={update.kind === "sld" ? revisionOf(update) : -1}
+                  title={titleOf(update)}
+                  revision={update.kind === "update" ? -1 : revisionOf(update)}
                   onOpen={onOpen}
                   onDownload={onDownload}
                   onDelete={() => setPendingDelete(update)}
@@ -925,8 +1383,10 @@ function Timeline({
             <AlertDialogTitle>Delete this update?</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingDelete?.kind === "sld"
-                ? `This removes this ${drawingLabel} revision and its file. The previous revision becomes the current drawing.`
-                : "This removes the update and any attached file. The stage status is not changed."}
+                ? `This removes this ${pendingDelete ? titleOf(pendingDelete) : drawingLabel} revision and its file. The previous revision becomes the current one.`
+                : pendingDelete?.kind === "bom"
+                  ? "This removes this BOM revision and its file. Cards already in Material Procurement are kept."
+                  : "This removes the update and any attached file. The stage status is not changed."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -950,7 +1410,7 @@ function Timeline({
 function UpdateCard({
   update,
   latest,
-  drawingLabel,
+  title,
   revision,
   onOpen,
   onDownload,
@@ -958,13 +1418,13 @@ function UpdateCard({
 }: {
   update: StageUpdate;
   latest: boolean;
-  drawingLabel: string;
+  title: string;
   revision: number;
   onOpen: (update: StageUpdate) => void;
   onDownload: (update: StageUpdate) => void;
   onDelete: () => void;
 }) {
-  const isDrawing = update.kind === "sld";
+  const isDrawing = update.kind !== "update";
   return (
     <motion.article
       whileHover={{ y: -3 }}
@@ -997,9 +1457,7 @@ function UpdateCard({
           {isDrawing && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
               <UploadCloud className="h-3 w-3" />
-              {revision > 0
-                ? `${drawingLabel} revised · R${revision}`
-                : `${drawingLabel} uploaded · R0`}
+              {revision > 0 ? `${title} revised · R${revision}` : `${title} uploaded · R0`}
             </span>
           )}
           {update.status && (
