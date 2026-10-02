@@ -71,6 +71,8 @@ const DEFAULTS: Record<string, () => Row> = {
     storage_path: null,
     content_type: null,
     file_size: 0,
+    title: "",
+    document_id: null,
   }),
   procurement_items: () => ({
     category: "",
@@ -169,6 +171,21 @@ const DEFAULTS: Record<string, () => Row> = {
     delivery_remarks: "",
     checklist: {},
     notes: "",
+  }),
+  pdi_reports: () => ({
+    status: "draft",
+    inspector_name: "",
+    inspector_email: "",
+    email_verified_at: null,
+    customer_name: "",
+    project_number: "",
+    panel_serial: "",
+    panel_name: "",
+    panel_category: "electrical",
+    responses: {},
+    remarks: "",
+    declared: false,
+    submitted_at: null,
   }),
 };
 // Tables keyed by the order instead of an id.
