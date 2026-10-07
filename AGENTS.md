@@ -7,3 +7,5 @@
 > - Never commit the Supabase secret key or database password. Function secrets are set with
 >   `npx supabase secrets set`.
 > - Packages are managed with npm (`package-lock.json`).
+> - Every table is recorded in `audit_log` (admin-only Activity log). A migration that creates
+>   a new table must end with `SELECT public.audit_enable('public.<table>');`.

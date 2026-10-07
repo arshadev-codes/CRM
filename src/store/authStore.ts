@@ -243,7 +243,9 @@ export const useAuthStore = create<AuthStore>()(
                 : "Wrong username or password.";
             }
             writeRemember(remember);
-            return loadSignedIn(data.user.id);
+            const failed = await loadSignedIn(data.user.id);
+            if (!failed) void cloud.rpc("log_event", { event: "Signed in" });
+            return failed;
           }
           const user = get().localUsers.find((u) => u.username === normalise(username));
           if (!user || (await sha256(user.salt + ":" + password)) !== user.passwordHash) {
@@ -266,7 +268,10 @@ export const useAuthStore = create<AuthStore>()(
         },
 
         logout: async () => {
-          if (get().mode === "cloud") await cloud.auth.signOut().catch(() => undefined);
+          if (get().mode === "cloud") {
+            await cloud.rpc("log_event", { event: "Signed out" });
+            await cloud.auth.signOut().catch(() => undefined);
+          }
           writeSession(null, false);
           set({ currentUserId: null, users: get().mode === "local" ? get().localUsers : [] });
         },

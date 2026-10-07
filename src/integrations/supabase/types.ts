@@ -39,6 +39,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string
+          at: string
+          changes: Json
+          id: number
+          label: string
+          order_id: string | null
+          record_id: string | null
+          table_name: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string
+          at?: string
+          changes?: Json
+          id?: never
+          label?: string
+          order_id?: string | null
+          record_id?: string | null
+          table_name: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string
+          at?: string
+          changes?: Json
+          id?: never
+          label?: string
+          order_id?: string | null
+          record_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
       dcc_registry: {
         Row: {
           dcc: string
@@ -1068,6 +1107,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      audit_diff: {
+        Args: { a: Json; b: Json; nested?: boolean }
+        Returns: Json
+      }
+      audit_enable: { Args: { t: unknown }; Returns: undefined }
+      audit_merge: { Args: { newer: Json; older: Json }; Returns: Json }
       auth_setup_needed: { Args: never; Returns: boolean }
       can_view: { Args: { p: string }; Returns: boolean }
       has_perm: { Args: { p: string }; Returns: boolean }
@@ -1082,6 +1127,7 @@ export type Database = {
         }
         Returns: string
       }
+      log_event: { Args: { details?: Json; event: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

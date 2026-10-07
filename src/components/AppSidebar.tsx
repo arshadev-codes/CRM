@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Boxes, FileSpreadsheet, LayoutGrid, ShieldCheck, Users } from "lucide-react";
+import { Boxes, FileSpreadsheet, History, LayoutGrid, ShieldCheck, Users } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarSeparator, useSidebar,
@@ -163,8 +163,13 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/admin")} tooltip="Users & access">
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/admin/users")} tooltip="Users & access">
                     <Link to="/admin/users"><ShieldCheck className="h-4 w-4" />{!collapsed && <span>Users &amp; access</span>}</Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/admin/activity")} tooltip="Activity log">
+                    <Link to="/admin/activity"><History className="h-4 w-4" />{!collapsed && <span>Activity log</span>}</Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>

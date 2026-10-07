@@ -17,6 +17,10 @@ import { UserMenu } from "@/components/auth/UserMenu";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useAuthMode, useAuthStore, useCurrentUser } from "@/store/authStore";
 import { Home, RotateCcw } from "lucide-react";
+import { freshStart } from "@/lib/freshStart";
+
+// Runs before any page renders, so no page sees the old database's leftovers.
+freshStart();
 
 
 function NotFoundComponent() {

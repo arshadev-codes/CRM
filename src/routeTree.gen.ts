@@ -34,6 +34,7 @@ import { Route as PrintIdRouteImport } from './routes/print.$id'
 import { Route as InwardOrdersIdRouteImport } from './routes/inward-orders.$id'
 import { Route as EmployeesIdRouteImport } from './routes/employees.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminActivityRouteImport } from './routes/admin.activity'
 import { Route as ProjectsIdWizardRouteImport } from './routes/projects.$id.wizard'
 import { Route as ProjectsIdPreviewRouteImport } from './routes/projects.$id.preview'
 import { Route as PrintMomSessionIdRouteImport } from './routes/print.mom.$sessionId'
@@ -164,6 +165,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminActivityRoute = AdminActivityRouteImport.update({
+  id: '/admin/activity',
+  path: '/admin/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectsIdWizardRoute = ProjectsIdWizardRouteImport.update({
   id: '/projects/$id/wizard',
   path: '/projects/$id/wizard',
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
+  '/admin/activity': typeof AdminActivityRoute
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
@@ -221,6 +228,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
+  '/admin/activity': typeof AdminActivityRoute
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
@@ -253,6 +261,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
+  '/admin/activity': typeof AdminActivityRoute
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
@@ -286,6 +295,7 @@ export interface FileRouteTypes {
     | '/'
     | '/inventory'
     | '/login'
+    | '/admin/activity'
     | '/admin/users'
     | '/employees/$id'
     | '/inward-orders/$id'
@@ -317,6 +327,7 @@ export interface FileRouteTypes {
     | '/'
     | '/inventory'
     | '/login'
+    | '/admin/activity'
     | '/admin/users'
     | '/employees/$id'
     | '/inward-orders/$id'
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/'
     | '/inventory'
     | '/login'
+    | '/admin/activity'
     | '/admin/users'
     | '/employees/$id'
     | '/inward-orders/$id'
@@ -380,6 +392,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   InventoryRoute: typeof InventoryRoute
   LoginRoute: typeof LoginRoute
+  AdminActivityRoute: typeof AdminActivityRoute
   AdminUsersRoute: typeof AdminUsersRoute
   EmployeesIdRoute: typeof EmployeesIdRoute
   InwardOrdersIdRoute: typeof InwardOrdersIdRoute
@@ -585,6 +598,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/activity': {
+      id: '/admin/activity'
+      path: '/admin/activity'
+      fullPath: '/admin/activity'
+      preLoaderRoute: typeof AdminActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/projects/$id/wizard': {
       id: '/projects/$id/wizard'
       path: '/projects/$id/wizard'
@@ -620,6 +640,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   InventoryRoute: InventoryRoute,
   LoginRoute: LoginRoute,
+  AdminActivityRoute: AdminActivityRoute,
   AdminUsersRoute: AdminUsersRoute,
   EmployeesIdRoute: EmployeesIdRoute,
   InwardOrdersIdRoute: InwardOrdersIdRoute,
