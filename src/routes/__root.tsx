@@ -15,7 +15,7 @@ import { DemoModeBadge } from "@/components/DemoModeBadge";
 import { QuotationNav } from "@/components/QuotationNav";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { useAuthMode, useAuthStore, useCurrentUser } from "@/store/authStore";
+import { isFieldUser, useAuthMode, useAuthStore, useCurrentUser } from "@/store/authStore";
 import { Home, RotateCcw } from "lucide-react";
 import { freshStart } from "@/lib/freshStart";
 
@@ -56,7 +56,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#4f46e5" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "Electrosoft" },
       { title: "Electrosoft Proposal Engine" },
       { name: "description", content: "Data-driven techno-commercial proposal builder for transformer testing systems." },
       { property: "og:title", content: "Electrosoft Proposal Engine" },
@@ -74,6 +78,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
       },
       { rel: "stylesheet", href: appCss },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", type: "image/png", href: "/icons/favicon-48.png" },
+      { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -93,13 +100,23 @@ function RootComponent() {
   const pathname = useRouterState({ select: r => r.location.pathname });
   const isPrint = pathname.startsWith("/print/");
   const isLogin = pathname === "/login";
+  // The phone app for field staff: full-screen, no sidebar.
+  const isApp = pathname === "/my" || pathname.startsWith("/my/");
   const isQuotation = pathname === "/" || pathname.startsWith("/projects/") || pathname.startsWith("/settings");
   const user = useCurrentUser();
   const authMode = useAuthMode();
   const navigate = Route.useNavigate();
   useEffect(() => {
     void useAuthStore.getState().init();
+    if ("serviceWorker" in navigator && import.meta.env.PROD) {
+      navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    }
   }, []);
+  // Field staff only use the app; the office website is not theirs.
+  const fieldOnly = Boolean(user && isFieldUser(user)) && !isApp && !isLogin && !isPrint;
+  useEffect(() => {
+    if (fieldOnly) navigate({ to: "/my", replace: true });
+  }, [fieldOnly, navigate]);
   // Wait until we know who is signed in before sending anyone to the login page.
   const needsLogin = authMode !== "checking" && !user && !isPrint && !isLogin;
   useEffect(() => {
@@ -108,10 +125,10 @@ function RootComponent() {
       navigate({ to: "/login", search: { redirect: href === "/" ? undefined : href }, replace: true });
     }
   }, [needsLogin, navigate]);
-  if (needsLogin || (authMode === "checking" && !isPrint)) return null;
+  if (needsLogin || fieldOnly || (authMode === "checking" && !isPrint)) return null;
   return (
     <QueryClientProvider client={queryClient}>
-      {isPrint || isLogin ? <><Outlet /><Toaster /></> : (
+      {isPrint || isLogin || isApp ? <><Outlet /><Toaster position={isApp ? "top-center" : undefined} /></> : (
         <SidebarProvider>
           <RouteProgress />
           <div className="h-svh flex w-full overflow-hidden">

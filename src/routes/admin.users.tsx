@@ -18,7 +18,9 @@ import {
   useAuthMode, useAuthStore, useCurrentUser, type AppUser, type UserInput,
 } from "@/store/authStore";
 import { useProposalStore } from "@/store/proposalStore";
-import { PERMISSION_GROUPS, permissionLabel, type Permission } from "@/lib/permissions";
+import {
+  PERMISSION_GROUPS, permissionLabel, VIEW_PERMISSIONS, viewLabel, type Permission,
+} from "@/lib/permissions";
 
 export const Route = createFileRoute("/admin/users")({
   head: () => ({ meta: [{ title: "Users & access — Electrosoft Proposal Engine" }] }),
@@ -31,6 +33,7 @@ const EMPTY: UserInput = {
   password: "",
   isAdmin: false,
   permissions: [],
+  viewPermissions: ["view_all"],
   active: true,
 };
 
@@ -77,7 +80,8 @@ function UsersPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-800">Users &amp; access</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Everyone signed in can see everything. Tick what each person is allowed to change.
+            Tick what each person can see and change. Field staff (no "All orders") see only
+            their own orders, panels and tasks, in the phone app.
           </p>
         </div>
         <Button onClick={() => setEditing("new")} className="rounded-xl">
@@ -144,14 +148,30 @@ function UsersPage() {
                 <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700">
                   <ShieldCheck className="h-3 w-3" /> Admin · full access
                 </span>
-              ) : u.permissions.length === 0 ? (
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">View only</span>
               ) : (
-                u.permissions.map((p) => (
-                  <span key={p} className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
-                    {permissionLabel(p)}
-                  </span>
-                ))
+                <>
+                  {!u.viewPermissions.includes("view_all") && (
+                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+                      Field · own work only
+                    </span>
+                  )}
+                  {u.viewPermissions
+                    .filter((v) => v !== "view_all")
+                    .map((v) => (
+                      <span key={v} className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                        Sees {viewLabel(v).toLowerCase()}
+                      </span>
+                    ))}
+                  {u.permissions.length === 0 ? (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">View only</span>
+                  ) : (
+                    u.permissions.map((p) => (
+                      <span key={p} className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700">
+                        {permissionLabel(p)}
+                      </span>
+                    ))
+                  )}
+                </>
               )}
             </div>
 
@@ -201,6 +221,9 @@ function UserDialog({ user, onClose }: { user: AppUser | null; onClose: () => vo
   const set = (patch: Partial<UserInput>) => setForm((f) => ({ ...f, ...patch }));
   const toggle = (p: Permission, on: boolean) =>
     set({ permissions: on ? [...form.permissions, p] : form.permissions.filter((x) => x !== p) });
+  const views = form.viewPermissions ?? [];
+  const toggleView = (v: string, on: boolean) =>
+    set({ viewPermissions: on ? [...views, v] : views.filter((x) => x !== v) });
 
   async function save() {
     setSaving(true);
@@ -265,7 +288,31 @@ function UserDialog({ user, onClose }: { user: AppUser | null; onClose: () => vo
         </div>
 
         {!form.isAdmin && (
+          <div>
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Can see</div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {VIEW_PERMISSIONS.map((item) => {
+                const on = views.includes(item.key);
+                return (
+                  <label
+                    key={item.key}
+                    className={`flex cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 transition-colors ${on ? "bg-emerald-50 ring-1 ring-emerald-200" : "bg-slate-50/70 hover:bg-slate-100/70"}`}
+                  >
+                    <Checkbox checked={on} onCheckedChange={(v) => toggleView(item.key, v === true)} className="mt-0.5" />
+                    <span>
+                      <span className="block text-sm font-medium text-slate-800">{item.label}</span>
+                      <span className="block text-xs text-slate-500">{item.hint}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {!form.isAdmin && (
           <div className="space-y-4">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Can change</div>
             {PERMISSION_GROUPS.map((group) => (
               <div key={group.title}>
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{group.title}</div>

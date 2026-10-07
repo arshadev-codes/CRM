@@ -387,6 +387,21 @@ export function useAuthMode(): AuthMode {
   return useAuthStore((s) => s.mode);
 }
 
+/** Field staff: no "All orders" view, so they use the phone app and see only their work. */
+export function isFieldUser(user: AppUser | null): boolean {
+  return !!user && !user.isAdmin && !user.viewPermissions.includes("view_all");
+}
+
+/** Admins and office staff see everything; others need the tick. */
+export function canSee(user: AppUser | null, view: string): boolean {
+  return (
+    !!user &&
+    (user.isAdmin ||
+      user.viewPermissions.includes("view_all") ||
+      user.viewPermissions.includes(view))
+  );
+}
+
 export function userCan(user: AppUser | null, perm: Permission): boolean {
   return !!user && (user.isAdmin || user.permissions.includes(perm));
 }

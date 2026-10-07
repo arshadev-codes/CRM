@@ -77,3 +77,29 @@ export const STAGE_PERMISSION: Record<string, Permission> = {
   inspection: "inspection",
   dispatch: "dispatch",
 };
+
+// What a person can see. Office staff get "view_all"; field staff see only their own
+// orders, panels and tasks, plus what is ticked here. The database enforces the same rules.
+export type ViewPermission = "view_all" | "view_design" | "view_equipment";
+
+export const VIEW_PERMISSIONS: { key: ViewPermission; label: string; hint: string }[] = [
+  {
+    key: "view_all",
+    label: "All orders (office)",
+    hint: "Sees every order and the full website. Untick for field staff.",
+  },
+  {
+    key: "view_design",
+    label: "Drawings & design",
+    hint: "SLD, drawings and design documents of their orders",
+  },
+  {
+    key: "view_equipment",
+    label: "Equipment & instruments",
+    hint: "Material of their panels and when it will be available",
+  },
+];
+
+export function viewLabel(key: string): string {
+  return VIEW_PERMISSIONS.find((v) => v.key === key)?.label ?? key;
+}

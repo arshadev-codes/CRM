@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as MyIndexRouteImport } from './routes/my.index'
 import { Route as InwardOrdersIndexRouteImport } from './routes/inward-orders.index'
 import { Route as EmployeesIndexRouteImport } from './routes/employees.index'
 import { Route as StagesStageRouteImport } from './routes/stages.$stage'
@@ -31,6 +32,7 @@ import { Route as SettingsDeliveryRouteImport } from './routes/settings.delivery
 import { Route as SettingsConnectionsRouteImport } from './routes/settings.connections'
 import { Route as SettingsCompaniesRouteImport } from './routes/settings.companies'
 import { Route as PrintIdRouteImport } from './routes/print.$id'
+import { Route as MyOrderIdRouteImport } from './routes/my.$orderId'
 import { Route as InwardOrdersIdRouteImport } from './routes/inward-orders.$id'
 import { Route as EmployeesIdRouteImport } from './routes/employees.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
@@ -58,6 +60,11 @@ const IndexRoute = IndexRouteImport.update({
 const SettingsIndexRoute = SettingsIndexRouteImport.update({
   id: '/settings/',
   path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyIndexRoute = MyIndexRouteImport.update({
+  id: '/my/',
+  path: '/my/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InwardOrdersIndexRoute = InwardOrdersIndexRouteImport.update({
@@ -150,6 +157,11 @@ const PrintIdRoute = PrintIdRouteImport.update({
   path: '/print/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MyOrderIdRoute = MyOrderIdRouteImport.update({
+  id: '/my/$orderId',
+  path: '/my/$orderId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InwardOrdersIdRoute = InwardOrdersIdRouteImport.update({
   id: '/inward-orders/$id',
   path: '/inward-orders/$id',
@@ -200,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
+  '/my/$orderId': typeof MyOrderIdRoute
   '/print/$id': typeof PrintIdRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -218,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/stages/$stage': typeof StagesStageRoute
   '/employees/': typeof EmployeesIndexRoute
   '/inward-orders/': typeof InwardOrdersIndexRoute
+  '/my/': typeof MyIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/print/mom/$sessionId': typeof PrintMomSessionIdRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
@@ -232,6 +246,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
+  '/my/$orderId': typeof MyOrderIdRoute
   '/print/$id': typeof PrintIdRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -250,6 +265,7 @@ export interface FileRoutesByTo {
   '/stages/$stage': typeof StagesStageRoute
   '/employees': typeof EmployeesIndexRoute
   '/inward-orders': typeof InwardOrdersIndexRoute
+  '/my': typeof MyIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/print/mom/$sessionId': typeof PrintMomSessionIdRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
@@ -265,6 +281,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
+  '/my/$orderId': typeof MyOrderIdRoute
   '/print/$id': typeof PrintIdRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -283,6 +300,7 @@ export interface FileRoutesById {
   '/stages/$stage': typeof StagesStageRoute
   '/employees/': typeof EmployeesIndexRoute
   '/inward-orders/': typeof InwardOrdersIndexRoute
+  '/my/': typeof MyIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/print/mom/$sessionId': typeof PrintMomSessionIdRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
@@ -299,6 +317,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/employees/$id'
     | '/inward-orders/$id'
+    | '/my/$orderId'
     | '/print/$id'
     | '/settings/companies'
     | '/settings/connections'
@@ -317,6 +336,7 @@ export interface FileRouteTypes {
     | '/stages/$stage'
     | '/employees/'
     | '/inward-orders/'
+    | '/my/'
     | '/settings/'
     | '/print/mom/$sessionId'
     | '/projects/$id/preview'
@@ -331,6 +351,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/employees/$id'
     | '/inward-orders/$id'
+    | '/my/$orderId'
     | '/print/$id'
     | '/settings/companies'
     | '/settings/connections'
@@ -349,6 +370,7 @@ export interface FileRouteTypes {
     | '/stages/$stage'
     | '/employees'
     | '/inward-orders'
+    | '/my'
     | '/settings'
     | '/print/mom/$sessionId'
     | '/projects/$id/preview'
@@ -363,6 +385,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/employees/$id'
     | '/inward-orders/$id'
+    | '/my/$orderId'
     | '/print/$id'
     | '/settings/companies'
     | '/settings/connections'
@@ -381,6 +404,7 @@ export interface FileRouteTypes {
     | '/stages/$stage'
     | '/employees/'
     | '/inward-orders/'
+    | '/my/'
     | '/settings/'
     | '/print/mom/$sessionId'
     | '/projects/$id/preview'
@@ -396,6 +420,7 @@ export interface RootRouteChildren {
   AdminUsersRoute: typeof AdminUsersRoute
   EmployeesIdRoute: typeof EmployeesIdRoute
   InwardOrdersIdRoute: typeof InwardOrdersIdRoute
+  MyOrderIdRoute: typeof MyOrderIdRoute
   PrintIdRoute: typeof PrintIdRoute
   SettingsCompaniesRoute: typeof SettingsCompaniesRoute
   SettingsConnectionsRoute: typeof SettingsConnectionsRoute
@@ -414,6 +439,7 @@ export interface RootRouteChildren {
   StagesStageRoute: typeof StagesStageRoute
   EmployeesIndexRoute: typeof EmployeesIndexRoute
   InwardOrdersIndexRoute: typeof InwardOrdersIndexRoute
+  MyIndexRoute: typeof MyIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   PrintMomSessionIdRoute: typeof PrintMomSessionIdRoute
   ProjectsIdPreviewRoute: typeof ProjectsIdPreviewRoute
@@ -449,6 +475,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings/'
       preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my/': {
+      id: '/my/'
+      path: '/my'
+      fullPath: '/my/'
+      preLoaderRoute: typeof MyIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inward-orders/': {
@@ -577,6 +610,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrintIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/my/$orderId': {
+      id: '/my/$orderId'
+      path: '/my/$orderId'
+      fullPath: '/my/$orderId'
+      preLoaderRoute: typeof MyOrderIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/inward-orders/$id': {
       id: '/inward-orders/$id'
       path: '/inward-orders/$id'
@@ -644,6 +684,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminUsersRoute: AdminUsersRoute,
   EmployeesIdRoute: EmployeesIdRoute,
   InwardOrdersIdRoute: InwardOrdersIdRoute,
+  MyOrderIdRoute: MyOrderIdRoute,
   PrintIdRoute: PrintIdRoute,
   SettingsCompaniesRoute: SettingsCompaniesRoute,
   SettingsConnectionsRoute: SettingsConnectionsRoute,
@@ -662,6 +703,7 @@ const rootRouteChildren: RootRouteChildren = {
   StagesStageRoute: StagesStageRoute,
   EmployeesIndexRoute: EmployeesIndexRoute,
   InwardOrdersIndexRoute: InwardOrdersIndexRoute,
+  MyIndexRoute: MyIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   PrintMomSessionIdRoute: PrintMomSessionIdRoute,
   ProjectsIdPreviewRoute: ProjectsIdPreviewRoute,
