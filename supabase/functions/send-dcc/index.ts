@@ -52,6 +52,17 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // Only signed-in, active staff may send.
+  const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  const { data: caller } = token ? await db.auth.getUser(token) : { data: { user: null } };
+  if (!caller?.user) return reply({ error: "Please sign in again." }, 401);
+  const { data: staff } = await db
+    .from("profiles")
+    .select("active")
+    .eq("id", caller.user.id)
+    .maybeSingle();
+  if (!staff?.active) return reply({ error: "Your account can't send email." }, 403);
   const { data: entry } = await db
     .from("dcc_registry")
     .select("dcc, pdi_report_id")

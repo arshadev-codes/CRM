@@ -19,7 +19,7 @@ export default defineConfig(({ command }) => ({
       },
     }),
     ...(command === "build"
-      ? [nitro({ preset: "cloudflare-module", cloudflare: { nodeCompat: true, deployConfig: true } })]
+      ? [nitro({ preset: "cloudflare-module", cloudflare: { nodeCompat: true, deployConfig: true, wrangler: { name: "electrosoft-crm" } } })]
       : []),
     viteReact(),
   ],
