@@ -518,6 +518,42 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string
+          created_at: string
+          dedupe_key: string
+          id: string
+          kind: string
+          link: string
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          kind?: string
+          link?: string
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          dedupe_key?: string
+          id?: string
+          kind?: string
+          link?: string
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pdi_reports: {
         Row: {
           created_at: string
@@ -937,6 +973,36 @@ export type Database = {
           },
         ]
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_agent: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_agent?: string
+          user_id?: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_agent?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       qa_sessions: {
         Row: {
           client_attendees: Json
@@ -1133,7 +1199,11 @@ export type Database = {
       audit_enable: { Args: { t: unknown }; Returns: undefined }
       audit_merge: { Args: { newer: Json; older: Json }; Returns: Json }
       auth_setup_needed: { Args: never; Returns: boolean }
+      can_edit: { Args: { perms: string[] }; Returns: boolean }
+      can_edit_any: { Args: never; Returns: boolean }
+      can_read_order: { Args: { o: string }; Returns: boolean }
       can_view: { Args: { p: string }; Returns: boolean }
+      full_view: { Args: never; Returns: boolean }
       has_perm: { Args: { p: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
@@ -1147,6 +1217,31 @@ export type Database = {
         Returns: string
       }
       log_event: { Args: { details?: Json; event: string }; Returns: undefined }
+      my_name: { Args: never; Returns: string }
+      my_order_ids: { Args: never; Returns: string[] }
+      my_panel_ids: { Args: never; Returns: string[] }
+      notify_user: {
+        Args: {
+          p_body: string
+          p_key: string
+          p_kind: string
+          p_link: string
+          p_title: string
+          p_user: string
+          p_window?: string
+        }
+        Returns: undefined
+      }
+      order_people: { Args: { p_order: string }; Returns: string[] }
+      save_push_subscription: {
+        Args: {
+          p_agent: string
+          p_auth: string
+          p_endpoint: string
+          p_p256dh: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

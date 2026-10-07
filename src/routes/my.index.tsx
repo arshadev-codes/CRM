@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { CalendarClock, ChevronRight, ClipboardList, LayoutList, RefreshCw } from "lucide-react";
 import { AppHeader } from "@/components/app/AppHeader";
+import { AppNotifications } from "@/components/app/AppNotifications";
 import { loadMyWork, type MyOrder } from "@/lib/myWork";
 import { isLate, taskPercent } from "@/lib/production";
 import { todayIso } from "@/lib/procurement";
@@ -51,6 +52,8 @@ function MyWorkPage() {
       />
 
       <div className="mx-auto max-w-xl space-y-4 px-4 py-4">
+        {user && <AppNotifications userId={user.id} />}
+
         <div className="grid grid-cols-3 gap-2">
           <Stat label="Orders" value={orders?.length ?? "–"} />
           <Stat label="Open tasks" value={orders ? openTasks : "–"} />

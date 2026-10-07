@@ -6,3 +6,7 @@ verify_jwt = false
 [functions.admin-users]
 # Checks the caller itself (first-time setup has no session yet).
 verify_jwt = false
+
+[functions.push-send]
+# Called by the database with a shared secret, not a user token.
+verify_jwt = false

@@ -108,7 +108,7 @@ function RootComponent() {
   const navigate = Route.useNavigate();
   useEffect(() => {
     void useAuthStore.getState().init();
-    if ("serviceWorker" in navigator && import.meta.env.PROD) {
+    if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => undefined);
     }
   }, []);

@@ -244,7 +244,10 @@ export const useAuthStore = create<AuthStore>()(
             }
             writeRemember(remember);
             const failed = await loadSignedIn(data.user.id);
-            if (!failed) void cloud.rpc("log_event", { event: "Signed in" });
+            if (!failed) {
+              void cloud.rpc("log_event", { event: "Signed in" });
+              void import("@/lib/push").then((m) => m.refreshPush()).catch(() => undefined);
+            }
             return failed;
           }
           const user = get().localUsers.find((u) => u.username === normalise(username));
@@ -269,6 +272,7 @@ export const useAuthStore = create<AuthStore>()(
 
         logout: async () => {
           if (get().mode === "cloud") {
+            await import("@/lib/push").then((m) => m.disablePush()).catch(() => undefined);
             await cloud.rpc("log_event", { event: "Signed out" });
             await cloud.auth.signOut().catch(() => undefined);
           }
