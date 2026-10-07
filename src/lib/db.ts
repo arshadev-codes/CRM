@@ -172,6 +172,30 @@ const DEFAULTS: Record<string, () => Row> = {
     checklist: {},
     notes: "",
   }),
+  fabrication_jobs: () => ({
+    phase: "fabrication",
+    description: "",
+    vendor: "",
+    contact: "",
+    given_by: "",
+    given_on: null,
+    expected_on: null,
+    received_on: null,
+    received_by: "",
+    remarks: "",
+    display_order: 0,
+  }),
+  production_panels: () => ({ panel_type: "", tag: "", quantity: 1, notes: "", display_order: 0 }),
+  production_tasks: () => ({
+    work: "",
+    assignees: [],
+    start_date: null,
+    end_date: null,
+    status: "pending",
+    completed_on: null,
+    remarks: "",
+    display_order: 0,
+  }),
   pdi_reports: () => ({
     status: "draft",
     inspector_name: "",
@@ -186,6 +210,8 @@ const DEFAULTS: Record<string, () => Row> = {
     remarks: "",
     declared: false,
     submitted_at: null,
+    dcc: null,
+    dcc_emailed_at: null,
   }),
 };
 // Tables keyed by the order instead of an id.
@@ -226,8 +252,16 @@ function newRow(table: string, values: Row): Row {
   };
 }
 function cascadeDelete(table: string, removed: Row[]) {
-  if (table !== "qa_sessions" || !removed.length) return;
+  if (!removed.length) return;
   const ids = new Set(removed.map((r) => r.id));
+  if (table === "production_panels") {
+    writeTable(
+      "production_tasks",
+      readTable("production_tasks").filter((t) => !ids.has(t.panel_id)),
+    );
+    return;
+  }
+  if (table !== "qa_sessions") return;
   writeTable(
     "mom_points",
     readTable("mom_points").filter((p) => !ids.has(p.session_id)),

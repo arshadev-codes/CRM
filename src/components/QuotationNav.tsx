@@ -19,7 +19,7 @@ const items = [
   { title: "Equipment", url: "/settings/equipment", icon: Boxes },
   { title: "Tests", url: "/settings/tests", icon: ListChecks },
   { title: "Connections (A/B/C)", url: "/settings/connections", icon: GitBranch },
-  { title: "Employees", url: "/settings/employees", icon: Users },
+  { title: "Quotation people", url: "/settings/employees", icon: Users },
   { title: "Companies", url: "/settings/companies", icon: Building2 },
 ] as const;
 

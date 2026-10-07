@@ -1,3 +1,4 @@
+import { EditLock, EditOnly } from "./stageAccess";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
@@ -295,6 +296,7 @@ function OutcomePanel({
           </p>
         </div>
       </div>
+      <EditLock>
       <div className="grid gap-3 sm:grid-cols-3">
         {(Object.keys(OUTCOME_META) as Exclude<Outcome, "">[]).map((key) => {
           const active = current === key;
@@ -327,7 +329,9 @@ function OutcomePanel({
           );
         })}
       </div>
+      </EditLock>
       <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto]">
+        <EditLock>
         <Textarea
           rows={2}
           value={remarks}
@@ -335,16 +339,19 @@ function OutcomePanel({
           onBlur={() => remarks !== (qa.outcome?.remarks ?? "") && void qa.saveOutcome({ remarks })}
           placeholder="Client's overall remarks, conditions of acceptance…"
         />
+        </EditLock>
         <div className="flex flex-wrap items-start gap-2">
           {qa.outcome?.report_name ? (
             <Button variant="outline" onClick={() => void openReport()}>
               <FileText /> <span className="max-w-[160px] truncate">{qa.outcome.report_name}</span>
             </Button>
           ) : null}
-          <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading}>
-            {uploading ? <LoaderCircle className="animate-spin" /> : <UploadCloud />}
-            {qa.outcome?.report_name ? "Replace report" : "Upload signed report"}
-          </Button>
+          <EditOnly>
+            <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading}>
+              {uploading ? <LoaderCircle className="animate-spin" /> : <UploadCloud />}
+              {qa.outcome?.report_name ? "Replace report" : "Upload signed report"}
+            </Button>
+          </EditOnly>
         </div>
       </div>
       {qa.outcome?.decided_by && current && (
@@ -369,9 +376,11 @@ function OutcomePanel({
                   Finish inspection and plan the dispatch.
                 </div>
               </div>
-              <Button variant="secondary" onClick={onFinish}>
-                <Check /> Finish &amp; plan dispatch
-              </Button>
+              <EditOnly>
+                <Button variant="secondary" onClick={onFinish}>
+                  <Check /> Finish &amp; plan dispatch
+                </Button>
+              </EditOnly>
             </div>
           </motion.div>
         )}
@@ -452,6 +461,7 @@ function WitnessRow({ test, index, qa }: { test: TestItem; index: number; qa: Qa
       transition={{ delay: Math.min(index, 14) * 0.025 }}
       className={`rounded-2xl p-3 shadow-sm ${tone}`}
     >
+      <EditLock>
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-foreground">{test.title}</div>
@@ -489,6 +499,7 @@ function WitnessRow({ test, index, qa }: { test: TestItem; index: number; qa: Qa
           className="mt-2 h-8 text-xs"
         />
       )}
+      </EditLock>
     </motion.div>
   );
 }

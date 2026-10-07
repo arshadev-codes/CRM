@@ -1,3 +1,6 @@
+import { useProposalStore } from "@/store/proposalStore";
+import { notify } from "@/store/notificationStore";
+import { EditOnly, useStageCanEdit } from "./stageAccess";
 import {
   useCallback,
   useEffect,
@@ -357,11 +360,19 @@ export function DesignStage({
     const key = groupKey(update);
     setSelectedDoc(key);
     setUploadedAt(Date.now());
-    toast.success(
+    const what =
       values.mode === "new"
         ? `${values.title} uploaded`
-        : `${doc?.title ?? drawingLabel} R${doc?.revisions.length ?? 0} uploaded`,
-    );
+        : `${doc?.title ?? drawingLabel} R${doc?.revisions.length ?? 0} uploaded`;
+    toast.success(what);
+    const order = useProposalStore.getState().inwardOrders.find((o) => o.id === id);
+    notify({
+      kind: "design",
+      title: values.mode === "new" ? "New design document" : "Design changed",
+      body: `${order?.projectNumber ?? "Order"}: ${what}${values.remarks ? `. ${values.remarks}` : ""}${author ? ` (by ${author})` : ""}`,
+      link: `/inward-orders/${id}/stages/design`,
+      audience: ["production", "fabrication", "bom"],
+    });
     return true;
   }
 
@@ -500,14 +511,23 @@ export function DesignStage({
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.55, ease: EASE, delay: 0.16 }}
         >
-          <Composer
-            author={author}
-            employees={employees}
-            onAuthor={onAuthor}
-            currentStatus={stage?.status}
-            allowFiles={!showDrawing}
-            onPost={postUpdate}
-          />
+          <EditOnly
+            fallback={
+              <div className="neo-surface rounded-3xl p-6 text-sm text-muted-foreground">
+                <div className="font-semibold text-foreground">Updates are view only</div>
+                <p className="mt-1">Your account can see this stage's remarks and updates but can't post new ones.</p>
+              </div>
+            }
+          >
+            <Composer
+              author={author}
+              employees={employees}
+              onAuthor={onAuthor}
+              currentStatus={stage?.status}
+              allowFiles={!showDrawing}
+              onPost={postUpdate}
+            />
+          </EditOnly>
         </motion.div>
         <motion.div
           className="min-w-0"
@@ -556,6 +576,7 @@ function DocumentsPanel({
   onOpen: (update: StageUpdate) => void;
   onDownload: (update: StageUpdate) => void;
 }) {
+  const canEdit = useStageCanEdit();
   const inputRef = useRef<HTMLInputElement>(null);
   const pendingMode = useRef<"new" | "revision">("new");
   const [dragging, setDragging] = useState(false);
@@ -590,6 +611,7 @@ function DocumentsPanel({
   }, [drawing]);
 
   function choose(mode: "new" | "revision") {
+    if (!canEdit) return;
     pendingMode.current = mode;
     inputRef.current?.click();
   }
@@ -597,7 +619,7 @@ function DocumentsPanel({
   function handle(files: FileList | null, mode = pendingMode.current) {
     const file = files?.[0];
     if (inputRef.current) inputRef.current.value = "";
-    if (!file || uploading) return;
+    if (!file || uploading || !canEdit) return;
     onPick({
       file,
       mode: current ? mode : "new",
@@ -657,15 +679,17 @@ function DocumentsPanel({
               );
             })}
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="shrink-0"
-            onClick={() => choose("new")}
-            disabled={Boolean(uploading)}
-          >
-            <FilePlus2 /> <span className="hidden sm:inline">Add document</span>
-          </Button>
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0"
+              onClick={() => choose("new")}
+              disabled={Boolean(uploading)}
+            >
+              <FilePlus2 /> <span className="hidden sm:inline">Add document</span>
+            </Button>
+          )}
         </div>
       )}
 
@@ -716,6 +740,20 @@ function DocumentsPanel({
                 Preview is shown for PDF files. Open or download to view this file.
               </div>
             </motion.div>
+          ) : !canEdit ? (
+            <motion.div
+              key="empty-view"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex h-full flex-col items-center justify-center gap-3 text-center"
+            >
+              <span className="neo-pop grid h-20 w-20 place-items-center rounded-3xl text-muted-foreground">
+                <FileText className="h-9 w-9" />
+              </span>
+              <span className="font-semibold text-foreground">No design documents yet</span>
+              <span className="text-xs text-muted-foreground">They will show here once the designer uploads them.</span>
+            </motion.div>
           ) : (
             <motion.button
               key="empty"
@@ -758,9 +796,11 @@ function DocumentsPanel({
               <Button size="sm" variant="secondary" onClick={() => onDownload(drawing)}>
                 <Download /> Download
               </Button>
-              <Button size="sm" onClick={() => choose("revision")}>
-                <RefreshCw /> Upload new revision
-              </Button>
+              {canEdit && (
+                <Button size="sm" onClick={() => choose("revision")}>
+                  <RefreshCw /> Upload new revision
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -822,16 +862,18 @@ function DocumentsPanel({
               ))}
             </span>
           )}
-          <div className="ml-auto flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => choose("revision")}
-              disabled={Boolean(uploading)}
-            >
-              <RefreshCw /> New revision
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="ml-auto flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => choose("revision")}
+                disabled={Boolean(uploading)}
+              >
+                <RefreshCw /> New revision
+              </Button>
+            </div>
+          )}
         </div>
       )}
       {drawing?.remarks && current && current.revisions.length > 1 && (
@@ -1441,15 +1483,17 @@ function UpdateCard({
             Latest
           </span>
         )}
-        <button
-          type="button"
-          aria-label="Delete update"
-          title="Delete update"
-          onClick={onDelete}
-          className="ml-auto rounded-full p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover/card:opacity-100"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <EditOnly>
+          <button
+            type="button"
+            aria-label="Delete update"
+            title="Delete update"
+            onClick={onDelete}
+            className="ml-auto rounded-full p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover/card:opacity-100"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </EditOnly>
       </div>
 
       {(isDrawing || update.status) && (

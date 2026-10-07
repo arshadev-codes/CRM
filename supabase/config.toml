@@ -1,1 +1,8 @@
-project_id = "nnsaxowlltpgbvxnxfxj"
+project_id = "tagqvhhnnwmgjrqkjylj"
+[functions.send-dcc]
+# The app calls with the publishable key, which is not a JWT.
+verify_jwt = false
+
+[functions.admin-users]
+# Checks the caller itself (first-time setup has no session yet).
+verify_jwt = false

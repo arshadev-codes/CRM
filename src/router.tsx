@@ -9,7 +9,10 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
+    // Start loading a page's code when a link is hovered or focused, so clicks open instantly.
+    defaultPreload: "intent",
     defaultPreloadStaleTime: 0,
+    defaultPendingMs: 150,
   });
 
   return router;

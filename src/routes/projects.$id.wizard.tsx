@@ -5,7 +5,8 @@ import { useProposalStore } from "@/store/proposalStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { ChevronLeft, ChevronRight, Save, Eye, Printer, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Eye, Printer, RefreshCw, Lock } from "lucide-react";
+import { useCan } from "@/store/authStore";
 import {
   Step1ProjectSetup, Step2Tests, Step3Subsystems, Step3bSystemLayout, Step4InstrumentsEquipment,
   Step5Proprietary, Step6Delivery, Step7ExclusionsMakes, StepPricing, Step8Payment, Step9Review,
@@ -39,6 +40,7 @@ function Wizard() {
   const reviseProject = useProposalStore(s => s.reviseProject);
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
+  const canQuote = useCan("quotation");
 
   // Only the wizard steps this project was created with (customized proposals
   // can drop steps); order follows the saved layout.
@@ -53,6 +55,19 @@ function Wizard() {
     <div className="p-8 text-center">
       <p>Project not found.</p>
       <Link to="/" className="text-blue-700 underline">Back to dashboard</Link>
+    </div>
+  );
+
+  if (!canQuote) return (
+    <div className="grid min-h-[60vh] place-items-center p-6">
+      <div className="neo-surface max-w-sm rounded-3xl p-10 text-center">
+        <Lock className="mx-auto h-10 w-10 text-slate-400" />
+        <h1 className="mt-4 text-lg font-bold text-slate-800">Quotations are view only for you</h1>
+        <p className="mt-1 text-sm text-slate-500">Your account can see this quotation but can't edit it.</p>
+        <Button asChild className="mt-6">
+          <Link to="/projects/$id/preview" params={{ id: project.id }}><Eye className="h-4 w-4 mr-1" />Open preview</Link>
+        </Button>
+      </div>
     </div>
   );
 

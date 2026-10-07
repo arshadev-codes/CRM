@@ -1,10 +1,9 @@
-<!-- LOVABLE:BEGIN -->
 > [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
+> This project is no longer connected to Lovable. It uses its own Supabase project
+> (`tagqvhhnnwmgjrqkjylj`, see `.env` and `supabase/config.toml`).
 >
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
+> - Database changes go in `supabase/migrations/` and are applied with `npx supabase db push`.
+> - Edge Functions live in `supabase/functions/` and deploy with `npx supabase functions deploy <name>`.
+> - Never commit the Supabase secret key or database password. Function secrets are set with
+>   `npx supabase secrets set`.
+> - Packages are managed with npm (`package-lock.json`).

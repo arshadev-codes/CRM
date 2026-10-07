@@ -1,12 +1,8 @@
-import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { supabase as cloud } from "@/integrations/supabase/client";
 
-// Publishable key + URL — safe to ship in the browser bundle.
-const SUPABASE_URL = "https://cxvdlpnmzgbunukcsynr.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_rWicahob0oBLRGxalCOVmg_moNppUG5";
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+// Quotations (the "projects" table) use the same database as the rest of the app.
+export const supabase = cloud as unknown as SupabaseClient;
 
 export interface ProjectRow {
   id: string;

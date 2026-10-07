@@ -147,9 +147,11 @@ export function ProgressRing({ value, caption }: { value: number; caption: strin
 export function StatusPicker({
   status,
   onChange,
+  readOnly = false,
 }: {
   status?: StageStatus;
   onChange: (status: StageStatus) => void;
+  readOnly?: boolean;
 }) {
   return (
     <div className="neo-surface flex items-center gap-3 rounded-2xl px-4 py-2.5">
@@ -159,7 +161,7 @@ export function StatusPicker({
       <Select
         value={status}
         onValueChange={(value) => onChange(value as StageStatus)}
-        disabled={!status}
+        disabled={!status || readOnly}
       >
         <SelectTrigger className="h-9 w-[150px]" aria-label="Stage status">
           <SelectValue placeholder="—" />

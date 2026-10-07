@@ -10,10 +10,68 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.18"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
+      dcc_registry: {
+        Row: {
+          dcc: string
+          email_error: string | null
+          emailed_at: string | null
+          inward_order_id: string | null
+          issued_at: string
+          panel_serial: string
+          pdi_report_id: string
+          project_number: string
+        }
+        Insert: {
+          dcc: string
+          email_error?: string | null
+          emailed_at?: string | null
+          inward_order_id?: string | null
+          issued_at?: string
+          panel_serial?: string
+          pdi_report_id: string
+          project_number?: string
+        }
+        Update: {
+          dcc?: string
+          email_error?: string | null
+          emailed_at?: string | null
+          inward_order_id?: string | null
+          issued_at?: string
+          panel_serial?: string
+          pdi_report_id?: string
+          project_number?: string
+        }
+        Relationships: []
+      }
       dispatch_details: {
         Row: {
           checklist: Json
@@ -116,6 +174,68 @@ export type Database = {
             foreignKeyName: "dispatch_details_inward_order_id_fkey"
             columns: ["inward_order_id"]
             isOneToOne: true
+            referencedRelation: "inward_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fabrication_jobs: {
+        Row: {
+          contact: string
+          created_at: string
+          description: string
+          display_order: number
+          expected_on: string | null
+          given_by: string
+          given_on: string | null
+          id: string
+          inward_order_id: string
+          phase: string
+          received_by: string
+          received_on: string | null
+          remarks: string
+          updated_at: string
+          vendor: string
+        }
+        Insert: {
+          contact?: string
+          created_at?: string
+          description?: string
+          display_order?: number
+          expected_on?: string | null
+          given_by?: string
+          given_on?: string | null
+          id?: string
+          inward_order_id: string
+          phase?: string
+          received_by?: string
+          received_on?: string | null
+          remarks?: string
+          updated_at?: string
+          vendor?: string
+        }
+        Update: {
+          contact?: string
+          created_at?: string
+          description?: string
+          display_order?: number
+          expected_on?: string | null
+          given_by?: string
+          given_on?: string | null
+          id?: string
+          inward_order_id?: string
+          phase?: string
+          received_by?: string
+          received_on?: string | null
+          remarks?: string
+          updated_at?: string
+          vendor?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fabrication_jobs_inward_order_id_fkey"
+            columns: ["inward_order_id"]
+            isOneToOne: false
             referencedRelation: "inward_orders"
             referencedColumns: ["id"]
           },
@@ -363,6 +483,8 @@ export type Database = {
         Row: {
           created_at: string
           customer_name: string
+          dcc: string | null
+          dcc_emailed_at: string | null
           declared: boolean
           email_verified_at: string | null
           id: string
@@ -382,6 +504,8 @@ export type Database = {
         Insert: {
           created_at?: string
           customer_name?: string
+          dcc?: string | null
+          dcc_emailed_at?: string | null
           declared?: boolean
           email_verified_at?: string | null
           id?: string
@@ -401,6 +525,8 @@ export type Database = {
         Update: {
           created_at?: string
           customer_name?: string
+          dcc?: string | null
+          dcc_emailed_at?: string | null
           declared?: boolean
           email_verified_at?: string | null
           id?: string
@@ -507,6 +633,152 @@ export type Database = {
           },
         ]
       }
+      production_panels: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          inward_order_id: string
+          notes: string
+          panel_type: string
+          quantity: number
+          tag: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          inward_order_id: string
+          notes?: string
+          panel_type?: string
+          quantity?: number
+          tag?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          inward_order_id?: string
+          notes?: string
+          panel_type?: string
+          quantity?: number
+          tag?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_panels_inward_order_id_fkey"
+            columns: ["inward_order_id"]
+            isOneToOne: false
+            referencedRelation: "inward_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_tasks: {
+        Row: {
+          assignees: Json
+          completed_on: string | null
+          created_at: string
+          display_order: number
+          end_date: string | null
+          id: string
+          inward_order_id: string
+          panel_id: string
+          remarks: string
+          start_date: string | null
+          status: string
+          updated_at: string
+          work: string
+        }
+        Insert: {
+          assignees?: Json
+          completed_on?: string | null
+          created_at?: string
+          display_order?: number
+          end_date?: string | null
+          id?: string
+          inward_order_id: string
+          panel_id: string
+          remarks?: string
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          work?: string
+        }
+        Update: {
+          assignees?: Json
+          completed_on?: string | null
+          created_at?: string
+          display_order?: number
+          end_date?: string | null
+          id?: string
+          inward_order_id?: string
+          panel_id?: string
+          remarks?: string
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          work?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_tasks_inward_order_id_fkey"
+            columns: ["inward_order_id"]
+            isOneToOne: false
+            referencedRelation: "inward_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_tasks_panel_id_fkey"
+            columns: ["panel_id"]
+            isOneToOne: false
+            referencedRelation: "production_panels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          active: boolean
+          created_at: string
+          employee_id: string | null
+          id: string
+          is_admin: boolean
+          name: string
+          permissions: string[]
+          updated_at: string
+          username: string
+          view_permissions: string[]
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          employee_id?: string | null
+          id: string
+          is_admin?: boolean
+          name?: string
+          permissions?: string[]
+          updated_at?: string
+          username: string
+          view_permissions?: string[]
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          is_admin?: boolean
+          name?: string
+          permissions?: string[]
+          updated_at?: string
+          username?: string
+          view_permissions?: string[]
+        }
+        Relationships: []
+      }
       project_stages: {
         Row: {
           assigned_to: string
@@ -550,6 +822,59 @@ export type Database = {
             columns: ["inward_order_id"]
             isOneToOne: false
             referencedRelation: "inward_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          company_short: string | null
+          created_at: string
+          data: Json
+          fy: string | null
+          id: string
+          name: string
+          offer_base: string | null
+          offer_seq: number | null
+          parent_id: string | null
+          revision: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_short?: string | null
+          created_at?: string
+          data: Json
+          fy?: string | null
+          id: string
+          name: string
+          offer_base?: string | null
+          offer_seq?: number | null
+          parent_id?: string | null
+          revision?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_short?: string | null
+          created_at?: string
+          data?: Json
+          fy?: string | null
+          id?: string
+          name?: string
+          offer_base?: string | null
+          offer_seq?: number | null
+          parent_id?: string | null
+          revision?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -743,7 +1068,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      auth_setup_needed: { Args: never; Returns: boolean }
+      can_view: { Args: { p: string }; Returns: boolean }
+      has_perm: { Args: { p: string }; Returns: boolean }
+      is_admin: { Args: never; Returns: boolean }
+      is_staff: { Args: never; Returns: boolean }
+      issue_dcc: {
+        Args: {
+          p_order_id: string
+          p_project?: string
+          p_report_id: string
+          p_serial?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
@@ -872,6 +1210,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

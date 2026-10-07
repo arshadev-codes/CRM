@@ -1,6 +1,11 @@
 import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
 import { employeesData } from "@/data/employeesData";
+import { useProposalStore } from "@/store/proposalStore";
+
+// Names come from the live list (people added in Settings), falling back to the seed.
+const personName = (id: string) =>
+  [...useProposalStore.getState().employees, ...employeesData].find(e => e.id === id)?.name ?? id;
 
 // Formats "2025-11-24" -> "24th November 2025"
 function formatOrdinalDate(iso: string): string {
@@ -28,8 +33,8 @@ function formatDottedDate(iso: string): string {
 
 export function RFQPdf({ project, pageNumber = 1 }: { project: Project; pageNumber?: number }) {
   const { customer, meta, transformer, systemType } = project.data;
-  const prep = employeesData.find(e => e.id === meta.preparedBy)?.name ?? meta.preparedBy;
-  const chk = employeesData.find(e => e.id === meta.checkedBy)?.name ?? meta.checkedBy;
+  const prep = personName(meta.preparedBy);
+  const chk = personName(meta.checkedBy);
   const subject = `Techno-commercial offer for ${transformer.rating} ${transformer.ratingUnit}, ${transformer.voltage}${transformer.voltageUnit} Transformer Testing System - ${systemType}`;
   const revisionNum = meta.revision.replace(/^R/i, "");
 

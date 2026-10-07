@@ -1,3 +1,4 @@
+import { EditOnly, useStageCanEdit } from "../stageAccess";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -121,9 +122,11 @@ export function SessionsBoard({
               : "Each client visit with who came and the minutes. Joint sessions also appear under Testing."}
           </p>
         </div>
-        <Button onClick={() => setEditing("new")}>
-          <CalendarPlus /> New session
-        </Button>
+        <EditOnly>
+          <Button onClick={() => setEditing("new")}>
+            <CalendarPlus /> New session
+          </Button>
+        </EditOnly>
       </div>
 
       {qa.loading ? (
@@ -345,15 +348,17 @@ function SessionCard({
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <div className="flex gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={onEdit}
-              aria-label="Edit session"
-            >
-              <Pencil />
-            </Button>
+            <EditOnly>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={onEdit}
+                aria-label="Edit session"
+              >
+                <Pencil />
+              </Button>
+            </EditOnly>
             <Button
               size="icon"
               variant="ghost"
@@ -446,9 +451,11 @@ function MomEditor({
             Minutes of meeting
           </div>
           {!adding && (
-            <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
-              <Plus /> Add point
-            </Button>
+            <EditOnly>
+              <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
+                <Plus /> Add point
+              </Button>
+            </EditOnly>
           )}
         </div>
         <div className="space-y-2">
@@ -624,6 +631,7 @@ function PointRow({
   employees: string[];
   sessionLabel?: string;
 }) {
+  const canEdit = useStageCanEdit();
   const [editing, setEditing] = useState(false);
   const meta = POINT_META[point.type];
   const closed = point.status === "closed";
@@ -660,6 +668,7 @@ function PointRow({
             closed_at: closed ? null : new Date().toISOString(),
           })
         }
+        disabled={!canEdit}
         aria-label={closed ? "Reopen point" : "Close point"}
         title={closed ? "Reopen" : "Mark as closed"}
         className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-all ${closed ? "border-emerald-500 bg-emerald-500 text-white" : "border-muted-foreground/30 hover:border-emerald-500 hover:bg-emerald-50"}`}
@@ -714,7 +723,7 @@ function PointRow({
           </div>
         )}
       </div>
-      <div className="flex shrink-0 flex-col gap-1 opacity-0 transition-opacity group-hover/point:opacity-100 focus-within:opacity-100">
+      <div className={`flex shrink-0 flex-col gap-1 opacity-0 transition-opacity group-hover/point:opacity-100 focus-within:opacity-100 ${canEdit ? "" : "hidden"}`}>
         <button
           type="button"
           aria-label="Edit point"

@@ -1,3 +1,4 @@
+import { EditLock, EditOnly, useStageCanEdit } from "./stageAccess";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -49,6 +50,7 @@ export function TestingStage({
   author,
   employees,
 }: StageBodyProps) {
+  const canEdit = useStageCanEdit();
   const qa = useQaData(orderId);
   const order = useProposalStore((s) => s.inwardOrders.find((o) => o.id === orderId));
   const project = useProposalStore((s) => s.projects.find((p) => p.id === order?.projectId));
@@ -213,6 +215,7 @@ export function TestingStage({
               </div>
               <Button
                 variant="secondary"
+                className={canEdit ? "" : "hidden"}
                 onClick={() =>
                   void setStageStatus("done").then(
                     (ok) => ok && toast.success("Testing marked done"),
@@ -244,7 +247,7 @@ export function TestingStage({
                 : "Click a status to update it."}
             </p>
           </div>
-          {missing.length > 0 && qa.tests.length > 0 && (
+          {canEdit && missing.length > 0 && qa.tests.length > 0 && (
             <Button variant="outline" onClick={() => void loadFromQuotation()}>
               <ListPlus /> Add {missing.length} from quotation
             </Button>
@@ -290,7 +293,9 @@ export function TestingStage({
                 </div>
               ))}
             </div>
-            <AddTest qa={qa} />
+            <EditOnly>
+              <AddTest qa={qa} />
+            </EditOnly>
           </>
         )}
       </motion.section>
@@ -398,6 +403,7 @@ function TestRow({
   employees: string[];
   onStatus: (status: TestStatus) => void;
 }) {
+  const canEdit = useStageCanEdit();
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState(test.notes);
   useEffect(() => setNotes(test.notes), [test.notes]);
@@ -461,6 +467,7 @@ function TestRow({
               role="radio"
               aria-checked={test.status === s}
               onClick={() => test.status !== s && onStatus(s)}
+              disabled={!canEdit && test.status !== s}
               className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all ${test.status === s ? `${TEST_STATUS_META[s].chip} shadow-sm ring-1 ring-black/5` : "text-muted-foreground hover:bg-white/80"}`}
             >
               {TEST_STATUS_META[s].label}
@@ -484,6 +491,7 @@ function TestRow({
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
+            <EditLock>
             <div className="grid gap-3 border-t border-border/40 p-4 sm:grid-cols-[1fr_200px_220px_auto]">
               <Textarea
                 rows={2}
@@ -535,6 +543,7 @@ function TestRow({
                 <Trash2 />
               </Button>
             </div>
+            </EditLock>
           </motion.div>
         )}
       </AnimatePresence>

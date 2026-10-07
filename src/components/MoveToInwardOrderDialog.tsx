@@ -1,3 +1,4 @@
+import { isWorkshopPerson } from "@/data/employeesData";
 import { useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -124,7 +125,7 @@ export function MoveToInwardOrderDialog({
                   placeholder="Name"
                 />
                 <datalist id="inward-supervisors">
-                  {employees.map((e) => <option key={e.id} value={e.name} />)}
+                  {employees.filter(isWorkshopPerson).map((e) => <option key={e.id} value={e.name} />)}
                 </datalist>
               </div>
               <div>

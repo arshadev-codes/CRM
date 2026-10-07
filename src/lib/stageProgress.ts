@@ -1,5 +1,7 @@
 import { supabase } from "@/lib/db";
 import { MILESTONES, OUTCOME_META, type Milestone, type Outcome } from "@/lib/qa";
+import { fabricationPercent } from "@/lib/fabrication";
+import { taskPercent, type TaskStatus } from "@/lib/production";
 import { STAGE_PAGES, type Stage, type StagePageSlug, type StageStatus } from "@/lib/stages";
 
 export type StageProgress = { percent: number; detail: string };
@@ -14,7 +16,7 @@ export async function loadStageProgress(
   orderId: string,
   stages: Stage[],
 ): Promise<Partial<Record<StagePageSlug, StageProgress>>> {
-  const [updates, items, tests, outcome, dispatch] = await Promise.all([
+  const [updates, items, tests, outcome, dispatch, fabrication, production] = await Promise.all([
     supabase.from("stage_updates").select("stage_name, kind").eq("inward_order_id", orderId),
     supabase
       .from("procurement_items")
@@ -31,7 +33,14 @@ export async function loadStageProgress(
       .select("milestone")
       .eq("inward_order_id", orderId)
       .maybeSingle(),
+    supabase
+      .from("fabrication_jobs")
+      .select("phase, given_on, received_on")
+      .eq("inward_order_id", orderId),
+    supabase.from("production_tasks").select("status").eq("inward_order_id", orderId),
   ]);
+  const fabRows = fabrication.data ?? [];
+  const taskRows = production.data ?? [];
   const updateRows = updates.data ?? [];
   const itemRows = items.data ?? [];
   const testRows = tests.data ?? [];
@@ -54,10 +63,36 @@ export async function loadStageProgress(
           : "No SLD uploaded yet";
         break;
       }
-      case "fabrication":
-      case "production":
-        detail = updatesFor(name) ? plural(updatesFor(name), "update") : "No updates yet";
+      case "fabrication": {
+        if (fabRows.length) {
+          percent = fabricationPercent(
+            fabRows.map((r) => ({
+              phase:
+                r.phase === "powder_coating"
+                  ? ("powder_coating" as const)
+                  : ("fabrication" as const),
+              givenOn: r.given_on ?? undefined,
+              receivedOn: r.received_on ?? undefined,
+            })),
+          );
+          const out = fabRows.filter((r) => r.given_on && !r.received_on);
+          const coating = fabRows.some((r) => r.phase === "powder_coating");
+          detail = out.length
+            ? `${out.length} ${out.length === 1 ? "batch" : "batches"} at vendor`
+            : coating
+              ? "Powder coating"
+              : "Fabrication";
+        } else detail = updatesFor(name) ? plural(updatesFor(name), "update") : "Not given yet";
         break;
+      }
+      case "production": {
+        if (taskRows.length) {
+          percent = taskPercent(taskRows.map((t) => ({ status: t.status as TaskStatus })));
+          const done = taskRows.filter((t) => t.status === "done").length;
+          detail = `${done}/${taskRows.length} work items done`;
+        } else detail = updatesFor(name) ? plural(updatesFor(name), "update") : "No panels yet";
+        break;
+      }
       case "procurement": {
         if (itemRows.length) {
           const ready = itemRows.filter(

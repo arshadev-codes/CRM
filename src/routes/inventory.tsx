@@ -1,3 +1,5 @@
+import { useCan } from "@/store/authStore";
+import { ViewOnlyBadge } from "@/components/auth/Can";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -57,6 +59,7 @@ const EMPTY: Draft = {
 };
 
 function InventoryPage() {
+  const canEdit = useCan("inventory");
   const [rows, setRows] = useState<InventoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -199,10 +202,11 @@ function InventoryPage() {
             {rows.length} item{rows.length === 1 ? "" : "s"} in the shared stock list
           </p>
         </div>
-        <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={importing}>
+        <ViewOnlyBadge perm="inventory" />
+        <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={importing} hidden={!canEdit}>
           {importing ? <LoaderCircle className="animate-spin" /> : <FileSpreadsheet />} Import Excel
         </Button>
-        <Button onClick={() => setAdding(true)}>
+        <Button onClick={() => setAdding(true)} hidden={!canEdit}>
           <Plus /> Add item
         </Button>
       </motion.header>
@@ -234,6 +238,7 @@ function InventoryPage() {
         </div>
 
         <div className="overflow-x-auto">
+          <fieldset disabled={!canEdit} className="contents">
           <table className="w-full min-w-[760px] text-sm">
             <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -291,6 +296,7 @@ function InventoryPage() {
                       <button
                         type="button"
                         aria-label={`Delete ${row.item_name}`}
+                        hidden={!canEdit}
                         className="rounded-full p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
                         onClick={() => void remove(row)}
                       >
@@ -302,6 +308,7 @@ function InventoryPage() {
               </AnimatePresence>
             </tbody>
           </table>
+          </fieldset>
           {loading ? (
             <div className="grid place-items-center py-12">
               <LoaderCircle className="h-6 w-6 animate-spin text-primary" />

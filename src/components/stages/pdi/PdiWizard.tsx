@@ -44,6 +44,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EASE } from "../shared";
+import { DccPanel } from "./DccPanel";
 
 const STEPS = [
   { label: "Panel details", icon: Hash },
@@ -99,7 +100,8 @@ export function PdiWizard({
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
+  // The submitted report, once the final declaration is confirmed.
+  const [done, setDone] = useState<PdiRow | null>(null);
   const [focusSection, setFocusSection] = useState<string | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
 
@@ -182,7 +184,7 @@ export function PdiWizard({
     });
     setSubmitting(false);
     if (saved) {
-      setDone(true);
+      setDone(saved);
       topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
@@ -199,8 +201,8 @@ export function PdiWizard({
   if (done)
     return (
       <SuccessScreen
-        serial={details.serial}
-        panelName={details.panelName}
+        report={done}
+        onSaved={onSaved}
         onAnother={onAnother}
         onClose={onClose}
       />
@@ -1001,13 +1003,13 @@ function SaveBadge({ state }: { state: "idle" | "saving" | "saved" }) {
 }
 
 function SuccessScreen({
-  serial,
-  panelName,
+  report,
+  onSaved,
   onAnother,
   onClose,
 }: {
-  serial: string;
-  panelName: string;
+  report: PdiRow;
+  onSaved: (row: PdiRow) => void;
   onAnother: () => void;
   onClose: () => void;
 }) {
@@ -1036,7 +1038,10 @@ function SuccessScreen({
       </motion.span>
       <div className="mt-6 text-2xl font-bold text-foreground">PDI submitted</div>
       <div className="mt-1 text-sm text-muted-foreground">
-        Panel {serial} · {panelName} is inspected and ready for dispatch.
+        Panel {report.panel_serial} · {report.panel_name} is inspected and ready for dispatch.
+      </div>
+      <div className="relative mt-6 w-full">
+        <DccPanel report={report} onSaved={onSaved} autoSend />
       </div>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Button variant="outline" onClick={onAnother}>

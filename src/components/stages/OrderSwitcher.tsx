@@ -30,15 +30,13 @@ const DOT: Record<StageStatus, string> = {
 export function OrderSwitcher({
   orderId,
   slug,
-  defaultOpen = false,
 }: {
   orderId: string;
   slug: StagePageSlug;
-  defaultOpen?: boolean;
 }) {
   const navigate = useNavigate();
   const orders = useProposalStore((s) => s.inwardOrders);
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(false);
   const [statuses, setStatuses] = useState<Map<string, StageStatus>>(new Map());
   const page = STAGE_PAGES[slug];
   const theme = STAGE_THEME[slug];
@@ -47,10 +45,6 @@ export function OrderSwitcher({
   useEffect(() => {
     void loadStageStatuses(page.name).then(setStatuses);
   }, [page.name, open]);
-
-  useEffect(() => {
-    if (defaultOpen && orders.length > 1) setOpen(true);
-  }, [defaultOpen, orders.length]);
 
   const grouped = useMemo(
     () =>

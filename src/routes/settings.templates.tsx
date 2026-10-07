@@ -42,7 +42,7 @@ function TemplatesSettings() {
                   variant="ghost"
                   className="text-red-500"
                   onClick={() => {
-                    if (!requireAdminPassword()) return;
+                    if (!requireAdminPassword("settings")) return;
                     remove(t.id);
                     toast.success("Template deleted");
                   }}

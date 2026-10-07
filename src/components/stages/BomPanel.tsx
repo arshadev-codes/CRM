@@ -1,3 +1,6 @@
+import { notify } from "@/store/notificationStore";
+import { useProposalStore } from "@/store/proposalStore";
+import { useCan } from "@/store/authStore";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
@@ -85,6 +88,7 @@ export function BomPanel({
   onOpen: (update: StageUpdate) => void;
   onDownload: (update: StageUpdate) => void;
 }) {
+  const canUpload = useCan("bom");
   const inputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<ProcurementItem[]>([]);
   const [reading, setReading] = useState(false);
@@ -204,6 +208,14 @@ export function BomPanel({
           ? `BOM uploaded · ${plan.added.length} cards created in Material Procurement`
           : `BOM R${revision} uploaded${summary ? ` · ${summary}` : ""}`,
       );
+    const order = useProposalStore.getState().inwardOrders.find((o) => o.id === orderId);
+    notify({
+      kind: "bom",
+      title: revision === 0 ? "BOM uploaded" : `BOM R${revision} uploaded`,
+      body: `${order?.projectNumber ?? "Order"}: ${summary || "no changes"}. Check stock and log enquiries.`,
+      link: `/inward-orders/${orderId}/stages/procurement`,
+      audience: ["procurement"],
+    });
     return true;
   }
 
@@ -230,7 +242,7 @@ export function BomPanel({
   const dragProps = {
     onDragOver: (event: DragEvent) => {
       event.preventDefault();
-      setDragging(true);
+      if (canUpload) setDragging(true);
     },
     onDragLeave: (event: DragEvent) => {
       if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragging(false);
@@ -238,7 +250,7 @@ export function BomPanel({
     onDrop: (event: DragEvent) => {
       event.preventDefault();
       setDragging(false);
-      void readFile(event.dataTransfer.files?.[0]);
+      if (canUpload) void readFile(event.dataTransfer.files?.[0]);
     },
   };
 
@@ -269,7 +281,7 @@ export function BomPanel({
           <Button variant="ghost" size="sm" onClick={() => void downloadTemplate()}>
             <Download /> Template
           </Button>
-          {(latest || items.length > 0) && (
+          {canUpload && (latest || items.length > 0) && (
             <Button size="sm" onClick={() => inputRef.current?.click()} disabled={reading}>
               {reading ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
               {latest ? "Upload new revision" : "Upload BOM"}
@@ -280,6 +292,10 @@ export function BomPanel({
 
       {loading ? (
         <div className="mt-5 h-28 animate-pulse rounded-2xl" />
+      ) : !latest && items.length === 0 && !canUpload ? (
+        <div className="neo-inset mt-5 rounded-2xl px-6 py-8 text-center text-sm text-muted-foreground">
+          No BOM uploaded yet. It will show here once the BOM person uploads it.
+        </div>
       ) : !latest && items.length === 0 ? (
         <button
           type="button"

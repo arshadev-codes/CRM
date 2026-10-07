@@ -1,3 +1,4 @@
+import { useStageCanEdit } from "../stageAccess";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Check, ClipboardCheck, Cpu, Eye, Pencil, Plus, Trash2, Zap } from "lucide-react";
@@ -29,6 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { EASE, formatStamp, timeAgo } from "../shared";
+import { DccPanel } from "./DccPanel";
 
 // PDI reports of this order: one per panel, drafts first.
 export function PdiReports({
@@ -36,12 +38,15 @@ export function PdiReports({
   onStart,
   onContinue,
   onDelete,
+  onSaved,
 }: {
   reports: PdiRow[];
   onStart: () => void;
   onContinue: (report: PdiRow) => void;
   onDelete: (report: PdiRow) => void;
+  onSaved: (report: PdiRow) => void;
 }) {
+  const canEdit = useStageCanEdit();
   const [viewing, setViewing] = useState<PdiRow | null>(null);
   const [deleting, setDeleting] = useState<PdiRow | null>(null);
   const submitted = reports.filter((report) => report.status === "submitted").length;
@@ -71,9 +76,11 @@ export function PdiReports({
               : "Fill the PDI checklist for each panel before it is packed"}
           </p>
         </div>
-        <Button onClick={onStart}>
-          <Plus /> {reports.length ? "Inspect another panel" : "Start PDI"}
-        </Button>
+        {canEdit && (
+          <Button onClick={onStart}>
+            <Plus /> {reports.length ? "Inspect another panel" : "Start PDI"}
+          </Button>
+        )}
       </div>
 
       {sorted.length > 0 && (
@@ -104,6 +111,11 @@ export function PdiReports({
                       {report.panel_serial || "Untitled panel"}
                       {report.panel_name ? ` · ${report.panel_name}` : ""}
                     </div>
+                    {report.dcc && (
+                      <div className="font-mono text-xs font-bold tracking-wider text-primary">
+                        {report.dcc}
+                      </div>
+                    )}
                     <div className="truncate text-xs text-muted-foreground">
                       {PDI_CATEGORIES.find((c) => c.value === category)?.label} ·{" "}
                       {report.inspector_name || "—"} ·{" "}
@@ -112,7 +124,7 @@ export function PdiReports({
                         : `draft, ${pct}% done`}
                     </div>
                   </div>
-                  {!done && (
+                  {!done && canEdit && (
                     <button
                       type="button"
                       onClick={() => setDeleting(report)}
@@ -136,10 +148,12 @@ export function PdiReports({
                     <Button size="sm" variant="outline" onClick={() => setViewing(report)}>
                       <Eye /> View report
                     </Button>
-                  ) : (
+                  ) : canEdit ? (
                     <Button size="sm" onClick={() => onContinue(report)}>
                       <Pencil /> Continue
                     </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Draft in progress</span>
                   )}
                 </div>
               </li>
@@ -148,7 +162,14 @@ export function PdiReports({
         </ul>
       )}
 
-      <ReportDialog report={viewing} onClose={() => setViewing(null)} />
+      <ReportDialog
+        report={viewing}
+        onClose={() => setViewing(null)}
+        onSaved={(row) => {
+          setViewing(row);
+          onSaved(row);
+        }}
+      />
 
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
         <AlertDialogContent>
@@ -176,7 +197,15 @@ export function PdiReports({
   );
 }
 
-function ReportDialog({ report, onClose }: { report: PdiRow | null; onClose: () => void }) {
+function ReportDialog({
+  report,
+  onClose,
+  onSaved,
+}: {
+  report: PdiRow | null;
+  onClose: () => void;
+  onSaved: (row: PdiRow) => void;
+}) {
   const responses = (report?.responses ?? {}) as PdiResponses;
   const sections = sectionsFor((report?.panel_category ?? "") as PdiCategory);
   return (
@@ -192,6 +221,7 @@ function ReportDialog({ report, onClose }: { report: PdiRow | null; onClose: () 
             {report?.customer_name ? ` · ${report.customer_name}` : ""}
           </DialogDescription>
         </DialogHeader>
+        {report?.status === "submitted" && <DccPanel report={report} onSaved={onSaved} />}
         <div className="neo-inset rounded-xl px-4 py-3 text-sm">
           Inspected by <span className="font-semibold">{report?.inspector_name}</span> (
           {report?.inspector_email}

@@ -1,10 +1,15 @@
 import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
 import { employeesData } from "@/data/employeesData";
+import { useProposalStore } from "@/store/proposalStore";
+
+// Names come from the live list (people added in Settings), falling back to the seed.
+const personName = (id: string) =>
+  [...useProposalStore.getState().employees, ...employeesData].find(e => e.id === id)?.name ?? id;
 
 export function IntroLetterPdf({ project }: { project: Project }) {
   const { customer, meta, systemType, transformer } = project.data;
-  const prep = employeesData.find(e => e.id === meta.preparedBy)?.name ?? meta.preparedBy;
+  const prep = personName(meta.preparedBy);
   return (
     <PdfPage pageNumber={2}>
       <h2 className="text-[14px] font-bold text-blue-800 border-b border-blue-200 pb-1">Executive Summary</h2>

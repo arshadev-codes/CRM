@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { NewProjectDialog } from "@/components/NewProjectDialog";
 import type { ProposalLayout } from "@/data/proposalLayout";
 import { MoveToInwardOrderDialog } from "@/components/MoveToInwardOrderDialog";
+import { useCan } from "@/store/authStore";
 import type { Project } from "@/store/proposalStore";
 
 const DELETE_PASSWORD = "electrosoft@2025";
@@ -76,6 +77,8 @@ function Dashboard() {
   const archive = useProposalStore((s) => s.archiveProject);
   const hydrateFromCloud = useProposalStore((s) => s.hydrateFromCloud);
   const navigate = useNavigate();
+  const canQuote = useCan("quotation");
+  const canOrders = useCan("inward_orders");
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("All");
   const [moveProject, setMoveProject] = useState<Project | null>(null);
@@ -156,6 +159,7 @@ function Dashboard() {
         </div>
         <Button
           onClick={() => setNewOpen(true)}
+          hidden={!canQuote}
           className="neo-pop h-11 px-5 font-semibold !bg-transparent !text-black
                      transition-all duration-200 hover:-translate-y-0.5
                      active:translate-y-0 active:scale-[0.97] active:shadow-inner"
@@ -318,10 +322,11 @@ function Dashboard() {
                     className="neo-pop !bg-transparent !text-black font-medium
                                transition-transform active:scale-[0.94] active:shadow-inner"
                     onClick={() => navigate({ to: "/projects/$id/wizard", params: { id: p.id } })}
+                    hidden={!canQuote}
                   >
                     Edit
                   </Button>
-                  {p.status === "Completed" && (
+                  {canOrders && p.status === "Completed" && (
                     <Button
                       size="sm"
                       className="neo-pop !bg-transparent !text-indigo-600 font-medium transition-transform active:scale-[0.94] active:shadow-inner"
@@ -331,7 +336,7 @@ function Dashboard() {
                       Move to Inward Order
                     </Button>
                   )}
-                  {p.status === "Completed" && (
+                  {canQuote && p.status === "Completed" && (
                     <Button
                       size="sm"
                       className="neo-pop !bg-transparent !text-black font-medium
@@ -367,6 +372,7 @@ function Dashboard() {
                     className="neo-pop !bg-transparent h-9 w-9 p-0
                                transition-transform active:scale-90 active:shadow-inner"
                     onClick={() => duplicate(p.id)}
+                    hidden={!canQuote}
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </Button>
@@ -376,6 +382,7 @@ function Dashboard() {
                     className="neo-pop !bg-transparent h-9 w-9 p-0
                                transition-transform active:scale-90 active:shadow-inner"
                     onClick={() => archive(p.id)}
+                    hidden={!canQuote}
                   >
                     <Archive className="h-3.5 w-3.5" />
                   </Button>
@@ -385,6 +392,7 @@ function Dashboard() {
                     className="neo-pop !bg-transparent !text-red-500 h-9 w-9 p-0 ml-auto
                                transition-transform active:scale-90 active:shadow-inner"
                     onClick={() => handleDelete(p.id, p.data.meta.offerNumber || p.name)}
+                    hidden={!canQuote}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>

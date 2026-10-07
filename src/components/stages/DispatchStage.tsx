@@ -1,3 +1,4 @@
+import { EditLock, EditOnly, useStageCanEdit } from "./stageAccess";
 import {
   useCallback,
   useEffect,
@@ -76,6 +77,7 @@ export function DispatchStage({
   employees,
   onAuthor,
 }: StageBodyProps) {
+  const canEdit = useStageCanEdit();
   const [loading, setLoading] = useState(true);
   const [details, setDetails] = useState<DispatchRow | null>(null);
   const [docs, setDocs] = useState<DocRow[]>([]);
@@ -248,7 +250,8 @@ export function DispatchStage({
   const next = MILESTONES[step + 1];
   const checklist = (details?.checklist ?? {}) as Record<string, boolean>;
 
-  if (!identity)
+  // View-only users can look at dispatch without the inspector sign-in.
+  if (!identity && canEdit)
     return (
       <IdentityGate
         employees={employees}
@@ -261,7 +264,7 @@ export function DispatchStage({
       />
     );
 
-  const signedIn = (
+  const signedIn = identity && (
     <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
       <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 py-1 pl-1 pr-3 font-medium text-emerald-800">
         <span className="grid h-6 w-6 place-items-center rounded-full bg-emerald-500 text-white">
@@ -279,7 +282,7 @@ export function DispatchStage({
     </div>
   );
 
-  if (wizard) {
+  if (wizard && identity) {
     const lastSerial =
       [...reports].reverse().find((report) => report.panel_serial)?.panel_serial ?? "";
     return (
@@ -313,6 +316,7 @@ export function DispatchStage({
         onStart={() => setWizard({ key: Date.now(), report: null })}
         onContinue={(report) => setWizard({ key: Date.now(), report })}
         onDelete={(report) => void deleteReport(report)}
+        onSaved={upsertReport}
       />
       {!planned ? (
         <motion.section
@@ -332,9 +336,11 @@ export function DispatchStage({
           <div className="mt-1 max-w-md text-sm text-muted-foreground">
             It is usually planned when inspection is finished. You can also plan it now.
           </div>
-          <Button className="mt-5" onClick={() => setPlanning(true)}>
-            <Truck /> Plan dispatch
-          </Button>
+          <EditOnly>
+            <Button className="mt-5" onClick={() => setPlanning(true)}>
+              <Truck /> Plan dispatch
+            </Button>
+          </EditOnly>
         </motion.section>
       ) : (
         <MilestoneHero
@@ -364,6 +370,7 @@ export function DispatchStage({
               )}
             </AnimatePresence>
           </div>
+          <EditLock>
           <div className="grid gap-6 lg:grid-cols-2">
             <Panel
               icon={Package}
@@ -543,6 +550,7 @@ export function DispatchStage({
               onToggle={(key) => void save({ checklist: { ...checklist, [key]: !checklist[key] } })}
             />
           </div>
+          </EditLock>
 
           <Documents
             orderId={orderId}
@@ -558,6 +566,7 @@ export function DispatchStage({
             hint="Anything else for the dispatch team"
             delay={0.26}
           >
+            <EditLock>
             <DField
               label=""
               multiline
@@ -565,6 +574,7 @@ export function DispatchStage({
               placeholder="Special handling, permits, escort, unloading at site…"
               onSave={(v) => save({ notes: v })}
             />
+            </EditLock>
           </Panel>
         </>
       )}
@@ -611,6 +621,7 @@ function MilestoneHero({
   onBack: () => void;
   onEditPlan: () => void;
 }) {
+  const canEdit = useStageCanEdit();
   const today = todayIso();
   const delivered = details.milestone === "delivered";
   const late = !details.dispatched_on && details.planned_date && details.planned_date < today;
@@ -658,7 +669,7 @@ function MilestoneHero({
             )}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className={`flex flex-wrap gap-2 ${canEdit ? "" : "hidden"}`}>
           <Button variant="ghost" size="sm" onClick={onEditPlan}>
             <Pencil /> Change plan
           </Button>
@@ -925,6 +936,7 @@ function Documents({
   docs: DocRow[];
   setDocs: Dispatch<SetStateAction<DocRow[]>>;
 }) {
+  const canEdit = useStageCanEdit();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(0);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
@@ -1021,6 +1033,7 @@ function Documents({
           whileHover={{ y: -3 }}
           whileTap={{ scale: 0.97 }}
           onClick={() => inputRef.current?.click()}
+          hidden={!canEdit}
           className="flex aspect-[4/3] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary/30 text-sm font-medium text-primary transition-colors hover:border-primary/60 hover:bg-primary/5"
         >
           {uploading ? (
@@ -1070,6 +1083,7 @@ function Documents({
                 </button>
                 <button
                   type="button"
+                  hidden={!canEdit}
                   aria-label={`Delete ${doc.file_name}`}
                   onClick={() => void remove(doc)}
                   className="grid h-7 w-7 place-items-center rounded-full bg-white/90 text-destructive shadow"

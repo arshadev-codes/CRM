@@ -1,7 +1,8 @@
+import { isWorkshopPerson } from "@/data/employeesData";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion, MotionConfig } from "framer-motion";
-import { ArrowLeft, LoaderCircle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useProposalStore } from "@/store/proposalStore";
 import { supabase } from "@/lib/db";
@@ -26,11 +27,15 @@ import { ProcurementStage } from "@/components/stages/ProcurementStage";
 import { TestingStage } from "@/components/stages/TestingStage";
 import { InspectionStage } from "@/components/stages/InspectionStage";
 import { DispatchStage } from "@/components/stages/DispatchStage";
+import { FabricationStage } from "@/components/stages/FabricationStage";
+import { ProductionStage } from "@/components/stages/ProductionStage";
+import { StagePageSkeleton } from "@/components/stages/StageSkeleton";
+import { StageAccessProvider } from "@/components/stages/stageAccess";
+import { ViewOnlyBadge } from "@/components/auth/Can";
+import { useCan } from "@/store/authStore";
+import { STAGE_PERMISSION } from "@/lib/permissions";
 
 export const Route = createFileRoute("/inward-orders/$id_/stages/$stage")({
-  // ?pick=1 opens the order switcher (used when arriving from the sidebar).
-  validateSearch: (search: Record<string, unknown>): { pick?: 1 } =>
-    search.pick === 1 || search.pick === "1" ? { pick: 1 } : {},
   beforeLoad: ({ params }) => {
     if (!(params.stage in STAGE_PAGES)) throw notFound();
   },
@@ -54,9 +59,10 @@ export const Route = createFileRoute("/inward-orders/$id_/stages/$stage")({
 
 function StagePage() {
   const { id, stage: slug } = Route.useParams();
-  const { pick } = Route.useSearch();
   const pageSlug = slug as StagePageSlug;
   const page = STAGE_PAGES[pageSlug];
+  const perm = STAGE_PERMISSION[pageSlug] ?? "design_docs";
+  const canEdit = useCan(perm);
   const orders = useProposalStore((s) => s.inwardOrders);
   const hydrateOrders = useProposalStore((s) => s.hydrateInwardOrders);
   const employees = useProposalStore((s) => s.employees);
@@ -132,12 +138,7 @@ function StagePage() {
     return true;
   }
 
-  if (!order && loading)
-    return (
-      <div className="grid min-h-[50vh] place-items-center">
-        <LoaderCircle className="h-7 w-7 animate-spin text-primary" />
-      </div>
-    );
+  if (!order && loading) return <StagePageSkeleton />;
   if (!order)
     return (
       <div className="mx-auto max-w-xl p-6 text-center">
@@ -160,7 +161,9 @@ function StagePage() {
     stage,
     setStageStatus,
     author,
-    employees: employees.map((employee) => employee.name),
+    employees: employees
+      .filter((employee) => isWorkshopPerson(employee) && employee.active !== false)
+      .map((employee) => employee.name),
     onAuthor: chooseAuthor,
   };
 
@@ -199,31 +202,38 @@ function StagePage() {
                 <Icon className="h-5 w-5" />
               </span>
               {page.name}
+              <ViewOnlyBadge perm={perm} />
             </h1>
-            <OrderSwitcher
-              key={pick ? "pick" : "view"}
-              orderId={id}
-              slug={pageSlug}
-              defaultOpen={Boolean(pick)}
-            />
+            <OrderSwitcher orderId={id} slug={pageSlug} />
           </div>
-          <StatusPicker status={stage?.status} onChange={(status) => void setStageStatus(status)} />
+          <StatusPicker
+            status={stage?.status}
+            readOnly={!canEdit}
+            onChange={(status) => void setStageStatus(status)}
+          />
           <ProgressRing value={progress} caption={`${doneCount}/${STAGE_NAMES.length} stages`} />
         </motion.header>
 
         {/* Keyed by order so switching orders starts each page fresh. */}
+        <StageAccessProvider canEdit={canEdit}>
         <div key={id}>
           {pageSlug === "design" && (
             <DesignStage {...body} drawingLabel="SLD" drawingTitle="Single Line Diagram" />
           )}
+          {pageSlug === "fabrication" && <FabricationStage {...body} />}
+          {pageSlug === "production" && <ProductionStage {...body} />}
+          {/* Remarks and updates feed under the trackers. */}
           {(pageSlug === "fabrication" || pageSlug === "production") && (
-            <DesignStage {...body} showDrawing={false} />
+            <div className="mt-8">
+              <DesignStage {...body} showDrawing={false} />
+            </div>
           )}
           {pageSlug === "procurement" && <ProcurementStage {...body} />}
           {pageSlug === "testing" && <TestingStage {...body} />}
           {pageSlug === "inspection" && <InspectionStage {...body} />}
           {pageSlug === "dispatch" && <DispatchStage {...body} />}
         </div>
+        </StageAccessProvider>
       </div>
     </MotionConfig>
   );

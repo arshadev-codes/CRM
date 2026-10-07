@@ -1,13 +1,14 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { LoaderCircle, PackageCheck } from "lucide-react";
+import { PackageCheck } from "lucide-react";
 import { useProposalStore } from "@/store/proposalStore";
 import { LAST_ORDER_KEY, STAGE_PAGES, type StagePageSlug } from "@/lib/stages";
 import { loadStageStatuses } from "@/lib/stageProgress";
 import { Button } from "@/components/ui/button";
+import { StagePageSkeleton } from "@/components/stages/StageSkeleton";
 
-// Sidebar entry for a stage: opens the most relevant order on that stage with the
-// order switcher open, so the user can pick another order straight away.
+// Sidebar entry for a stage: opens the most relevant order on that stage. The
+// order switcher in the page header lets the user pick another one.
 export const Route = createFileRoute("/stages/$stage")({
   beforeLoad: ({ params }) => {
     if (!(params.stage in STAGE_PAGES)) throw notFound();
@@ -55,7 +56,6 @@ function StageEntry() {
       void navigate({
         to: "/inward-orders/$id/stages/$stage",
         params: { id: target.id, stage: slug },
-        search: { pick: 1 },
         replace: true,
       });
     }
@@ -80,9 +80,5 @@ function StageEntry() {
         </div>
       </div>
     );
-  return (
-    <div className="grid min-h-[50vh] place-items-center">
-      <LoaderCircle className="h-7 w-7 animate-spin text-primary" />
-    </div>
-  );
+  return <StagePageSkeleton />;
 }

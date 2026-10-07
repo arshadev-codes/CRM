@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Boxes, FileSpreadsheet, LayoutGrid } from "lucide-react";
+import { Boxes, FileSpreadsheet, LayoutGrid, ShieldCheck, Users } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarSeparator, useSidebar,
@@ -9,6 +9,7 @@ import logoUrl from "@/assets/electrosoft-logo.png";
 import { STAGE_PAGES, STAGE_SLUGS } from "@/lib/stages";
 import { STAGE_THEME } from "@/lib/stageTheme";
 import { loadActiveStageCounts } from "@/lib/stageProgress";
+import { useIsAdmin } from "@/store/authStore";
 
 export function AppSidebar() {
   const { state, setOpen, isMobile, setOpenMobile } = useSidebar();
@@ -20,6 +21,7 @@ export function AppSidebar() {
   const stageMatch = pathname.match(/\/stages\/([a-z]+)/);
   const activeStage = stageMatch?.[1];
   const onOrders = pathname.startsWith("/inward-orders") && !activeStage;
+  const isAdmin = useIsAdmin();
 
   // Below ~900px the sidebar shows icons only; on mobile the provider already
   // switches to a hamburger-triggered overlay.
@@ -120,6 +122,19 @@ export function AppSidebar() {
         <SidebarSeparator />
 
         <SidebarGroup>
+          <SidebarGroupLabel>Team</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.startsWith("/employees")} tooltip="Employees">
+                  <Link to="/employees"><Users className="h-4 w-4" />{!collapsed && <span>Employees</span>}</Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
           <SidebarGroupLabel>Stock</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -141,6 +156,21 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/admin")} tooltip="Users & access">
+                    <Link to="/admin/users"><ShieldCheck className="h-4 w-4" />{!collapsed && <span>Users &amp; access</span>}</Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );

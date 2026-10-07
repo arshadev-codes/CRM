@@ -1,3 +1,4 @@
+import { isQuotationPerson } from "@/data/employeesData";
 import type React from "react";
 import { useState } from "react";
 import type {
@@ -52,8 +53,12 @@ type Update = (patch: Partial<ProposalData>) => void;
 
 export function Step1ProjectSetup({ project, update }: { project: Project; update: Update }) {
   const setSystemType = useProposalStore(s => s.setSystemType);
-  const employees = useProposalStore(s => s.employees);
+  const allEmployees = useProposalStore(s => s.employees);
   const { customer, meta, transformer, systemType, freightLogistics } = project.data;
+  // Quotation people only, plus whoever an older proposal already names.
+  const employees = allEmployees.filter(
+    e => isQuotationPerson(e) || e.id === meta.preparedBy || e.id === meta.checkedBy,
+  );
   const c = (patch: Partial<typeof customer>) => update({ customer: { ...customer, ...patch } });
   const m = (patch: Partial<typeof meta>) => update({ meta: { ...meta, ...patch } });
   const t = (patch: Partial<typeof transformer>) => update({ transformer: { ...transformer, ...patch } });
@@ -143,7 +148,7 @@ export function Step1ProjectSetup({ project, update }: { project: Project; updat
           </Field>
           <Field className="col-span-2" label="Date"><NeoInput type="date" value={meta.date} onChange={e => m({ date: e.target.value })} /></Field>
           <div className="col-span-12 -mt-1 text-[11px] text-slate-500">
-            Need to add or change an employee? <Link to="/settings/employees" className="text-blue-700 underline font-medium">Manage in Settings → Employees</Link>
+            Need to add or change someone? <Link to="/settings/employees" className="text-blue-700 underline font-medium">Manage in Settings → Quotation people</Link>
           </div>
         </div>
       </NeoSection>

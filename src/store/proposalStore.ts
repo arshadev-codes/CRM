@@ -9,7 +9,7 @@ import { paymentTemplatesData, type PaymentMilestone } from "@/data/paymentTerms
 import { makesOfSupplyData } from "@/data/makesOfSupplyData";
 import { exclusionsData } from "@/data/exclusionsData";
 import { getMajorSubsystems } from "@/data/proposalContent";
-import { employeesData, type Employee } from "@/data/employeesData";
+import { employeesData, type Employee, type EmployeeRating } from "@/data/employeesData";
 import { companiesData, type Company } from "@/data/companiesData";
 import { supabase } from "@/lib/supabaseClient";
 // Inward orders, stages and attachments live in the app's own cloud backend.
@@ -234,6 +234,9 @@ interface ProposalStore {
   addEmployee: (emp: Omit<Employee, "id"> & { id?: string }) => Employee;
   updateEmployee: (id: string, patch: Partial<Employee>) => void;
   deleteEmployee: (id: string) => void;
+  ratings: EmployeeRating[];
+  addRating: (r: Omit<EmployeeRating, "id" | "createdAt">) => EmployeeRating;
+  deleteRating: (id: string) => void;
   addCompany: (c: Omit<Company, "id"> & { id?: string }) => Company;
   updateCompany: (id: string, patch: Partial<Company>) => void;
   deleteCompany: (id: string) => void;
@@ -316,6 +319,7 @@ export const useProposalStore = create<ProposalStore>()(
       cmsOverrides: {},
       paymentTemplates: paymentTemplatesData,
       employees: employeesData,
+      ratings: [],
       companies: companiesData,
       inwardOrders: [],
       createInwardOrder: (o) => {
@@ -504,14 +508,24 @@ export const useProposalStore = create<ProposalStore>()(
       savePaymentTemplate: (name, milestones) =>
         set(s => ({ paymentTemplates: [...s.paymentTemplates, { id: crypto.randomUUID(), name, milestones }] })),
       addEmployee: (emp) => {
-        const e: Employee = { id: emp.id ?? crypto.randomUUID(), name: emp.name, designation: emp.designation };
+        const e: Employee = { ...emp, id: emp.id ?? crypto.randomUUID() };
         set(s => ({ employees: [...s.employees, e] }));
         return e;
       },
       updateEmployee: (id, patch) =>
         set(s => ({ employees: s.employees.map(e => e.id === id ? { ...e, ...patch } : e) })),
       deleteEmployee: (id) =>
-        set(s => ({ employees: s.employees.filter(e => e.id !== id) })),
+        set(s => ({
+          employees: s.employees.filter(e => e.id !== id),
+          ratings: s.ratings.filter(r => r.employeeId !== id),
+        })),
+      addRating: (r) => {
+        const rating: EmployeeRating = { ...r, id: crypto.randomUUID(), createdAt: Date.now() };
+        set(s => ({ ratings: [rating, ...s.ratings] }));
+        return rating;
+      },
+      deleteRating: (id) =>
+        set(s => ({ ratings: s.ratings.filter(r => r.id !== id) })),
       addCompany: (c) => {
         const co: Company = { ...c, id: c.id ?? crypto.randomUUID() } as Company;
         set(s => ({ companies: [...s.companies, co] }));
@@ -560,7 +574,30 @@ export const useProposalStore = create<ProposalStore>()(
         return { project: p, data: p.data, generatedAt: new Date().toISOString() };
       },
     }),
-    { name: "electrosoft-proposal-store-v1" }
+    {
+      name: "electrosoft-proposal-store-v1",
+      version: 2,
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<ProposalStore>;
+        // v0 -> v1: bring in the seed employees added since this browser first saved.
+        if (version < 1) {
+          const current = state.employees ?? [];
+          const known = new Set(current.map(e => e.name.trim().toLowerCase()));
+          state.employees = [...current, ...employeesData.filter(e => !known.has(e.name.trim().toLowerCase()))];
+          state.ratings ??= [];
+        }
+        // v1 -> v2: split quotation people from the workshop team. Seed workshop
+        // people keep their slug ids; everyone else was made for quotations.
+        if (version < 2) {
+          const workshopIds = new Set(employeesData.filter(e => e.scope === "workshop").map(e => e.id));
+          state.employees = (state.employees ?? []).map(e => ({
+            ...e,
+            scope: e.scope ?? (workshopIds.has(e.id) ? "workshop" : "quotation"),
+          }));
+        }
+        return state as ProposalStore;
+      },
+    }
   )
 );
 

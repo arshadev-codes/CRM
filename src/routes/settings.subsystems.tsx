@@ -85,7 +85,7 @@ function SubsystemsEditor({ systemType }: { systemType: SystemType }) {
   };
 
   const add = () => {
-    if (!requireAdminPassword()) return;
+    if (!requireAdminPassword("settings")) return;
     const item: SubsystemContent = { id: crypto.randomUUID(), title: "New subsystem", preview: "", description: "" };
     setOverride({ ...override, items: [...override.items, item] });
     setEditing(item.id);

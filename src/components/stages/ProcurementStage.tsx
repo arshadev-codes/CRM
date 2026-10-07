@@ -1,3 +1,4 @@
+import { EditOnly, useStageCanEdit } from "./stageAccess";
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
@@ -87,7 +88,8 @@ type ActivityRow = Database["public"]["Tables"]["stage_updates"]["Row"];
 type Filter = "all" | ItemState;
 type View = "cards" | "list";
 type GroupBy = "status" | "make" | "category";
-const VIEW_KEY = "procurement_view";
+// v2: everyone starts on the list again; earlier saved choices defaulted many browsers to cards.
+const VIEW_KEY = "procurement_view_v2";
 const NO_VALUE = "__none";
 
 // Makes and categories are grouped ignoring case and spacing ("SIEMENS" = "Siemens ").
@@ -162,6 +164,7 @@ export function ProcurementStage({
   employees,
   onAuthor,
 }: StageBodyProps) {
+  const canEdit = useStageCanEdit();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<ProcurementItem[]>([]);
   const [activity, setActivity] = useState<ActivityRow[]>([]);
@@ -441,8 +444,8 @@ export function ProcurementStage({
       /* storage unavailable */
     }
   }, []);
-  // Long lists read better as rows; a choice made with the toggle is remembered.
-  const view: View = viewPref ?? (items.length > 24 ? "list" : "cards");
+  // The list is the default; a choice made with the toggle is remembered.
+  const view: View = viewPref ?? "list";
   function chooseView(next: View) {
     setViewPref(next);
     try {
@@ -560,6 +563,7 @@ export function ProcurementStage({
               </div>
               <Button
                 variant="secondary"
+                className={canEdit ? "" : "hidden"}
                 onClick={() =>
                   void setStageStatus("done").then((ok) => {
                     if (ok) {
@@ -587,11 +591,14 @@ export function ProcurementStage({
             <FileSpreadsheet /> BOM in Design
           </Link>
         </Button>
+        <EditOnly>
         <Button variant="outline" onClick={() => setEditing("new")}>
           <Plus /> Add item
         </Button>
+        </EditOnly>
         <Button
           variant="outline"
+          className={canEdit ? "" : "hidden"}
           onClick={() => void planInventoryFill()}
           disabled={!items.some((item) => item.qtyInStock === null)}
           title="Suggest stock numbers from the inventory list"
@@ -1157,7 +1164,7 @@ function ItemRow({
   author: string;
 }) {
   const meta = STATE_META[state];
-  const quick = useQuickEntry(item, onUpdate, author);
+  const quick = useQuickEntry(item, state, onUpdate, author);
   const unit = item.unit || "Nos";
   const unchecked = item.qtyInStock === null && item.qtyReceived === 0;
   const toProcure = qtyToProcure(item);
@@ -1344,7 +1351,7 @@ function ItemCard({
 }) {
   const meta = STATE_META[state];
   const Icon = STATE_ICONS[state];
-  const quick = useQuickEntry(item, onUpdate, author);
+  const quick = useQuickEntry(item, state, onUpdate, author);
   const toProcure = qtyToProcure(item);
   const unit = item.unit || "Nos";
   const footer = itemFooter(item, state, today);
@@ -1492,12 +1499,16 @@ function itemFooter(item: ProcurementItem, state: ItemState, today: string) {
 }
 
 // Inline "check stock" / "mark received" entry, shared by cards and list rows.
+// Unchecked items keep the stock field open so the store can type and save in one go.
 function useQuickEntry(
   item: ProcurementItem,
+  state: ItemState,
   onUpdate: (item: ProcurementItem, patch: ItemPatch, log?: string) => Promise<boolean>,
   author: string,
 ) {
-  const [kind, setKind] = useState<"stock" | "receive" | null>(null);
+  const [opened, setKind] = useState<"stock" | "receive" | null>(null);
+  const pinned = state === "unchecked";
+  const kind = opened ?? (pinned ? "stock" : null);
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
   const toProcure = qtyToProcure(item);
@@ -1537,7 +1548,7 @@ function useQuickEntry(
     }
   }
 
-  return { kind, value, setValue, saving, open, close: () => setKind(null), submit };
+  return { kind, pinned, value, setValue, saving, open, close: () => setKind(null), submit };
 }
 
 function QuickArea({
@@ -1554,9 +1565,10 @@ function QuickArea({
   compact?: boolean;
 }) {
   const size = compact ? "h-8" : "h-9";
+  const canEdit = useStageCanEdit();
   return (
     <AnimatePresence mode="wait" initial={false}>
-      {quick.kind ? (
+      {quick.kind && canEdit ? (
         <motion.form
           key="quick"
           onSubmit={quick.submit}
@@ -1572,7 +1584,7 @@ function QuickArea({
             step="any"
             value={quick.value}
             onChange={(event) => quick.setValue(event.target.value)}
-            className={`${size} ${compact ? "w-24" : ""}`}
+            className={`${size} ${compact ? "w-24" : quick.pinned ? "min-w-0 flex-1" : ""}`}
             aria-label={quick.kind === "stock" ? "Quantity in stock" : "Quantity received"}
             placeholder={quick.kind === "stock" ? "Qty in stock" : "Qty received"}
           />
@@ -1586,16 +1598,24 @@ function QuickArea({
           >
             {quick.saving ? <LoaderCircle className="animate-spin" /> : <Check />}
           </Button>
-          <Button
-            size="icon"
-            type="button"
-            variant="ghost"
-            className={`${size} w-8 shrink-0`}
-            onClick={quick.close}
-            aria-label="Cancel"
-          >
-            <X />
-          </Button>
+          {quick.pinned ? (
+            !compact && (
+              <Button size="sm" type="button" variant="ghost" onClick={onOpen}>
+                Details
+              </Button>
+            )
+          ) : (
+            <Button
+              size="icon"
+              type="button"
+              variant="ghost"
+              className={`${size} w-8 shrink-0`}
+              onClick={quick.close}
+              aria-label="Cancel"
+            >
+              <X />
+            </Button>
+          )}
         </motion.form>
       ) : (
         <motion.div
@@ -1605,12 +1625,8 @@ function QuickArea({
           exit={{ opacity: 0 }}
           className={`flex flex-wrap gap-2 ${compact ? "justify-end" : ""}`}
         >
-          {state === "unchecked" && (
-            <Button size="sm" className={compact ? "h-8" : ""} onClick={() => quick.open("stock")}>
-              <ClipboardCheck /> Check stock
-            </Button>
-          )}
-          {(state === "today" ||
+          {canEdit &&
+            (state === "today" ||
             state === "overdue" ||
             state === "incoming" ||
             state === "enquired") && (
@@ -1623,7 +1639,7 @@ function QuickArea({
               <PackageCheck /> {compact ? "Received" : "Mark received"}
             </Button>
           )}
-          {state === "shortage" && (
+          {canEdit && state === "shortage" && (
             <Button size="sm" className={compact ? "h-8" : ""} onClick={onOpen}>
               <Send /> {compact ? "Enquiry" : "Log enquiry"}
             </Button>
@@ -1713,9 +1729,11 @@ function EmptyList({ orderId, onAdd }: { orderId: string; onAdd: () => void }) {
               <FileSpreadsheet /> Upload BOM in Design
             </Link>
           </Button>
-          <Button variant="ghost" onClick={onAdd}>
-            <Plus /> Add by hand
-          </Button>
+          <EditOnly>
+            <Button variant="ghost" onClick={onAdd}>
+              <Plus /> Add by hand
+            </Button>
+          </EditOnly>
         </div>
       </div>
     </motion.div>
@@ -1772,6 +1790,7 @@ function ItemSheet({
   onDelete: (item: ProcurementItem) => Promise<void>;
 }) {
   const existing = item && item !== "new" ? item : undefined;
+  const canEdit = useStageCanEdit();
   const [form, setForm] = useState<SheetForm>(() => toForm(existing));
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -1892,7 +1911,8 @@ function ItemSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <form onSubmit={submit} className="mt-6 space-y-6 pb-6">
+        <form onSubmit={submit} className="mt-6 pb-6">
+          <fieldset disabled={!canEdit} className="space-y-6">
           <FormSection icon={PackageOpen} title="Item" hint="What is required for this project">
             <Field label="Item name" value={form.itemName} onChange={set("itemName")} required />
             <div className="grid grid-cols-2 gap-3">
@@ -1993,7 +2013,7 @@ function ItemSheet({
             </>
           )}
 
-          <div className="flex flex-wrap gap-2">
+          <div className={`flex flex-wrap gap-2 ${canEdit ? "" : "hidden"}`}>
             <Button type="submit" disabled={saving} className="flex-1">
               {saving ? <LoaderCircle className="animate-spin" /> : <Check />}
               {existing ? "Save changes" : "Add item"}
@@ -2009,6 +2029,7 @@ function ItemSheet({
               </Button>
             )}
           </div>
+          </fieldset>
         </form>
 
         <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
