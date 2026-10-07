@@ -177,6 +177,8 @@ export function ProcurementStage({
   const [makes, setMakes] = useState<Set<string>>(new Set());
   const [categories, setCategories] = useState<Set<string>>(new Set());
   const [groupBy, setGroupBy] = useState<GroupBy>("status");
+  // Cost-sheet orders are split by panel; "" shows every panel.
+  const [panel, setPanel] = useState("");
   const [viewPref, setViewPref] = useState<View | null>(null);
   const today = todayIso();
 
@@ -403,18 +405,34 @@ export function ProcurementStage({
     toast.success(`Stock filled for ${done} item${done === 1 ? "" : "s"}. Please verify.`);
   }
 
+  const panels = useMemo(() => {
+    const byName = new Map<string, { name: string; total: number; ready: number }>();
+    for (const item of items) {
+      if (!item.panel) continue;
+      const entry = byName.get(item.panel) ?? { name: item.panel, total: 0, ready: 0 };
+      entry.total++;
+      if (itemState(item, today) === "complete") entry.ready++;
+      byName.set(item.panel, entry);
+    }
+    return [...byName.values()];
+  }, [items, today]);
+  const panelItems = useMemo(
+    () => (panel ? items.filter((item) => item.panel === panel) : items),
+    [items, panel],
+  );
+
   const counts = useMemo(() => {
     const result = Object.fromEntries(STATE_ORDER.map((state) => [state, 0])) as Record<
       ItemState,
       number
     >;
-    for (const item of items) result[itemState(item, today)]++;
+    for (const item of panelItems) result[itemState(item, today)]++;
     return result;
-  }, [items, today]);
+  }, [panelItems, today]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return sortItems(items, today).filter((item) => {
+    return sortItems(panelItems, today).filter((item) => {
       if (filter !== "all" && itemState(item, today) !== filter) return false;
       if (makes.size && !makes.has(facetKey(item.make))) return false;
       if (categories.size && !categories.has(facetKey(item.category))) return false;
@@ -431,10 +449,13 @@ export function ProcurementStage({
         .toLowerCase()
         .includes(needle);
     });
-  }, [items, filter, query, today, makes, categories]);
+  }, [panelItems, filter, query, today, makes, categories]);
 
-  const makeOptions = useMemo(() => facetOptions(items, "make", "No make"), [items]);
-  const categoryOptions = useMemo(() => facetOptions(items, "category", "No category"), [items]);
+  const makeOptions = useMemo(() => facetOptions(panelItems, "make", "No make"), [panelItems]);
+  const categoryOptions = useMemo(
+    () => facetOptions(panelItems, "category", "No category"),
+    [panelItems],
+  );
 
   useEffect(() => {
     try {
@@ -481,11 +502,38 @@ export function ProcurementStage({
   }, [groupBy, visible, today]);
   const filtersActive = makes.size + categories.size > 0 || filter !== "all" || Boolean(query);
 
-  const readyPercent = items.length ? Math.round((counts.complete / items.length) * 100) : 0;
-  const allReady = items.length > 0 && counts.complete === items.length;
+  const readyPercent = panelItems.length
+    ? Math.round((counts.complete / panelItems.length) * 100)
+    : 0;
+  // The stage is done only when every panel's material is available.
+  const allReady = items.length > 0 && items.every((item) => itemState(item, today) === "complete");
 
   return (
     <div className="mx-auto w-full max-w-[80vw] space-y-6 max-lg:max-w-full">
+      {panels.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Panel
+          </span>
+          {[{ name: "", total: items.length, ready: 0 }, ...panels].map((entry) => {
+            const active = panel === entry.name;
+            return (
+              <button
+                key={entry.name || "all"}
+                type="button"
+                onClick={() => setPanel(entry.name)}
+                className={`inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors ${active ? "neo-pressed text-primary" : "neo-pop text-foreground/80"}`}
+              >
+                {entry.name || "All panels"}
+                <span className="rounded-full bg-primary/10 px-1.5 text-[11px] text-primary">
+                  {entry.name ? `${entry.ready}/${entry.total}` : entry.total}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <motion.section
         initial={{ opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -507,7 +555,8 @@ export function ProcurementStage({
                 {readyPercent}%
               </motion.span>
               <span className="text-sm text-muted-foreground">
-                {counts.complete} of {items.length} items available
+                {counts.complete} of {panelItems.length} items available
+                {panel ? ` in ${panel}` : ""}
               </span>
             </div>
           </div>
@@ -592,9 +641,9 @@ export function ProcurementStage({
           </Link>
         </Button>
         <EditOnly>
-        <Button variant="outline" onClick={() => setEditing("new")}>
-          <Plus /> Add item
-        </Button>
+          <Button variant="outline" onClick={() => setEditing("new")}>
+            <Plus /> Add item
+          </Button>
         </EditOnly>
         <Button
           variant="outline"
@@ -1627,18 +1676,18 @@ function QuickArea({
         >
           {canEdit &&
             (state === "today" ||
-            state === "overdue" ||
-            state === "incoming" ||
-            state === "enquired") && (
-            <Button
-              size="sm"
-              className={compact ? "h-8" : ""}
-              variant={state === "today" ? "default" : "outline"}
-              onClick={() => quick.open("receive")}
-            >
-              <PackageCheck /> {compact ? "Received" : "Mark received"}
-            </Button>
-          )}
+              state === "overdue" ||
+              state === "incoming" ||
+              state === "enquired") && (
+              <Button
+                size="sm"
+                className={compact ? "h-8" : ""}
+                variant={state === "today" ? "default" : "outline"}
+                onClick={() => quick.open("receive")}
+              >
+                <PackageCheck /> {compact ? "Received" : "Mark received"}
+              </Button>
+            )}
           {canEdit && state === "shortage" && (
             <Button size="sm" className={compact ? "h-8" : ""} onClick={onOpen}>
               <Send /> {compact ? "Enquiry" : "Log enquiry"}
@@ -1913,122 +1962,126 @@ function ItemSheet({
 
         <form onSubmit={submit} className="mt-6 pb-6">
           <fieldset disabled={!canEdit} className="space-y-6">
-          <FormSection icon={PackageOpen} title="Item" hint="What is required for this project">
-            <Field label="Item name" value={form.itemName} onChange={set("itemName")} required />
-            <div className="grid grid-cols-2 gap-3">
-              <Field
-                label="Category"
-                value={form.category}
-                onChange={set("category")}
-                placeholder="PLC, Relay, Meter…"
-              />
-              <Field label="Make" value={form.make} onChange={set("make")} />
-              <Field label="Model / Part no" value={form.model} onChange={set("model")} />
-              <Field
-                label="Specification"
-                value={form.specification}
-                onChange={set("specification")}
-              />
-              <Field
-                label="Qty required"
-                type="number"
-                value={form.qtyRequired}
-                onChange={set("qtyRequired")}
-              />
-              <Field
-                label="Unit"
-                value={form.unit}
-                onChange={set("unit")}
-                placeholder="Nos, m, set…"
-              />
-            </div>
-          </FormSection>
-
-          {existing && (
-            <>
-              <FormSection
-                icon={ClipboardCheck}
-                title="Stock check"
-                hint={
-                  existing.stockCheckedBy
-                    ? `Last checked by ${existing.stockCheckedBy}${existing.stockCheckedAt ? `, ${timeAgo(existing.stockCheckedAt)}` : ""}`
-                    : "Store team: how many do we already have?"
-                }
-              >
+            <FormSection icon={PackageOpen} title="Item" hint="What is required for this project">
+              <Field label="Item name" value={form.itemName} onChange={set("itemName")} required />
+              <div className="grid grid-cols-2 gap-3">
                 <Field
-                  label="Qty in stock"
-                  type="number"
-                  value={form.qtyInStock}
-                  onChange={set("qtyInStock")}
-                  placeholder="Leave empty if not checked yet"
+                  label="Category"
+                  value={form.category}
+                  onChange={set("category")}
+                  placeholder="PLC, Relay, Meter…"
                 />
-              </FormSection>
-
-              <FormSection
-                icon={Send}
-                title="Enquiry & delivery"
-                hint="Purchase team: who supplies it and when it arrives"
-              >
-                <Field label="Supplier / vendor" value={form.supplier} onChange={set("supplier")} />
-                <div className="grid grid-cols-2 gap-3">
-                  <Field
-                    label="Enquiry date"
-                    type="date"
-                    value={form.enquiryDate}
-                    onChange={set("enquiryDate")}
-                  />
-                  <Field
-                    label="Expected arrival"
-                    type="date"
-                    value={form.expectedDate}
-                    onChange={set("expectedDate")}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="item-notes" className="text-xs font-semibold text-primary">
-                    Notes
-                  </Label>
-                  <Textarea
-                    id="item-notes"
-                    rows={3}
-                    value={form.notes}
-                    onChange={(event) => set("notes")(event.target.value)}
-                    placeholder="Quotation no., lead time, follow-up remarks…"
-                  />
-                </div>
-              </FormSection>
-
-              <FormSection
-                icon={PackageCheck}
-                title="Receiving"
-                hint="Total quantity received from suppliers so far"
-              >
+                <Field label="Make" value={form.make} onChange={set("make")} />
+                <Field label="Model / Part no" value={form.model} onChange={set("model")} />
                 <Field
-                  label="Qty received"
-                  type="number"
-                  value={form.qtyReceived}
-                  onChange={set("qtyReceived")}
+                  label="Specification"
+                  value={form.specification}
+                  onChange={set("specification")}
                 />
-              </FormSection>
-            </>
-          )}
+                <Field
+                  label="Qty required"
+                  type="number"
+                  value={form.qtyRequired}
+                  onChange={set("qtyRequired")}
+                />
+                <Field
+                  label="Unit"
+                  value={form.unit}
+                  onChange={set("unit")}
+                  placeholder="Nos, m, set…"
+                />
+              </div>
+            </FormSection>
 
-          <div className={`flex flex-wrap gap-2 ${canEdit ? "" : "hidden"}`}>
-            <Button type="submit" disabled={saving} className="flex-1">
-              {saving ? <LoaderCircle className="animate-spin" /> : <Check />}
-              {existing ? "Save changes" : "Add item"}
-            </Button>
             {existing && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setConfirmDelete(true)}
-                aria-label="Delete item"
-              >
-                <Trash2 />
-              </Button>
+              <>
+                <FormSection
+                  icon={ClipboardCheck}
+                  title="Stock check"
+                  hint={
+                    existing.stockCheckedBy
+                      ? `Last checked by ${existing.stockCheckedBy}${existing.stockCheckedAt ? `, ${timeAgo(existing.stockCheckedAt)}` : ""}`
+                      : "Store team: how many do we already have?"
+                  }
+                >
+                  <Field
+                    label="Qty in stock"
+                    type="number"
+                    value={form.qtyInStock}
+                    onChange={set("qtyInStock")}
+                    placeholder="Leave empty if not checked yet"
+                  />
+                </FormSection>
+
+                <FormSection
+                  icon={Send}
+                  title="Enquiry & delivery"
+                  hint="Purchase team: who supplies it and when it arrives"
+                >
+                  <Field
+                    label="Supplier / vendor"
+                    value={form.supplier}
+                    onChange={set("supplier")}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field
+                      label="Enquiry date"
+                      type="date"
+                      value={form.enquiryDate}
+                      onChange={set("enquiryDate")}
+                    />
+                    <Field
+                      label="Expected arrival"
+                      type="date"
+                      value={form.expectedDate}
+                      onChange={set("expectedDate")}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="item-notes" className="text-xs font-semibold text-primary">
+                      Notes
+                    </Label>
+                    <Textarea
+                      id="item-notes"
+                      rows={3}
+                      value={form.notes}
+                      onChange={(event) => set("notes")(event.target.value)}
+                      placeholder="Quotation no., lead time, follow-up remarks…"
+                    />
+                  </div>
+                </FormSection>
+
+                <FormSection
+                  icon={PackageCheck}
+                  title="Receiving"
+                  hint="Total quantity received from suppliers so far"
+                >
+                  <Field
+                    label="Qty received"
+                    type="number"
+                    value={form.qtyReceived}
+                    onChange={set("qtyReceived")}
+                  />
+                </FormSection>
+              </>
             )}
-          </div>
+
+            <div className={`flex flex-wrap gap-2 ${canEdit ? "" : "hidden"}`}>
+              <Button type="submit" disabled={saving} className="flex-1">
+                {saving ? <LoaderCircle className="animate-spin" /> : <Check />}
+                {existing ? "Save changes" : "Add item"}
+              </Button>
+              {existing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setConfirmDelete(true)}
+                  aria-label="Delete item"
+                >
+                  <Trash2 />
+                </Button>
+              )}
+            </div>
           </fieldset>
         </form>
 

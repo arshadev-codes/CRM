@@ -64,6 +64,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { StageBodyProps } from "./DesignStage";
 import { AssigneePicker } from "./AssigneePicker";
+import { useProposalStore } from "@/store/proposalStore";
 import { ListSkeleton } from "./StageSkeleton";
 
 type TaskPatch = Partial<
@@ -94,6 +95,11 @@ export function ProductionStage({ orderId, stage, setStageStatus, employees }: S
   const [removing, setRemoving] = useState<Panel | null>(null);
   const [person, setPerson] = useState(EVERYONE);
   const today = todayIso();
+  // Panels store employee ids (so access can follow them); the picker works with names.
+  const directory = useProposalStore((s) => s.employees);
+  const idOf = (name: string) =>
+    directory.find((e) => e.name.trim().toLowerCase() === name.trim().toLowerCase())?.id;
+  const nameOf = (id: string) => directory.find((e) => e.id === id)?.name;
 
   useEffect(() => {
     let active = true;
@@ -158,16 +164,26 @@ export function ProductionStage({ orderId, stage, setStageStatus, employees }: S
     if ("status" in patch) syncStatus(next);
   }
 
+  // Assigns the panel (and all its work) to these people.
   async function assignAll(panelId: string, assignees: string[]) {
     const previous = tasks;
+    const previousPanels = panels;
+    const assigneeIds = assignees.map(idOf).filter((id): id is string => Boolean(id));
+    const unknown = assignees.filter((name) => !idOf(name));
     setTasks(tasks.map((t) => (t.panelId === panelId ? { ...t, assignees } : t)));
-    const { error } = await supabase
-      .from("production_tasks")
-      .update({ assignees })
-      .eq("panel_id", panelId);
-    if (error) {
+    setPanels(panels.map((p) => (p.id === panelId ? { ...p, assigneeIds } : p)));
+    const [taskResult, panelResult] = await Promise.all([
+      supabase.from("production_tasks").update({ assignees }).eq("panel_id", panelId),
+      supabase.from("production_panels").update({ assignee_ids: assigneeIds }).eq("id", panelId),
+    ]);
+    if (taskResult.error || panelResult.error) {
       setTasks(previous);
+      setPanels(previousPanels);
       toast.error("Could not assign");
+    } else if (unknown.length) {
+      toast.info(
+        `${unknown.join(", ")} ${unknown.length === 1 ? "is" : "are"} not in Employees, so the panel's material won't be shared with them in the app.`,
+      );
     }
   }
 
@@ -357,6 +373,7 @@ export function ProductionStage({ orderId, stage, setStageStatus, employees }: S
               onUpdate={updateTask}
               onAdd={(works) => addTasks(panel.id, works)}
               onRemoveTask={(task) => void removeTask(task)}
+              team={panel.assigneeIds.map(nameOf).filter((n): n is string => Boolean(n))}
               onAssignAll={(names) => void assignAll(panel.id, names)}
             />
           );
@@ -430,7 +447,9 @@ function PanelSection({
   onAdd,
   onRemoveTask,
   onAssignAll,
+  team: panelTeam,
 }: {
+  team: string[];
   panel: Panel;
   tasks: Task[];
   shown: Task[];
@@ -458,7 +477,7 @@ function PanelSection({
     .map((t) => t.endDate)
     .filter(Boolean)
     .sort() as string[];
-  const team = [...new Set(tasks.flatMap((t) => t.assignees))];
+  const team = [...new Set([...panelTeam, ...tasks.flatMap((t) => t.assignees)])];
 
   async function add(event?: FormEvent) {
     event?.preventDefault();
@@ -539,7 +558,7 @@ function PanelSection({
               employees={employees}
               onChange={onAssignAll}
               compact
-              placeholder="Assign all"
+              placeholder="Assign panel"
             />
             <Button
               size="icon"
@@ -576,53 +595,53 @@ function PanelSection({
             <span />
           </div>
           <EditLock>
-          <ul className="divide-y divide-border/40">
-            {shown.map((task) => (
-              <TaskRowItem
-                key={task.id}
-                task={task}
-                today={today}
-                employees={employees}
-                onUpdate={(patch) => void onUpdate(task, patch)}
-                onRemove={() => onRemoveTask(task)}
-              />
-            ))}
-          </ul>
+            <ul className="divide-y divide-border/40">
+              {shown.map((task) => (
+                <TaskRowItem
+                  key={task.id}
+                  task={task}
+                  today={today}
+                  employees={employees}
+                  onUpdate={(patch) => void onUpdate(task, patch)}
+                  onRemove={() => onRemoveTask(task)}
+                />
+              ))}
+            </ul>
           </EditLock>
           <EditOnly>
-          <form
-            onSubmit={(event) => void add(event)}
-            className="flex flex-wrap items-center gap-2 border-t border-border/40 bg-muted/20 px-4 py-2"
-          >
-            <Plus className="h-4 w-4 text-muted-foreground" />
-            <Input
-              value={adding}
-              onChange={(e) => setAdding(e.target.value)}
-              list={`work-types-${panel.id}`}
-              placeholder="Add work…"
-              className="h-8 max-w-56 flex-1 bg-transparent"
-            />
-            <datalist id={`work-types-${panel.id}`}>
-              {missing.map((w) => (
-                <option key={w} value={w} />
+            <form
+              onSubmit={(event) => void add(event)}
+              className="flex flex-wrap items-center gap-2 border-t border-border/40 bg-muted/20 px-4 py-2"
+            >
+              <Plus className="h-4 w-4 text-muted-foreground" />
+              <Input
+                value={adding}
+                onChange={(e) => setAdding(e.target.value)}
+                list={`work-types-${panel.id}`}
+                placeholder="Add work…"
+                className="h-8 max-w-56 flex-1 bg-transparent"
+              />
+              <datalist id={`work-types-${panel.id}`}>
+                {missing.map((w) => (
+                  <option key={w} value={w} />
+                ))}
+              </datalist>
+              {adding.trim() && (
+                <Button type="submit" size="sm" className="h-8">
+                  Add
+                </Button>
+              )}
+              {missing.slice(0, 4).map((w) => (
+                <button
+                  key={w}
+                  type="button"
+                  onClick={() => void onAdd([w])}
+                  className="rounded-full border border-dashed border-muted-foreground/30 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                >
+                  + {w}
+                </button>
               ))}
-            </datalist>
-            {adding.trim() && (
-              <Button type="submit" size="sm" className="h-8">
-                Add
-              </Button>
-            )}
-            {missing.slice(0, 4).map((w) => (
-              <button
-                key={w}
-                type="button"
-                onClick={() => void onAdd([w])}
-                className="rounded-full border border-dashed border-muted-foreground/30 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary"
-              >
-                + {w}
-              </button>
-            ))}
-          </form>
+            </form>
           </EditOnly>
         </div>
       )}

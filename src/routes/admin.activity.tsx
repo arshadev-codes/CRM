@@ -1,7 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowRight, ChevronDown, History, Loader2, Lock, LogIn, Pencil, Plus, Search, Trash2,
+  ArrowRight,
+  ChevronDown,
+  History,
+  Loader2,
+  Lock,
+  LogIn,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
 } from "lucide-react";
 import { supabase as cloud } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -68,7 +77,9 @@ function show(value: unknown): string {
 }
 
 // Flattens {field: {from, to}} and one nested level {field: {sub: {from, to}}} into lines.
-function changeLines(changes: Record<string, unknown>): { field: string; from: unknown; to: unknown }[] {
+function changeLines(
+  changes: Record<string, unknown>,
+): { field: string; from: unknown; to: unknown }[] {
   const lines: { field: string; from: unknown; to: unknown }[] = [];
   for (const [field, value] of Object.entries(changes)) {
     const change = value as Change & Record<string, unknown>;
@@ -99,7 +110,12 @@ function dayLabel(iso: string) {
   yesterday.setDate(today.getDate() - 1);
   if (date.toDateString() === today.toDateString()) return "Today";
   if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return date.toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+  return date.toLocaleDateString("en-IN", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function ActivityPage() {
@@ -138,7 +154,10 @@ function ActivityPage() {
         since.setDate(since.getDate() - (Number(range) - 1));
         request = request.gte("at", since.toISOString());
       }
-      if (search) request = request.or(`label.ilike.%${search.replace(/[%,()]/g, "")}%,actor_name.ilike.%${search.replace(/[%,()]/g, "")}%`);
+      if (search)
+        request = request.or(
+          `label.ilike.%${search.replace(/[%,()]/g, "")}%,actor_name.ilike.%${search.replace(/[%,()]/g, "")}%`,
+        );
       const { data, error: failure } = await request;
       setLoading(false);
       if (failure) {
@@ -174,7 +193,9 @@ function ActivityPage() {
           <Lock className="mx-auto h-10 w-10 text-slate-400" />
           <h1 className="mt-4 text-lg font-bold text-slate-800">Admins only</h1>
           <p className="mt-1 text-sm text-slate-500">Only an admin can see the activity log.</p>
-          <Link to="/" className="mt-6 inline-block text-sm font-semibold text-indigo-600">Go home</Link>
+          <Link to="/" className="mt-6 inline-block text-sm font-semibold text-indigo-600">
+            Go home
+          </Link>
         </div>
       </div>
     );
@@ -209,13 +230,31 @@ function ActivityPage() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <select className={selectClass} value={person} onChange={(e) => setPerson(e.target.value)} aria-label="Person">
+        <select
+          className={selectClass}
+          value={person}
+          onChange={(e) => setPerson(e.target.value)}
+          aria-label="Person"
+        >
           <option value="">Everyone</option>
-          {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
         </select>
-        <select className={selectClass} value={section} onChange={(e) => setSection(e.target.value)} aria-label="Section">
+        <select
+          className={selectClass}
+          value={section}
+          onChange={(e) => setSection(e.target.value)}
+          aria-label="Section"
+        >
           <option value="">All sections</option>
-          {Object.entries(SECTIONS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          {Object.entries(SECTIONS).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
         </select>
         <div className="neo-inset flex h-10 items-center gap-1 rounded-xl p-1">
           {RANGES.map((r) => (
@@ -231,21 +270,29 @@ function ActivityPage() {
         </div>
       </div>
 
-      {error && <p className="mb-4 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</p>}
+      {error && (
+        <p className="mb-4 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</p>
+      )}
 
       {!loading && rows.length === 0 && !error ? (
         <div className="neo-surface flex flex-col items-center rounded-3xl px-6 py-16 text-center">
           <History className="h-10 w-10 text-slate-300" />
-          <div className="mt-3 font-semibold text-slate-700">Nothing recorded for these filters</div>
+          <div className="mt-3 font-semibold text-slate-700">
+            Nothing recorded for these filters
+          </div>
           <div className="text-sm text-slate-500">Changes will show up here as people work.</div>
         </div>
       ) : (
         <div className="space-y-6">
           {groups.map((group) => (
             <section key={group.day}>
-              <div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">{group.day}</div>
+              <div className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+                {group.day}
+              </div>
               <ul className="neo-surface divide-y divide-slate-200/60 overflow-hidden rounded-2xl">
-                {group.items.map((row) => <Entry key={row.id} row={row} />)}
+                {group.items.map((row) => (
+                  <Entry key={row.id} row={row} />
+                ))}
               </ul>
             </section>
           ))}
@@ -256,7 +303,11 @@ function ActivityPage() {
         {loading ? (
           <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
         ) : (
-          more && <Button variant="outline" onClick={() => void load(rows.length)}>Load older</Button>
+          more && (
+            <Button variant="outline" onClick={() => void load(rows.length)}>
+              Load older
+            </Button>
+          )
         )}
       </div>
     </div>
@@ -273,7 +324,8 @@ function Entry({ row }: { row: LogRow }) {
   const details = fullRow ? rowLines(fullRow) : [];
   const shown = open ? lines : lines.slice(0, 3);
   const expandable = lines.length > 3 || details.length > 0;
-  const section = row.action === "event" ? row.label : SECTIONS[row.table_name] ?? humanize(row.table_name);
+  const section =
+    row.action === "event" ? row.label : (SECTIONS[row.table_name] ?? humanize(row.table_name));
 
   return (
     <li className="px-4 py-3">
@@ -283,8 +335,12 @@ function Entry({ row }: { row: LogRow }) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-            <span className="font-semibold text-slate-800">{row.actor_name || "Unknown (not signed in)"}</span>
-            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${action.tone}`}>
+            <span className="font-semibold text-slate-800">
+              {row.actor_name || "Unknown (not signed in)"}
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${action.tone}`}
+            >
               <Icon className="h-3 w-3" /> {action.label}
             </span>
             <span className="text-slate-600">{section}</span>
@@ -310,9 +366,13 @@ function Entry({ row }: { row: LogRow }) {
               {shown.map((line) => (
                 <li key={line.field} className="flex flex-wrap items-center gap-1.5 text-slate-500">
                   <span className="font-medium text-slate-600">{line.field}:</span>
-                  <span className="rounded bg-rose-50 px-1 text-rose-700 line-through decoration-rose-300">{show(line.from)}</span>
+                  <span className="rounded bg-rose-50 px-1 text-rose-700 line-through decoration-rose-300">
+                    {show(line.from)}
+                  </span>
                   <ArrowRight className="h-3 w-3 text-slate-300" />
-                  <span className="rounded bg-emerald-50 px-1 text-emerald-700">{show(line.to)}</span>
+                  <span className="rounded bg-emerald-50 px-1 text-emerald-700">
+                    {show(line.to)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -336,7 +396,11 @@ function Entry({ row }: { row: LogRow }) {
               className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:underline"
             >
               <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />
-              {open ? "Less" : lines.length > 3 ? `${lines.length - 3} more change${lines.length - 3 === 1 ? "" : "s"}` : "Details"}
+              {open
+                ? "Less"
+                : lines.length > 3
+                  ? `${lines.length - 3} more change${lines.length - 3 === 1 ? "" : "s"}`
+                  : "Details"}
             </button>
           )}
         </div>

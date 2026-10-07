@@ -36,6 +36,9 @@ export type ImportedItem = {
   notes: string;
   qtyMissing: boolean;
   sheet?: string;
+  /** Cost sheets only: the panel and whether it is a consumable (wiring, lugs, hardware). */
+  panel?: string;
+  consumable?: boolean;
 };
 
 export type SheetData = { name: string; rows: unknown[][] };

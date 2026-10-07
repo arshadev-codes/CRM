@@ -45,6 +45,8 @@ export type Panel = {
   quantity: number;
   notes: string;
   displayOrder: number;
+  /** Employee ids of the people this panel is assigned to. */
+  assigneeIds: string[];
 };
 export type Task = {
   id: string;
@@ -67,6 +69,7 @@ export function mapPanel(row: PanelRow): Panel {
     quantity: Number(row.quantity) || 1,
     notes: row.notes,
     displayOrder: row.display_order,
+    assigneeIds: row.assignee_ids ?? [],
   };
 }
 export function mapTask(row: TaskRow): Task {

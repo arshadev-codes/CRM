@@ -595,6 +595,7 @@ export type Database = {
       procurement_items: {
         Row: {
           category: string
+          consumable: boolean
           created_at: string
           display_order: number
           enquiry_date: string | null
@@ -605,6 +606,8 @@ export type Database = {
           make: string
           model: string
           notes: string
+          panel: string
+          panel_id: string | null
           qty_in_stock: number | null
           qty_received: number
           qty_required: number
@@ -618,6 +621,7 @@ export type Database = {
         }
         Insert: {
           category?: string
+          consumable?: boolean
           created_at?: string
           display_order?: number
           enquiry_date?: string | null
@@ -628,6 +632,8 @@ export type Database = {
           make?: string
           model?: string
           notes?: string
+          panel?: string
+          panel_id?: string | null
           qty_in_stock?: number | null
           qty_received?: number
           qty_required?: number
@@ -641,6 +647,7 @@ export type Database = {
         }
         Update: {
           category?: string
+          consumable?: boolean
           created_at?: string
           display_order?: number
           enquiry_date?: string | null
@@ -651,6 +658,8 @@ export type Database = {
           make?: string
           model?: string
           notes?: string
+          panel?: string
+          panel_id?: string | null
           qty_in_stock?: number | null
           qty_received?: number
           qty_required?: number
@@ -670,10 +679,18 @@ export type Database = {
             referencedRelation: "inward_orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "procurement_items_panel_id_fkey"
+            columns: ["panel_id"]
+            isOneToOne: false
+            referencedRelation: "production_panels"
+            referencedColumns: ["id"]
+          },
         ]
       }
       production_panels: {
         Row: {
+          assignee_ids: string[]
           created_at: string
           display_order: number
           id: string
@@ -685,6 +702,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assignee_ids?: string[]
           created_at?: string
           display_order?: number
           id?: string
@@ -696,6 +714,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assignee_ids?: string[]
           created_at?: string
           display_order?: number
           id?: string

@@ -75,6 +75,9 @@ const DEFAULTS: Record<string, () => Row> = {
     document_id: null,
   }),
   procurement_items: () => ({
+    panel: "",
+    panel_id: null,
+    consumable: false,
     category: "",
     make: "",
     model: "",
@@ -185,7 +188,14 @@ const DEFAULTS: Record<string, () => Row> = {
     remarks: "",
     display_order: 0,
   }),
-  production_panels: () => ({ panel_type: "", tag: "", quantity: 1, notes: "", display_order: 0 }),
+  production_panels: () => ({
+    panel_type: "",
+    tag: "",
+    quantity: 1,
+    notes: "",
+    display_order: 0,
+    assignee_ids: [],
+  }),
   production_tasks: () => ({
     work: "",
     assignees: [],

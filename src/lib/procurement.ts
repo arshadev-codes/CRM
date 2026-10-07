@@ -29,6 +29,10 @@ export type ProcurementItem = {
   qtyReceived: number;
   receivedAt?: string;
   notes: string;
+  /** Panel of the order this item is for ("" when the BOM is not panel-wise). */
+  panel: string;
+  panelId: string | null;
+  consumable: boolean;
   displayOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -53,6 +57,9 @@ export function mapProcurement(row: ProcurementRow): ProcurementItem {
     qtyReceived: Number(row.qty_received) || 0,
     receivedAt: row.received_at ?? undefined,
     notes: row.notes,
+    panel: row.panel ?? "",
+    panelId: row.panel_id ?? null,
+    consumable: Boolean(row.consumable),
     displayOrder: row.display_order,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -276,8 +283,9 @@ export type BomPlan = {
   removed: ProcurementItem[];
 };
 
-function bomKey(item: { itemName: string; model: string }) {
-  return `${key(item.itemName)}|${key(item.model)}`;
+// The same item on two panels is two cards, so the panel is part of the match.
+function bomKey(item: { itemName: string; model: string; panel?: string }) {
+  return `${key(item.itemName)}|${key(item.model)}|${key(item.panel ?? "")}`;
 }
 
 // Compares a new BOM with the current material list, so a revision keeps the stock checks,
@@ -293,8 +301,13 @@ export function planBomUpdate(current: ProcurementItem[], incoming: ImportedItem
     if (exact?.length) return exact.shift();
     // Same item name where one side has no model number.
     for (const [k, list] of pool) {
-      const [name, model] = k.split("|");
-      if (name === key(next.itemName) && (!model || !key(next.model)) && list.length)
+      const [name, model, panel] = k.split("|");
+      if (
+        name === key(next.itemName) &&
+        panel === key(next.panel ?? "") &&
+        (!model || !key(next.model)) &&
+        list.length
+      )
         return list.shift();
     }
     return undefined;

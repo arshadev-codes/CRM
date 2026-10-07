@@ -32,6 +32,12 @@ import {
   type SheetTable,
 } from "@/lib/bomParser";
 import {
+  costSheetItemCount,
+  costSheetToItems,
+  parseCostSheet,
+  type CostSheet,
+} from "@/lib/costSheetParser";
+import {
   downloadTemplate,
   formatQty,
   hasProgress,
@@ -64,6 +70,43 @@ import type { StageUpdate } from "./DesignStage";
 import { EASE, formatSize, timeAgo } from "./shared";
 
 type Table = SheetTable & { itemCount: number; include: boolean };
+type Parsed = { file: File; tables: Table[]; costSheet?: CostSheet };
+
+// Cost-sheet panels become production panels of the order, and their items point to them.
+async function linkPanels(orderId: string) {
+  const [{ data: rows }, { data: panels }] = await Promise.all([
+    supabase.from("procurement_items").select("id, panel, panel_id").eq("inward_order_id", orderId),
+    supabase.from("production_panels").select("*").eq("inward_order_id", orderId),
+  ]);
+  const byName = new Map(
+    (panels ?? []).map((p) => [String(p.panel_type).trim().toLowerCase(), p.id as string]),
+  );
+  const names = [...new Set((rows ?? []).map((r) => String(r.panel ?? "").trim()).filter(Boolean))];
+  let order = (panels ?? []).reduce((max, p) => Math.max(max, Number(p.display_order) || 0), 0);
+  for (const name of names) {
+    if (byName.has(name.toLowerCase())) continue;
+    const { data } = await supabase
+      .from("production_panels")
+      .insert({ inward_order_id: orderId, panel_type: name, display_order: ++order })
+      .select("id")
+      .single();
+    if (data) byName.set(name.toLowerCase(), data.id);
+  }
+  for (const name of names) {
+    const id = byName.get(name.toLowerCase());
+    const stale = (rows ?? []).filter(
+      (r) => String(r.panel ?? "").trim() === name && r.panel_id !== id,
+    );
+    if (id && stale.length)
+      await supabase
+        .from("procurement_items")
+        .update({ panel_id: id })
+        .in(
+          "id",
+          stale.map((r) => r.id),
+        );
+  }
+}
 
 // The BOM is uploaded in Design. Each row becomes a card in Material Procurement, and a new
 // revision updates those cards instead of starting over, so stock checks and enquiries stay.
@@ -93,7 +136,7 @@ export function BomPanel({
   const [items, setItems] = useState<ProcurementItem[]>([]);
   const [reading, setReading] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [parsed, setParsed] = useState<{ file: File; tables: Table[] } | null>(null);
+  const [parsed, setParsed] = useState<Parsed | null>(null);
   const latest = revisions.at(-1);
 
   const loadItems = useCallback(async () => {
@@ -118,7 +161,14 @@ export function BomPanel({
     }
     setReading(true);
     try {
-      const { tables } = analyzeWorkbook(await readWorkbook(file));
+      const sheets = await readWorkbook(file);
+      // A panel cost sheet (panels, feeders, catalogue numbers) is read panel-wise.
+      const costSheet = parseCostSheet(sheets);
+      if (costSheetItemCount(costSheet) > 0) {
+        setParsed({ file, tables: [], costSheet });
+        return;
+      }
+      const { tables } = analyzeWorkbook(sheets);
       if (!tables.length)
         toast.error("No item list found in this file. Check that it has a description column.");
       else setParsed({ file, tables });
@@ -154,6 +204,8 @@ export function BomPanel({
           unit: row.unit,
           qty_required: row.qtyRequired,
           notes: row.notes,
+          panel: row.panel ?? "",
+          consumable: Boolean(row.consumable),
           display_order: start + index + 1,
         })),
       );
@@ -170,6 +222,8 @@ export function BomPanel({
           model: next.model || item.model,
           specification: next.specification || item.specification,
           unit: next.unit || item.unit,
+          notes: next.notes || item.notes,
+          consumable: next.consumable ?? item.consumable,
         })
         .eq("id", item.id);
       failed ||= Boolean(error);
@@ -185,6 +239,8 @@ export function BomPanel({
         );
       failed ||= Boolean(error);
     }
+
+    if (values.items.some((item) => item.panel)) await linkPanels(orderId);
 
     const summary = [
       plan.added.length ? `${plan.added.length} added` : "",
@@ -488,7 +544,7 @@ function BomImportDialog({
   onClose,
   onConfirm,
 }: {
-  data: { file: File; tables: Table[] } | null;
+  data: Parsed | null;
   current: ProcurementItem[];
   isRevision: boolean;
   nextRevision: number;
@@ -514,9 +570,15 @@ function BomImportDialog({
   const [tab, setTab] = useState<"items" | "changes">(current.length ? "changes" : "items");
   const [saving, setSaving] = useState(false);
 
+  const costSheet = data?.costSheet;
+  // Cost sheet rows left out of the import (unticked in the preview).
+  const [skip, setSkip] = useState<Set<string>>(() => new Set());
   const items = useMemo(
-    () => tables.filter((table) => table.include).flatMap((table) => extractItems(table).items),
-    [tables],
+    () =>
+      costSheet
+        ? costSheetToItems(costSheet, skip)
+        : tables.filter((table) => table.include).flatMap((table) => extractItems(table).items),
+    [costSheet, skip, tables],
   );
   const plan = useMemo(() => planBomUpdate(current, items), [current, items]);
   const missingQty = items.filter((item) => item.qtyMissing).length;
@@ -578,7 +640,23 @@ function BomImportDialog({
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-          {tables.length > 1 && (
+          {costSheet && (
+            <div className="flex items-start gap-3 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <div className="font-semibold">
+                  Cost sheet read panel-wise: {costSheet.panels.length} panel
+                  {costSheet.panels.length === 1 ? "" : "s"}, {costSheetItemCount(costSheet)} items
+                </div>
+                <div className="text-xs text-emerald-800/80">
+                  Prices, discounts, fabrication, busbar, wiring and costing are not imported. Each
+                  panel is added to Production so people can be assigned to it.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!costSheet && tables.length > 1 && (
             <div className="space-y-1.5">
               <div className="text-xs font-semibold text-primary">Sheets with items</div>
               <div className="flex flex-wrap gap-2">
@@ -601,95 +679,99 @@ function BomImportDialog({
             </div>
           )}
 
-          <div className="neo-inset rounded-2xl p-3">
-            <button
-              type="button"
-              onClick={() => setShowColumns((value) => !value)}
-              className="flex w-full items-center gap-2 text-left text-sm"
-            >
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="font-semibold">Columns found automatically</span>
-              <span className="hidden truncate text-xs text-muted-foreground sm:inline">
-                {active &&
-                  BOM_FIELDS.filter((field) => active.columns[field.key] !== undefined)
-                    .map((field) => field.label.split(" ")[0])
-                    .join(", ")}
-              </span>
-              <span className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-primary">
-                <SlidersHorizontal className="h-3.5 w-3.5" /> {showColumns ? "Hide" : "Adjust"}
-              </span>
-            </button>
-            <AnimatePresence initial={false}>
-              {showColumns && active && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.25, ease: EASE }}
-                  className="overflow-hidden"
-                >
-                  {tables.length > 1 && (
-                    <div className="mt-3 flex items-center gap-2 text-xs">
-                      <span className="text-muted-foreground">Sheet</span>
-                      <Select value={active.sheet} onValueChange={setActiveSheet}>
-                        <SelectTrigger className="h-8 w-48">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tables.map((table) => (
-                            <SelectItem key={table.sheet} value={table.sheet}>
-                              {table.sheet}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  {active.guessed && (
-                    <p className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                      <AlertTriangle className="h-4 w-4 shrink-0" />
-                      No header row was recognised, so the columns were guessed from the data.
-                      Please check them.
-                    </p>
-                  )}
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                    {BOM_FIELDS.map((field) => (
-                      <div key={field.key} className="space-y-1">
-                        <Label className="text-[11px] font-semibold text-muted-foreground">
-                          {field.label}
-                          {field.key === "itemName" && <span className="text-destructive"> *</span>}
-                        </Label>
-                        <Select
-                          value={
-                            active.columns[field.key] === undefined
-                              ? NONE
-                              : String(active.columns[field.key])
-                          }
-                          onValueChange={(value) => setColumn(field.key, value)}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
+          {!costSheet && (
+            <div className="neo-inset rounded-2xl p-3">
+              <button
+                type="button"
+                onClick={() => setShowColumns((value) => !value)}
+                className="flex w-full items-center gap-2 text-left text-sm"
+              >
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="font-semibold">Columns found automatically</span>
+                <span className="hidden truncate text-xs text-muted-foreground sm:inline">
+                  {active &&
+                    BOM_FIELDS.filter((field) => active.columns[field.key] !== undefined)
+                      .map((field) => field.label.split(" ")[0])
+                      .join(", ")}
+                </span>
+                <span className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-primary">
+                  <SlidersHorizontal className="h-3.5 w-3.5" /> {showColumns ? "Hide" : "Adjust"}
+                </span>
+              </button>
+              <AnimatePresence initial={false}>
+                {showColumns && active && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25, ease: EASE }}
+                    className="overflow-hidden"
+                  >
+                    {tables.length > 1 && (
+                      <div className="mt-3 flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">Sheet</span>
+                        <Select value={active.sheet} onValueChange={setActiveSheet}>
+                          <SelectTrigger className="h-8 w-48">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value={NONE}>Not in this file</SelectItem>
-                            {Array.from({ length: width }, (_, index) => (
-                              <SelectItem key={index} value={String(index)}>
-                                {columnLabel(active, index)}
+                            {tables.map((table) => (
+                              <SelectItem key={table.sheet} value={table.sheet}>
+                                {table.sheet}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    Header on row {active.headerRow + 1}. Section headings become the category, and
-                    totals, notes and repeated headers are skipped.
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                    )}
+                    {active.guessed && (
+                      <p className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        No header row was recognised, so the columns were guessed from the data.
+                        Please check them.
+                      </p>
+                    )}
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      {BOM_FIELDS.map((field) => (
+                        <div key={field.key} className="space-y-1">
+                          <Label className="text-[11px] font-semibold text-muted-foreground">
+                            {field.label}
+                            {field.key === "itemName" && (
+                              <span className="text-destructive"> *</span>
+                            )}
+                          </Label>
+                          <Select
+                            value={
+                              active.columns[field.key] === undefined
+                                ? NONE
+                                : String(active.columns[field.key])
+                            }
+                            onValueChange={(value) => setColumn(field.key, value)}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={NONE}>Not in this file</SelectItem>
+                              {Array.from({ length: width }, (_, index) => (
+                                <SelectItem key={index} value={String(index)}>
+                                  {columnLabel(active, index)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Header on row {active.headerRow + 1}. Section headings become the category,
+                      and totals, notes and repeated headers are skipped.
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
           {missingQty > 0 && (
             <div className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -732,7 +814,11 @@ function BomImportDialog({
                   onClick={() => setTab(value)}
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === value ? "neo-pop text-primary" : "text-muted-foreground"}`}
                 >
-                  {value === "changes" ? "What changes" : `All ${items.length} items`}
+                  {value === "changes"
+                    ? "What changes"
+                    : costSheet
+                      ? "Panel-wise items"
+                      : `All ${items.length} items`}
                 </button>
               ))}
             </div>
@@ -770,6 +856,8 @@ function BomImportDialog({
                 </div>
               )}
             </div>
+          ) : costSheet ? (
+            <CostSheetPreview sheet={costSheet} skip={skip} onSkip={setSkip} />
           ) : (
             <div className="neo-inset max-h-[36vh] overflow-auto rounded-xl">
               <table className="w-full text-sm">
@@ -875,6 +963,98 @@ function BomImportDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Cost sheet items grouped by panel and feeder; untick a row to leave it out.
+function CostSheetPreview({
+  sheet,
+  skip,
+  onSkip,
+}: {
+  sheet: CostSheet;
+  skip: Set<string>;
+  onSkip: (next: Set<string>) => void;
+}) {
+  const all = sheet.panels.flatMap((p) => p.feeders.flatMap((f) => f.items));
+  const consumables = all.filter((item) => item.consumable);
+  const consumablesSkipped = consumables.length > 0 && consumables.every((i) => skip.has(i.key));
+  const toggle = (keys: string[], include: boolean) => {
+    const next = new Set(skip);
+    for (const k of keys) {
+      if (include) next.delete(k);
+      else next.add(k);
+    }
+    onSkip(next);
+  };
+  return (
+    <div className="space-y-2">
+      {consumables.length > 0 && (
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Checkbox
+            checked={!consumablesSkipped}
+            onCheckedChange={(checked) =>
+              toggle(
+                consumables.map((i) => i.key),
+                checked === true,
+              )
+            }
+          />
+          Include {consumables.length} consumable row{consumables.length === 1 ? "" : "s"} (wiring,
+          lugs, hardware) under "Consumables"
+        </label>
+      )}
+      <div className="neo-inset max-h-[40vh] space-y-3 overflow-y-auto rounded-xl p-3">
+        {sheet.panels.map((panel, pi) => (
+          <div key={`${panel.name}-${pi}`}>
+            <div className="flex items-baseline gap-2">
+              <span className="text-sm font-bold text-primary">{panel.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {panel.boardQty > 1 ? `${panel.boardQty} boards · ` : ""}
+                {panel.feeders.length} feeder{panel.feeders.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            {panel.feeders.map((feeder, fi) => (
+              <div key={`${feeder.name}-${fi}`} className="mt-1.5">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {feeder.name || "Items"}
+                  {feeder.qty > 1 ? ` × ${feeder.qty}` : ""}
+                </div>
+                <ul className="mt-0.5">
+                  {feeder.items.map((item) => {
+                    const on = !skip.has(item.key);
+                    return (
+                      <li key={item.key}>
+                        <label
+                          className={`flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-primary/5 ${on ? "" : "opacity-50"}`}
+                        >
+                          <Checkbox
+                            checked={on}
+                            onCheckedChange={(checked) => toggle([item.key], checked === true)}
+                          />
+                          <span className="min-w-0 flex-1 truncate">{item.description}</span>
+                          {item.consumable && (
+                            <span className="shrink-0 rounded-full bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-800">
+                              Consumable
+                            </span>
+                          )}
+                          <span className="hidden w-40 shrink-0 truncate text-xs text-muted-foreground sm:block">
+                            {[item.make, item.catalog].filter(Boolean).join(" · ") || "—"}
+                          </span>
+                          <span className="w-16 shrink-0 text-right font-semibold">
+                            {formatQty(item.qty)} {item.unit}
+                          </span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
