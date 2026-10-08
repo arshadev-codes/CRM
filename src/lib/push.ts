@@ -5,6 +5,46 @@ import { supabase as cloud } from "@/integrations/supabase/client";
 
 const PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 
+/* ---------- Android app (Firebase) ---------- */
+
+// The Electrosoft Android app opens the site with "#app_token=<FCM token>". That phone then
+// gets notifications straight from Firebase, which works even while Chrome is asleep.
+const APP_TOKEN = "electrosoft:app-token";
+
+function readAppToken() {
+  try {
+    return localStorage.getItem(APP_TOKEN);
+  } catch {
+    return null;
+  }
+}
+
+// Called once on page load: keep the token and take it out of the address bar.
+export function captureAppToken() {
+  if (typeof window === "undefined") return;
+  const match = window.location.hash.match(/app_token=([^&]+)/);
+  if (!match) return;
+  try {
+    localStorage.setItem(APP_TOKEN, decodeURIComponent(match[1]));
+  } catch {
+    /* storage unavailable */
+  }
+  history.replaceState(history.state, "", window.location.pathname + window.location.search);
+}
+
+export function inAndroidApp() {
+  return Boolean(readAppToken());
+}
+
+// Links this phone's app to the signed-in person. Browser push is then switched off here,
+// so the same notification doesn't arrive twice.
+export async function saveAppToken() {
+  const token = readAppToken();
+  if (!token) return;
+  const { error } = await cloud.rpc("save_device_token", { p_token: token, p_platform: "android" });
+  if (!error) await removeBrowserPush();
+}
+
 export type PushState = "unsupported" | "needs-install" | "blocked" | "off" | "on";
 
 function keyBytes(base64: string) {
@@ -34,7 +74,9 @@ async function registration() {
 }
 
 export async function pushState(): Promise<PushState> {
-  if (typeof window === "undefined" || !PUBLIC_KEY) return "unsupported";
+  if (typeof window === "undefined") return "unsupported";
+  if (inAndroidApp()) return "on";
+  if (!PUBLIC_KEY) return "unsupported";
   // iPhones allow push only for apps added to the Home Screen.
   if (isIos() && !isInstalled()) return "needs-install";
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window))
@@ -74,13 +116,13 @@ export async function enablePush(): Promise<PushState> {
 
 // After sign-in on a phone that already allowed notifications, link it to the new person.
 export async function refreshPush() {
+  if (inAndroidApp()) return saveAppToken();
   if ((await pushState()) !== "on") return;
   const sub = await (await registration())?.pushManager.getSubscription();
   if (sub) await save(sub);
 }
 
-// On sign-out this phone stops getting the person's notifications.
-export async function disablePush() {
+async function removeBrowserPush() {
   try {
     const sub = await (await registration())?.pushManager.getSubscription();
     if (!sub) return;
@@ -89,4 +131,11 @@ export async function disablePush() {
   } catch {
     /* nothing to remove */
   }
+}
+
+// On sign-out this phone stops getting the person's notifications.
+export async function disablePush() {
+  const token = readAppToken();
+  if (token) await cloud.from("device_tokens").delete().eq("token", token);
+  await removeBrowserPush();
 }

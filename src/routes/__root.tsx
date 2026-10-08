@@ -18,6 +18,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { isFieldUser, useAuthMode, useAuthStore, useCurrentUser } from "@/store/authStore";
 import { Home, RotateCcw } from "lucide-react";
 import { freshStart } from "@/lib/freshStart";
+import { captureAppToken } from "@/lib/push";
 
 // Runs before any page renders, so no page sees the old database's leftovers.
 freshStart();
@@ -107,6 +108,7 @@ function RootComponent() {
   const authMode = useAuthMode();
   const navigate = Route.useNavigate();
   useEffect(() => {
+    captureAppToken();
     void useAuthStore.getState().init();
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => undefined);

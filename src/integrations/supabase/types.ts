@@ -111,6 +111,33 @@ export type Database = {
         }
         Relationships: []
       }
+      device_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          platform: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          platform?: string
+          token: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          platform?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       dispatch_details: {
         Row: {
           checklist: Json
@@ -1233,6 +1260,10 @@ export type Database = {
         Returns: undefined
       }
       order_people: { Args: { p_order: string }; Returns: string[] }
+      save_device_token: {
+        Args: { p_platform?: string; p_token: string }
+        Returns: undefined
+      }
       save_push_subscription: {
         Args: {
           p_agent: string
