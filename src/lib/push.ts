@@ -7,41 +7,51 @@ const PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 
 /* ---------- Android app (Firebase) ---------- */
 
-// The Electrosoft Android app opens the site with "#app_token=<FCM token>". That phone then
-// gets notifications straight from Firebase, which works even while Chrome is asleep.
-const APP_TOKEN = "electrosoft:app-token";
+// The Electrosoft Android app opens the site with "#app_install=<id>", a random id of that
+// install. The app sends its Firebase token to the "app-device" function itself; the site
+// only links the install to whoever signs in. Firebase works even while Chrome is asleep.
+const APP_INSTALL = "electrosoft:app-install";
 
-function readAppToken() {
+function readAppInstall() {
   try {
-    return localStorage.getItem(APP_TOKEN);
+    return localStorage.getItem(APP_INSTALL);
   } catch {
     return null;
   }
 }
 
-// Called once on page load: keep the token and take it out of the address bar.
-export function captureAppToken() {
-  if (typeof window === "undefined") return;
-  const match = window.location.hash.match(/app_token=([^&]+)/);
-  if (!match) return;
+function takeAppInstallFromUrl() {
+  const match = window.location.hash.match(/app_install=([0-9a-f-]{36})/i);
+  if (!match) return false;
   try {
-    localStorage.setItem(APP_TOKEN, decodeURIComponent(match[1]));
+    localStorage.setItem(APP_INSTALL, match[1]);
   } catch {
     /* storage unavailable */
   }
   history.replaceState(history.state, "", window.location.pathname + window.location.search);
+  return true;
+}
+
+// Called once on page load: keep the id and take it out of the address bar. Reopening the app
+// can reuse the page that is already open and only change the "#...", so watch for that too.
+export function captureAppInstall() {
+  if (typeof window === "undefined") return;
+  takeAppInstallFromUrl();
+  window.addEventListener("hashchange", () => {
+    if (takeAppInstallFromUrl()) void claimAppInstall().catch(() => undefined);
+  });
 }
 
 export function inAndroidApp() {
-  return Boolean(readAppToken());
+  return Boolean(readAppInstall());
 }
 
 // Links this phone's app to the signed-in person. Browser push is then switched off here,
 // so the same notification doesn't arrive twice.
-export async function saveAppToken() {
-  const token = readAppToken();
-  if (!token) return;
-  const { error } = await cloud.rpc("save_device_token", { p_token: token, p_platform: "android" });
+export async function claimAppInstall() {
+  const install = readAppInstall();
+  if (!install) return;
+  const { error } = await cloud.rpc("claim_app_install", { p_install: install });
   if (!error) await removeBrowserPush();
 }
 
@@ -116,7 +126,7 @@ export async function enablePush(): Promise<PushState> {
 
 // After sign-in on a phone that already allowed notifications, link it to the new person.
 export async function refreshPush() {
-  if (inAndroidApp()) return saveAppToken();
+  if (inAndroidApp()) return claimAppInstall();
   if ((await pushState()) !== "on") return;
   const sub = await (await registration())?.pushManager.getSubscription();
   if (sub) await save(sub);
@@ -135,7 +145,7 @@ async function removeBrowserPush() {
 
 // On sign-out this phone stops getting the person's notifications.
 export async function disablePush() {
-  const token = readAppToken();
-  if (token) await cloud.from("device_tokens").delete().eq("token", token);
+  const install = readAppInstall();
+  if (install) await cloud.rpc("release_app_install", { p_install: install });
   await removeBrowserPush();
 }

@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
   if (!note) return reply({ error: "Unknown notification" }, 404);
   const [{ data: devices }, { data: apps }] = await Promise.all([
     db.from("push_subscriptions").select("*").eq("user_id", note.user_id),
-    db.from("device_tokens").select("*").eq("user_id", note.user_id),
+    db.from("device_tokens").select("*").eq("user_id", note.user_id).not("token", "is", null),
   ]);
 
   const payload = JSON.stringify({

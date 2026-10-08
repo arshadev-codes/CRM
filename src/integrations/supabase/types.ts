@@ -115,26 +115,29 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          install_id: string | null
           platform: string
-          token: string
+          token: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
+          install_id?: string | null
           platform?: string
-          token: string
+          token?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          install_id?: string | null
           platform?: string
-          token?: string
+          token?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1230,6 +1233,7 @@ export type Database = {
       can_edit_any: { Args: never; Returns: boolean }
       can_read_order: { Args: { o: string }; Returns: boolean }
       can_view: { Args: { p: string }; Returns: boolean }
+      claim_app_install: { Args: { p_install: string }; Returns: undefined }
       full_view: { Args: never; Returns: boolean }
       has_perm: { Args: { p: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
@@ -1260,6 +1264,7 @@ export type Database = {
         Returns: undefined
       }
       order_people: { Args: { p_order: string }; Returns: string[] }
+      release_app_install: { Args: { p_install: string }; Returns: undefined }
       save_device_token: {
         Args: { p_platform?: string; p_token: string }
         Returns: undefined

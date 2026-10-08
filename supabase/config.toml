@@ -10,3 +10,7 @@ verify_jwt = false
 [functions.push-send]
 # Called by the database with a shared secret, not a user token.
 verify_jwt = false
+
+[functions.app-device]
+# Called by the Android app, which has no sign-in of its own; it only stores a phone's token.
+verify_jwt = false

@@ -21,21 +21,16 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-
-import com.google.firebase.messaging.FirebaseMessaging;
 
 /**
- * Opens the site full screen. First it asks for notification permission (Android 13+) and gets
- * this phone's Firebase token, which it hands to the site as "#app_token=...".
+ * Opens the site full screen with "#app_install=<id>", so the site can link this phone to
+ * whoever signs in. On Android 13+ it first asks for notification permission. The Firebase
+ * token goes to the server separately (PushService), so nothing waits for it here.
  */
 public class LauncherActivity
         extends com.google.androidbrowserhelper.trusted.LauncherActivity {
 
     private static final int ASK_NOTIFICATIONS = 7;
-    // Open the site anyway if Firebase is slow (no Google Play services, no internet).
-    private static final long TOKEN_WAIT_MS = 4000;
 
     private boolean launched;
 
@@ -51,39 +46,26 @@ public class LauncherActivity
         } else {
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         }
+        PushService.registerToken(this);
         if (isFinishing()) return;
 
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, ASK_NOTIFICATIONS);
         } else {
-            fetchTokenThenLaunch();
+            launchOnce();
         }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(requestCode, permissions, results);
-        if (requestCode == ASK_NOTIFICATIONS) fetchTokenThenLaunch();
+        if (requestCode == ASK_NOTIFICATIONS) launchOnce();
     }
 
     @Override
     protected boolean shouldLaunchImmediately() {
         return false;
-    }
-
-    private void fetchTokenThenLaunch() {
-        new Handler(Looper.getMainLooper()).postDelayed(this::launchOnce, TOKEN_WAIT_MS);
-        try {
-            FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
-                if (task.isSuccessful() && task.getResult() != null) {
-                    PushService.saveToken(this, task.getResult());
-                }
-                launchOnce();
-            });
-        } catch (RuntimeException e) {
-            launchOnce();
-        }
     }
 
     private void launchOnce() {
@@ -101,11 +83,6 @@ public class LauncherActivity
         if (link != null && link.startsWith("/")) {
             uri = Uri.parse(uri.getScheme() + "://" + uri.getAuthority() + link);
         }
-
-        String token = PushService.savedToken(this);
-        if (token != null) {
-            uri = uri.buildUpon().fragment("app_token=" + token).build();
-        }
-        return uri;
+        return uri.buildUpon().fragment("app_install=" + PushService.installId(this)).build();
     }
 }

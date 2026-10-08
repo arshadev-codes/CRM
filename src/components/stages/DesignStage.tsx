@@ -418,6 +418,20 @@ export function DesignStage({
     toast.success("Update deleted");
   }
 
+  // Removes every revision of a design document and their files.
+  async function deleteDocument(doc: DesignDocument) {
+    const ids = doc.revisions.map((item) => item.id);
+    const { error } = await supabase.from("stage_updates").delete().in("id", ids);
+    if (error) {
+      toast.error("Could not delete the document");
+      return;
+    }
+    const paths = doc.revisions.flatMap((item) => (item.storagePath ? [item.storagePath] : []));
+    if (paths.length) await supabase.storage.from(BUCKET).remove(paths);
+    setUpdates((current) => current.filter((item) => !ids.includes(item.id)));
+    toast.success(`${doc.title} deleted`);
+  }
+
   async function openFile(update: StageUpdate, download: boolean) {
     if (!update.storagePath) return;
     const { data, error } = await supabase.storage
@@ -456,6 +470,8 @@ export function DesignStage({
               onPick={setIntent}
               onOpen={(update) => void openFile(update, false)}
               onDownload={(update) => void openFile(update, true)}
+              onDeleteRevision={deleteUpdate}
+              onDeleteDocument={deleteDocument}
             />
           </motion.section>
 
@@ -563,6 +579,8 @@ function DocumentsPanel({
   onPick,
   onOpen,
   onDownload,
+  onDeleteRevision,
+  onDeleteDocument,
 }: {
   label: string;
   title: string;
@@ -575,8 +593,11 @@ function DocumentsPanel({
   onPick: (intent: UploadIntent) => void;
   onOpen: (update: StageUpdate) => void;
   onDownload: (update: StageUpdate) => void;
+  onDeleteRevision: (update: StageUpdate) => Promise<void>;
+  onDeleteDocument: (doc: DesignDocument) => Promise<void>;
 }) {
   const canEdit = useStageCanEdit();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const pendingMode = useRef<"new" | "revision">("new");
   const [dragging, setDragging] = useState(false);
@@ -872,10 +893,50 @@ function DocumentsPanel({
               >
                 <RefreshCw /> New revision
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setConfirmDelete(true)}
+                disabled={Boolean(uploading)}
+              >
+                <Trash2 /> Delete
+              </Button>
             </div>
           )}
         </div>
       )}
+      <AlertDialog open={confirmDelete && Boolean(current)} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {current?.title}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {current && current.revisions.length > 1
+                ? `Delete only the latest revision (R${revision}), so R${revision - 1} becomes current again, or delete the whole document with all ${current.revisions.length} revisions.`
+                : "This removes the document and its file."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            {current && drawing && current.revisions.length > 1 && (
+              <AlertDialogAction
+                className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                onClick={() => void onDeleteRevision(drawing)}
+              >
+                Delete only R{revision}
+              </AlertDialogAction>
+            )}
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (current) void onDeleteDocument(current);
+              }}
+            >
+              {current && current.revisions.length > 1 ? "Delete whole document" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {drawing?.remarks && current && current.revisions.length > 1 && (
         <p className="mt-2 px-1 text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">R{revision} change:</span>{" "}
@@ -1489,7 +1550,7 @@ function UpdateCard({
             aria-label="Delete update"
             title="Delete update"
             onClick={onDelete}
-            className="ml-auto rounded-full p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover/card:opacity-100"
+            className="ml-auto rounded-full p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover/card:opacity-100 [@media(hover:none)]:opacity-100"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>

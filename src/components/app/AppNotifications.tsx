@@ -4,7 +4,7 @@ import { Bell, BellOff, BellRing, LoaderCircle, Share } from "lucide-react";
 import { toast } from "sonner";
 import { supabase as cloud } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { enablePush, pushState, saveAppToken, type PushState } from "@/lib/push";
+import { enablePush, pushState, claimAppInstall, type PushState } from "@/lib/push";
 
 type Note = Database["public"]["Tables"]["notifications"]["Row"];
 
@@ -26,7 +26,7 @@ export function AppNotifications({ userId }: { userId: string }) {
 
   useEffect(() => {
     void pushState().then(setState);
-    void saveAppToken().catch(() => undefined);
+    void claimAppInstall().catch(() => undefined);
     void cloud
       .from("notifications")
       .select("*")
