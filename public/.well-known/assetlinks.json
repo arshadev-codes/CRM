@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.electrosoft.work",
+      "sha256_cert_fingerprints": [
+        "DC:ED:71:F2:ED:D9:6B:EB:DC:74:26:83:56:36:E2:44:39:AA:5F:4F:82:35:04:F4:BA:6D:C7:A4:34:D8:BF:6A"
+      ]
+    }
+  }
+]
