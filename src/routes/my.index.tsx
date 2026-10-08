@@ -48,7 +48,7 @@ function MyWorkPage() {
   return (
     <div className="min-h-svh bg-slate-50 pb-24">
       <AppHeader
-        title={`Namaste, ${user?.name.split(" ")[0] ?? ""}`}
+        title={`Assalamualaikum, ${user?.name.split(" ")[0] ?? ""}`}
         subtitle="Your assigned work"
       />
 
