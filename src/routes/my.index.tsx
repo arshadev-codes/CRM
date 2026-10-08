@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { CalendarClock, ChevronRight, ClipboardList, LayoutList, RefreshCw } from "lucide-react";
 import { AppHeader } from "@/components/app/AppHeader";
 import { AppNotifications } from "@/components/app/AppNotifications";
+import { AppTabBar } from "@/components/app/AppTabBar";
 import { loadMyWork, type MyOrder } from "@/lib/myWork";
 import { isLate, taskPercent } from "@/lib/production";
 import { todayIso } from "@/lib/procurement";
@@ -45,7 +46,7 @@ function MyWorkPage() {
     orders?.reduce((n, o) => n + o.tasks.filter((t) => isLate(t, today)).length, 0) ?? 0;
 
   return (
-    <div className="min-h-svh bg-slate-50 pb-[env(safe-area-inset-bottom)]">
+    <div className="min-h-svh bg-slate-50 pb-24">
       <AppHeader
         title={`Namaste, ${user?.name.split(" ")[0] ?? ""}`}
         subtitle="Your assigned work"
@@ -164,6 +165,7 @@ function MyWorkPage() {
           );
         })}
       </div>
+      <AppTabBar />
     </div>
   );
 }

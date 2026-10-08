@@ -35,14 +35,22 @@ export function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function lateFor(done: boolean, dueDate: string | undefined, completedOn: string | undefined, now: string) {
+function lateFor(
+  done: boolean,
+  dueDate: string | undefined,
+  completedOn: string | undefined,
+  now: string,
+) {
   if (!dueDate) return false;
   if (done) return Boolean(completedOn && completedOn > dueDate);
   return dueDate < now;
 }
 
-/** Every work item in the system, keyed by assignee name (normalised). */
-export async function loadWorkByPerson(): Promise<Map<string, WorkItem[]>> {
+/**
+ * Every work item in the system, keyed by assignee name (normalised). With `lenient`, a table
+ * this account may not read (field staff in the phone app) counts as empty instead of failing.
+ */
+export async function loadWorkByPerson({ lenient = false } = {}): Promise<Map<string, WorkItem[]>> {
   const now = today();
   const [tasks, panels, stages, points] = await Promise.all([
     supabase.from("production_tasks").select("*"),
@@ -51,7 +59,7 @@ export async function loadWorkByPerson(): Promise<Map<string, WorkItem[]>> {
     supabase.from("mom_points").select("*"),
   ]);
   const firstError = tasks.error ?? panels.error ?? stages.error ?? points.error;
-  if (firstError) throw firstError;
+  if (firstError && !lenient) throw firstError;
 
   const byPerson = new Map<string, WorkItem[]>();
   const add = (person: string, item: WorkItem) => {

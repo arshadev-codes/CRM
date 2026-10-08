@@ -32,6 +32,8 @@ import { Route as SettingsDeliveryRouteImport } from './routes/settings.delivery
 import { Route as SettingsConnectionsRouteImport } from './routes/settings.connections'
 import { Route as SettingsCompaniesRouteImport } from './routes/settings.companies'
 import { Route as PrintIdRouteImport } from './routes/print.$id'
+import { Route as MyPerformanceRouteImport } from './routes/my.performance'
+import { Route as MyAttendanceRouteImport } from './routes/my.attendance'
 import { Route as MyOrderIdRouteImport } from './routes/my.$orderId'
 import { Route as InwardOrdersIdRouteImport } from './routes/inward-orders.$id'
 import { Route as EmployeesIdRouteImport } from './routes/employees.$id'
@@ -157,6 +159,16 @@ const PrintIdRoute = PrintIdRouteImport.update({
   path: '/print/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MyPerformanceRoute = MyPerformanceRouteImport.update({
+  id: '/my/performance',
+  path: '/my/performance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyAttendanceRoute = MyAttendanceRouteImport.update({
+  id: '/my/attendance',
+  path: '/my/attendance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MyOrderIdRoute = MyOrderIdRouteImport.update({
   id: '/my/$orderId',
   path: '/my/$orderId',
@@ -213,6 +225,8 @@ export interface FileRoutesByFullPath {
   '/employees/$id': typeof EmployeesIdRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/my/$orderId': typeof MyOrderIdRoute
+  '/my/attendance': typeof MyAttendanceRoute
+  '/my/performance': typeof MyPerformanceRoute
   '/print/$id': typeof PrintIdRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -247,6 +261,8 @@ export interface FileRoutesByTo {
   '/employees/$id': typeof EmployeesIdRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/my/$orderId': typeof MyOrderIdRoute
+  '/my/attendance': typeof MyAttendanceRoute
+  '/my/performance': typeof MyPerformanceRoute
   '/print/$id': typeof PrintIdRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -282,6 +298,8 @@ export interface FileRoutesById {
   '/employees/$id': typeof EmployeesIdRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/my/$orderId': typeof MyOrderIdRoute
+  '/my/attendance': typeof MyAttendanceRoute
+  '/my/performance': typeof MyPerformanceRoute
   '/print/$id': typeof PrintIdRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -318,6 +336,8 @@ export interface FileRouteTypes {
     | '/employees/$id'
     | '/inward-orders/$id'
     | '/my/$orderId'
+    | '/my/attendance'
+    | '/my/performance'
     | '/print/$id'
     | '/settings/companies'
     | '/settings/connections'
@@ -352,6 +372,8 @@ export interface FileRouteTypes {
     | '/employees/$id'
     | '/inward-orders/$id'
     | '/my/$orderId'
+    | '/my/attendance'
+    | '/my/performance'
     | '/print/$id'
     | '/settings/companies'
     | '/settings/connections'
@@ -386,6 +408,8 @@ export interface FileRouteTypes {
     | '/employees/$id'
     | '/inward-orders/$id'
     | '/my/$orderId'
+    | '/my/attendance'
+    | '/my/performance'
     | '/print/$id'
     | '/settings/companies'
     | '/settings/connections'
@@ -421,6 +445,8 @@ export interface RootRouteChildren {
   EmployeesIdRoute: typeof EmployeesIdRoute
   InwardOrdersIdRoute: typeof InwardOrdersIdRoute
   MyOrderIdRoute: typeof MyOrderIdRoute
+  MyAttendanceRoute: typeof MyAttendanceRoute
+  MyPerformanceRoute: typeof MyPerformanceRoute
   PrintIdRoute: typeof PrintIdRoute
   SettingsCompaniesRoute: typeof SettingsCompaniesRoute
   SettingsConnectionsRoute: typeof SettingsConnectionsRoute
@@ -610,6 +636,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrintIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/my/performance': {
+      id: '/my/performance'
+      path: '/my/performance'
+      fullPath: '/my/performance'
+      preLoaderRoute: typeof MyPerformanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my/attendance': {
+      id: '/my/attendance'
+      path: '/my/attendance'
+      fullPath: '/my/attendance'
+      preLoaderRoute: typeof MyAttendanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/my/$orderId': {
       id: '/my/$orderId'
       path: '/my/$orderId'
@@ -685,6 +725,8 @@ const rootRouteChildren: RootRouteChildren = {
   EmployeesIdRoute: EmployeesIdRoute,
   InwardOrdersIdRoute: InwardOrdersIdRoute,
   MyOrderIdRoute: MyOrderIdRoute,
+  MyAttendanceRoute: MyAttendanceRoute,
+  MyPerformanceRoute: MyPerformanceRoute,
   PrintIdRoute: PrintIdRoute,
   SettingsCompaniesRoute: SettingsCompaniesRoute,
   SettingsConnectionsRoute: SettingsConnectionsRoute,
