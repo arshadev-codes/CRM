@@ -7,6 +7,7 @@ import {
   CircleDashed,
   Factory,
   LayoutList,
+  MessageSquare,
   Pencil,
   Plus,
   Trash2,
@@ -758,6 +759,13 @@ function TaskRowItem({
           <X className="h-3.5 w-3.5" />
         </Button>
       </EditOnly>
+      {task.remarks.trim() && (
+        // Remarks come from the people doing the work (phone app).
+        <p className="col-span-full flex min-w-0 items-start gap-1.5 pl-7 text-xs text-amber-700">
+          <MessageSquare className="mt-0.5 h-3 w-3 shrink-0" />
+          <span className="whitespace-pre-wrap break-words">{task.remarks}</span>
+        </p>
+      )}
     </li>
   );
 }
