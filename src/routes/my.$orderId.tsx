@@ -10,6 +10,7 @@ import {
   Package,
   Play,
   Ruler,
+  Trash2,
   Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ import {
   todayIso,
   type ProcurementItem,
 } from "@/lib/procurement";
+import { remarkTime, useTaskRemarks, type TaskRemark } from "@/lib/taskRemarks";
 import { canSee, useCurrentUser } from "@/store/authStore";
 
 export const Route = createFileRoute("/my/$orderId")({
@@ -129,6 +131,8 @@ const STATUS_STEPS: { value: TaskStatus; label: string; icon: typeof Check }[] =
 ];
 
 function TaskList({ work, onChange }: { work: MyOrder; onChange: (tasks: Task[]) => void }) {
+  const user = useCurrentUser();
+  const remarks = useTaskRemarks(work.order.id);
   if (!work.tasks.length)
     return (
       <Empty icon={Wrench} title="No tasks yet" text="Your tasks on this order will show here." />
@@ -149,6 +153,10 @@ function TaskList({ work, onChange }: { work: MyOrder; onChange: (tasks: Task[])
                 <TaskCard
                   key={task.id}
                   task={task}
+                  remarks={remarks.byTask.get(task.id) ?? []}
+                  myId={user?.id}
+                  onAddRemark={(body) => remarks.add(task.id, body)}
+                  onRemoveRemark={remarks.remove}
                   onSaved={(next) => onChange(work.tasks.map((t) => (t.id === next.id ? next : t)))}
                 />
               ))}
@@ -160,8 +168,22 @@ function TaskList({ work, onChange }: { work: MyOrder; onChange: (tasks: Task[])
   );
 }
 
-function TaskCard({ task, onSaved }: { task: Task; onSaved: (task: Task) => void }) {
-  const [remarks, setRemarks] = useState(task.remarks ?? "");
+function TaskCard({
+  task,
+  remarks,
+  myId,
+  onAddRemark,
+  onRemoveRemark,
+  onSaved,
+}: {
+  task: Task;
+  remarks: TaskRemark[];
+  myId?: string;
+  onAddRemark: (body: string) => Promise<boolean>;
+  onRemoveRemark: (id: string) => Promise<boolean>;
+  onSaved: (task: Task) => void;
+}) {
+  const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState<"status" | "remarks" | null>(null);
   const late = isLate(task, todayIso());
 
@@ -172,7 +194,6 @@ function TaskCard({ task, onSaved }: { task: Task; onSaved: (task: Task) => void
       row.status = patch.status;
       row.completed_on = patch.status === "done" ? todayIso() : null;
     }
-    if (patch.remarks !== undefined) row.remarks = patch.remarks;
     const { error } = await supabase.from("production_tasks").update(row).eq("id", task.id);
     setSaving(null);
     if (error) {
@@ -189,6 +210,15 @@ function TaskCard({ task, onSaved }: { task: Task; onSaved: (task: Task) => void
         : task.completedOn,
     });
     toast.success(kind === "status" ? "Status updated" : "Remark saved");
+  }
+
+  async function addRemark() {
+    setSaving("remarks");
+    const ok = await onAddRemark(draft);
+    setSaving(null);
+    if (!ok) return toast.error("Could not save. Check the internet and try again.");
+    setDraft("");
+    toast.success("Remark saved");
   }
 
   return (
@@ -239,19 +269,47 @@ function TaskCard({ task, onSaved }: { task: Task; onSaved: (task: Task) => void
         })}
       </div>
 
+      {remarks.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {remarks.map((r) => (
+            <li key={r.id} className="rounded-xl bg-amber-50 px-3 py-2 ring-1 ring-amber-100">
+              <div className="flex items-center gap-2 text-[11px] text-amber-800">
+                <span className="font-semibold">{r.authorId === myId ? "You" : r.authorName}</span>
+                <span className="text-amber-700/70">{remarkTime(r.createdAt)}</span>
+                {r.authorId === myId && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void onRemoveRemark(r.id).then(
+                        (ok) => !ok && toast.error("Could not remove the remark"),
+                      )
+                    }
+                    className="ml-auto text-amber-700/70"
+                    aria-label="Remove remark"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="whitespace-pre-wrap break-words text-sm text-slate-700">{r.body}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div className="mt-3">
         <textarea
-          value={remarks}
-          onChange={(e) => setRemarks(e.target.value)}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
           rows={2}
           placeholder="Remark or issue (e.g. material short, drawing unclear)"
           className="w-full rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none ring-1 ring-slate-200 focus:ring-indigo-400"
         />
-        {remarks.trim() !== (task.remarks ?? "").trim() && (
+        {draft.trim() && (
           <button
             type="button"
             disabled={saving !== null}
-            onClick={() => void save({ remarks: remarks.trim() }, "remarks")}
+            onClick={() => void addRemark()}
             className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white"
           >
             {saving === "remarks" ? (
@@ -259,7 +317,7 @@ function TaskCard({ task, onSaved }: { task: Task; onSaved: (task: Task) => void
             ) : (
               <Check className="h-4 w-4" />
             )}
-            Save remark
+            Add remark
           </button>
         )}
       </div>

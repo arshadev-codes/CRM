@@ -878,6 +878,44 @@ export type Database = {
           },
         ]
       }
+      production_task_remarks: {
+        Row: {
+          author_id: string | null
+          author_name: string
+          body: string
+          created_at: string
+          id: string
+          inward_order_id: string
+          task_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string
+          body: string
+          created_at?: string
+          id?: string
+          inward_order_id: string
+          task_id: string
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string
+          body?: string
+          created_at?: string
+          id?: string
+          inward_order_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_task_remarks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "production_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_tasks: {
         Row: {
           assignee_ids: string[]

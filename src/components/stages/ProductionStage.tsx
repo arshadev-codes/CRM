@@ -67,6 +67,7 @@ import type { StageBodyProps } from "./DesignStage";
 import { AssigneePicker } from "./AssigneePicker";
 import { useProposalStore } from "@/store/proposalStore";
 import { ListSkeleton } from "./StageSkeleton";
+import { remarkTime, useTaskRemarks, type TaskRemark } from "@/lib/taskRemarks";
 
 type TaskPatch = Partial<
   Pick<
@@ -102,6 +103,7 @@ export function ProductionStage({ orderId, stage, setStageStatus, employees }: S
   const today = todayIso();
   // Panels store employee ids (so access can follow them); the picker works with names.
   const directory = useProposalStore((s) => s.employees);
+  const remarks = useTaskRemarks(orderId);
   const idOf = (name: string) =>
     directory.find((e) => e.name.trim().toLowerCase() === name.trim().toLowerCase())?.id;
   const nameOf = (id: string) => directory.find((e) => e.id === id)?.name;
@@ -385,6 +387,7 @@ export function ProductionStage({ orderId, stage, setStageStatus, employees }: S
               onUpdate={updateTask}
               onAdd={(works) => addTasks(panel.id, works)}
               onRemoveTask={(task) => void removeTask(task)}
+              remarks={remarks.byTask}
               team={panel.assigneeIds.map(nameOf).filter((n): n is string => Boolean(n))}
               onAssignAll={(names) => void assignAll(panel.id, names)}
             />
@@ -460,8 +463,10 @@ function PanelSection({
   onRemoveTask,
   onAssignAll,
   team: panelTeam,
+  remarks,
 }: {
   team: string[];
+  remarks: Map<string, TaskRemark[]>;
   panel: Panel;
   tasks: Task[];
   shown: Task[];
@@ -612,6 +617,7 @@ function PanelSection({
                 <TaskRowItem
                   key={task.id}
                   task={task}
+                  remarks={remarks.get(task.id) ?? []}
                   today={today}
                   employees={employees}
                   onUpdate={(patch) => void onUpdate(task, patch)}
@@ -663,12 +669,14 @@ function PanelSection({
 
 function TaskRowItem({
   task,
+  remarks,
   today,
   employees,
   onUpdate,
   onRemove,
 }: {
   task: Task;
+  remarks: TaskRemark[];
   today: string;
   employees: string[];
   onUpdate: (patch: TaskPatch) => void;
@@ -759,12 +767,22 @@ function TaskRowItem({
           <X className="h-3.5 w-3.5" />
         </Button>
       </EditOnly>
-      {task.remarks.trim() && (
-        // Remarks come from the people doing the work (phone app).
-        <p className="col-span-full flex min-w-0 items-start gap-1.5 pl-7 text-xs text-amber-700">
-          <MessageSquare className="mt-0.5 h-3 w-3 shrink-0" />
-          <span className="whitespace-pre-wrap break-words">{task.remarks}</span>
-        </p>
+      {remarks.length > 0 && (
+        // Remarks come from the people doing the work (phone app), each with who and when.
+        <ul className="col-span-full space-y-1 pl-7">
+          {remarks.map((r) => (
+            <li key={r.id} className="flex min-w-0 items-start gap-1.5 text-xs text-amber-700">
+              <MessageSquare className="mt-0.5 h-3 w-3 shrink-0" />
+              <span className="min-w-0">
+                <span className="font-semibold">{r.authorName}</span>
+                <span className="text-amber-700/60"> · {remarkTime(r.createdAt)}</span>
+                <span className="block whitespace-pre-wrap break-words text-foreground/80">
+                  {r.body}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </li>
   );
