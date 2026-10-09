@@ -13,6 +13,8 @@ const PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 const APP_INSTALL = "electrosoft:app-install";
 
 function readAppInstall() {
+  // The id may still be in the address bar if this runs before captureAppInstall.
+  if (typeof window !== "undefined") takeAppInstallFromUrl();
   try {
     return localStorage.getItem(APP_INSTALL);
   } catch {
@@ -36,7 +38,7 @@ function takeAppInstallFromUrl() {
 // can reuse the page that is already open and only change the "#...", so watch for that too.
 export function captureAppInstall() {
   if (typeof window === "undefined") return;
-  takeAppInstallFromUrl();
+  if (takeAppInstallFromUrl()) void claimAppInstall().catch(() => undefined);
   window.addEventListener("hashchange", () => {
     if (takeAppInstallFromUrl()) void claimAppInstall().catch(() => undefined);
   });
@@ -51,6 +53,9 @@ export function inAndroidApp() {
 export async function claimAppInstall() {
   const install = readAppInstall();
   if (!install) return;
+  // Signed out, the claim would do nothing, so keep browser push until someone signs in.
+  const { data } = await cloud.auth.getSession();
+  if (!data.session) return;
   const { error } = await cloud.rpc("claim_app_install", { p_install: install });
   if (!error) await removeBrowserPush();
 }
