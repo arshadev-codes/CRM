@@ -14,6 +14,14 @@ import { companiesData, type Company } from "@/data/companiesData";
 import { supabase } from "@/lib/supabaseClient";
 // Inward orders, stages and attachments live in the app's own cloud backend.
 import { supabase as cloud } from "@/integrations/supabase/client";
+import {
+  loadEmployeesFromCloud,
+  removeEmployee,
+  removeRating,
+  saveEmployee,
+  saveRating,
+  uploadLocalEmployees,
+} from "@/lib/employeesCloud";
 import { buildOfferBase, buildOfferNumber, getFY, slugCompany } from "@/lib/offerNumber";
 import { freightLogisticsDefaults, type FreightLogisticsData } from "@/data/freightLogisticsData";
 import { defaultLayout, type ProposalLayout, type SavedProposalTemplate } from "@/data/proposalLayout";
@@ -237,6 +245,10 @@ interface ProposalStore {
   ratings: EmployeeRating[];
   addRating: (r: Omit<EmployeeRating, "id" | "createdAt">) => EmployeeRating;
   deleteRating: (id: string) => void;
+  /** Set once this browser's old local employees and ratings were uploaded. */
+  employeesSynced: boolean;
+  /** Loads employees and ratings from the database (the shared list). */
+  hydrateEmployees: () => Promise<void>;
   addCompany: (c: Omit<Company, "id"> & { id?: string }) => Company;
   updateCompany: (id: string, patch: Partial<Company>) => void;
   deleteCompany: (id: string) => void;
@@ -320,6 +332,7 @@ export const useProposalStore = create<ProposalStore>()(
       paymentTemplates: paymentTemplatesData,
       employees: employeesData,
       ratings: [],
+      employeesSynced: false,
       companies: companiesData,
       inwardOrders: [],
       createInwardOrder: (o) => {
@@ -510,22 +523,51 @@ export const useProposalStore = create<ProposalStore>()(
       addEmployee: (emp) => {
         const e: Employee = { ...emp, id: emp.id ?? crypto.randomUUID() };
         set(s => ({ employees: [...s.employees, e] }));
+        void saveEmployee(e);
         return e;
       },
-      updateEmployee: (id, patch) =>
-        set(s => ({ employees: s.employees.map(e => e.id === id ? { ...e, ...patch } : e) })),
-      deleteEmployee: (id) =>
+      updateEmployee: (id, patch) => {
+        set(s => ({ employees: s.employees.map(e => e.id === id ? { ...e, ...patch } : e) }));
+        const updated = get().employees.find(e => e.id === id);
+        if (updated) void saveEmployee(updated);
+      },
+      deleteEmployee: (id) => {
         set(s => ({
           employees: s.employees.filter(e => e.id !== id),
           ratings: s.ratings.filter(r => r.employeeId !== id),
-        })),
+        }));
+        void removeEmployee(id);
+      },
       addRating: (r) => {
         const rating: EmployeeRating = { ...r, id: crypto.randomUUID(), createdAt: Date.now() };
         set(s => ({ ratings: [rating, ...s.ratings] }));
+        void saveRating(rating);
         return rating;
       },
-      deleteRating: (id) =>
-        set(s => ({ ratings: s.ratings.filter(r => r.id !== id) })),
+      deleteRating: (id) => {
+        set(s => ({ ratings: s.ratings.filter(r => r.id !== id) }));
+        void removeRating(id);
+      },
+      hydrateEmployees: async () => {
+        let cloudList = await loadEmployeesFromCloud();
+        if (!cloudList) return; // offline or not allowed: keep the copy we have
+        // First time on this browser: send up anyone and any rating only it knows about.
+        if (!get().employeesSynced) {
+          const knownPeople = new Set(cloudList.employees.map(e => e.id));
+          const knownRatings = new Set(cloudList.ratings.map(r => r.id));
+          const people = get().employees.filter(e => !knownPeople.has(e.id));
+          const ratings = get().ratings.filter(r => !knownRatings.has(r.id));
+          const kept = new Set([...knownPeople, ...people.map(e => e.id)]);
+          const uploaded = await uploadLocalEmployees(
+            people,
+            ratings.filter(r => kept.has(r.employeeId)),
+          );
+          if (!uploaded) return; // try again next time; nothing local is lost
+          if (people.length || ratings.length) cloudList = (await loadEmployeesFromCloud()) ?? cloudList;
+          set({ employeesSynced: true });
+        }
+        set({ employees: cloudList.employees, ratings: cloudList.ratings });
+      },
       addCompany: (c) => {
         const co: Company = { ...c, id: c.id ?? crypto.randomUUID() } as Company;
         set(s => ({ companies: [...s.companies, co] }));

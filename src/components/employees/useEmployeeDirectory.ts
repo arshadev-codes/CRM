@@ -2,7 +2,7 @@ import { isWorkshopPerson } from "@/data/employeesData";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useProposalStore } from "@/store/proposalStore";
 import type { Employee, EmployeeRating } from "@/data/employeesData";
-import { loadWorkByPerson, nameKey, type WorkItem } from "@/lib/employeeWork";
+import { loadWorkByPerson, workFor, type WorkItem } from "@/lib/employeeWork";
 import { scoreEmployee, type Score } from "@/lib/employeeScore";
 
 export type EmployeeSummary = {
@@ -47,7 +47,7 @@ export function useEmployeeDirectory() {
 
   const summaries = useMemo<EmployeeSummary[]>(() => {
     const list = employees.map((employee) => {
-      const items = work?.get(nameKey(employee.name)) ?? [];
+      const items = work ? workFor(work, employee) : [];
       const own = ratings.filter((r) => r.employeeId === employee.id);
       const current = items.filter((w) => !w.done).sort(byDueDate);
       return {

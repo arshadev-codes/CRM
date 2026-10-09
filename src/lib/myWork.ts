@@ -30,7 +30,7 @@ export async function loadMyWork(user: AppUser): Promise<MyOrder[]> {
   const [panelResult, taskResult, stageResult] = await Promise.all([
     supabase.from("production_panels").select("*").order("display_order"),
     supabase.from("production_tasks").select("*").order("display_order"),
-    supabase.from("project_stages").select("inward_order_id, stage_name, assigned_to"),
+    supabase.from("project_stages").select("inward_order_id, stage_name, assigned_to, assignee_id"),
   ]);
   const error = panelResult.error ?? taskResult.error ?? stageResult.error;
   if (error) throw error;
@@ -41,7 +41,11 @@ export async function loadMyWork(user: AppUser): Promise<MyOrder[]> {
     ((panelResult.data ?? []) as PanelRow[]).map((row) => [row.id, row.inward_order_id]),
   );
 
-  const isMine = (task: Task) => task.assignees.some((name) => same(name, user.name));
+  // By employee id; a login not linked to an employee (office staff) falls back to the name.
+  const isMine = (task: Task) =>
+    user.employeeId
+      ? task.assigneeIds.includes(user.employeeId)
+      : task.assignees.some((name) => same(name, user.name));
   const myPanelIds = new Set(
     panels
       .filter(
@@ -76,7 +80,10 @@ export async function loadMyWork(user: AppUser): Promise<MyOrder[]> {
   }
   for (const task of myTasks) entry(panelOrder.get(task.panelId)!).tasks.push(task);
   for (const stage of stageResult.data ?? []) {
-    if (stage.assigned_to && same(stage.assigned_to, user.name))
+    const mine = user.employeeId
+      ? stage.assignee_id === user.employeeId
+      : Boolean(stage.assigned_to) && same(stage.assigned_to, user.name);
+    if (mine)
       entry(stage.inward_order_id).stages.push(stage.stage_name);
   }
 

@@ -248,6 +248,83 @@ export type Database = {
           },
         ]
       }
+      employee_ratings: {
+        Row: {
+          comment: string
+          created_at: string
+          employee_id: string
+          id: string
+          rated_by: string
+          stars: number
+          task_ref: Json | null
+        }
+        Insert: {
+          comment?: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          rated_by?: string
+          stars: number
+          task_ref?: Json | null
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          rated_by?: string
+          stars?: number
+          task_ref?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_ratings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          active: boolean
+          created_at: string
+          department: string | null
+          designation: string
+          id: string
+          joined_on: string | null
+          name: string
+          phone: string | null
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          department?: string | null
+          designation?: string
+          id: string
+          joined_on?: string | null
+          name: string
+          phone?: string | null
+          scope?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          department?: string | null
+          designation?: string
+          id?: string
+          joined_on?: string | null
+          name?: string
+          phone?: string | null
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fabrication_jobs: {
         Row: {
           contact: string
@@ -803,6 +880,7 @@ export type Database = {
       }
       production_tasks: {
         Row: {
+          assignee_ids: string[]
           assignees: Json
           completed_on: string | null
           created_at: string
@@ -818,6 +896,7 @@ export type Database = {
           work: string
         }
         Insert: {
+          assignee_ids?: string[]
           assignees?: Json
           completed_on?: string | null
           created_at?: string
@@ -833,6 +912,7 @@ export type Database = {
           work?: string
         }
         Update: {
+          assignee_ids?: string[]
           assignees?: Json
           completed_on?: string | null
           created_at?: string
@@ -906,6 +986,7 @@ export type Database = {
       project_stages: {
         Row: {
           assigned_to: string
+          assignee_id: string | null
           created_at: string
           display_order: number
           expected_date: string | null
@@ -918,6 +999,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string
+          assignee_id?: string | null
           created_at?: string
           display_order: number
           expected_date?: string | null
@@ -930,6 +1012,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string
+          assignee_id?: string | null
           created_at?: string
           display_order?: number
           expected_date?: string | null
@@ -1234,6 +1317,10 @@ export type Database = {
       can_read_order: { Args: { o: string }; Returns: boolean }
       can_view: { Args: { p: string }; Returns: boolean }
       claim_app_install: { Args: { p_install: string }; Returns: undefined }
+      employee_ids_for: {
+        Args: { keep?: string[]; names: Json }
+        Returns: string[]
+      }
       full_view: { Args: never; Returns: boolean }
       has_perm: { Args: { p: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
@@ -1248,6 +1335,7 @@ export type Database = {
         Returns: string
       }
       log_event: { Args: { details?: Json; event: string }; Returns: undefined }
+      my_employee_id: { Args: never; Returns: string }
       my_name: { Args: never; Returns: string }
       my_order_ids: { Args: never; Returns: string[] }
       my_panel_ids: { Args: never; Returns: string[] }

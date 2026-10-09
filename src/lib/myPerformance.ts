@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/db";
 import { POINTS } from "@/lib/employeeScore";
-import { loadWorkByPerson, nameKey, type WorkItem } from "@/lib/employeeWork";
+import { loadWorkByPerson, workFor, type WorkItem } from "@/lib/employeeWork";
 import type { AppUser } from "@/store/authStore";
 
 // The phone app's Performance tab: one person's finished and overdue work with the points
@@ -61,7 +61,7 @@ export async function loadMyPerformance(user: AppUser): Promise<MyPerformance> {
     ]),
   );
 
-  const work = byPerson.get(nameKey(user.name)) ?? [];
+  const work = workFor(byPerson, { id: user.employeeId, name: user.name });
   const items: ScoredItem[] = [];
   for (const item of work) {
     const scored = score(item);

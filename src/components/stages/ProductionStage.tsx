@@ -68,7 +68,10 @@ import { useProposalStore } from "@/store/proposalStore";
 import { ListSkeleton } from "./StageSkeleton";
 
 type TaskPatch = Partial<
-  Pick<Task, "work" | "assignees" | "startDate" | "endDate" | "status" | "completedOn" | "remarks">
+  Pick<
+    Task,
+    "work" | "assignees" | "assigneeIds" | "startDate" | "endDate" | "status" | "completedOn" | "remarks"
+  >
 >;
 const EVERYONE = "__everyone";
 
@@ -76,6 +79,7 @@ function patchToRow(patch: TaskPatch) {
   const row: Database["public"]["Tables"]["production_tasks"]["Update"] = {};
   if ("work" in patch) row.work = patch.work;
   if ("assignees" in patch) row.assignees = patch.assignees;
+  if ("assigneeIds" in patch) row.assignee_ids = patch.assigneeIds;
   if ("startDate" in patch) row.start_date = patch.startDate || null;
   if ("endDate" in patch) row.end_date = patch.endDate || null;
   if ("status" in patch) row.status = patch.status;
@@ -100,6 +104,10 @@ export function ProductionStage({ orderId, stage, setStageStatus, employees }: S
   const idOf = (name: string) =>
     directory.find((e) => e.name.trim().toLowerCase() === name.trim().toLowerCase())?.id;
   const nameOf = (id: string) => directory.find((e) => e.id === id)?.name;
+  const idsOf = (names: string[]) => names.map(idOf).filter((id): id is string => Boolean(id));
+  // Whenever names are saved, their employee ids go with them.
+  const withIds = (patch: TaskPatch): TaskPatch =>
+    patch.assignees ? { ...patch, assigneeIds: idsOf(patch.assignees) } : patch;
 
   useEffect(() => {
     let active = true;
@@ -145,7 +153,7 @@ export function ProductionStage({ orderId, stage, setStageStatus, employees }: S
 
   async function updateTask(task: Task, patch: TaskPatch) {
     // Starting work fills the start date; finishing it records the day.
-    const full: TaskPatch = { ...patch };
+    const full: TaskPatch = withIds(patch);
     if (patch.status === "done" && task.status !== "done") full.completedOn = today;
     if (patch.status && patch.status !== "done" && task.completedOn) full.completedOn = undefined;
     if (patch.status === "in progress" && !task.startDate) full.startDate = today;
@@ -168,12 +176,15 @@ export function ProductionStage({ orderId, stage, setStageStatus, employees }: S
   async function assignAll(panelId: string, assignees: string[]) {
     const previous = tasks;
     const previousPanels = panels;
-    const assigneeIds = assignees.map(idOf).filter((id): id is string => Boolean(id));
+    const assigneeIds = idsOf(assignees);
     const unknown = assignees.filter((name) => !idOf(name));
-    setTasks(tasks.map((t) => (t.panelId === panelId ? { ...t, assignees } : t)));
+    setTasks(tasks.map((t) => (t.panelId === panelId ? { ...t, assignees, assigneeIds } : t)));
     setPanels(panels.map((p) => (p.id === panelId ? { ...p, assigneeIds } : p)));
     const [taskResult, panelResult] = await Promise.all([
-      supabase.from("production_tasks").update({ assignees }).eq("panel_id", panelId),
+      supabase
+        .from("production_tasks")
+        .update({ assignees, assignee_ids: assigneeIds })
+        .eq("panel_id", panelId),
       supabase.from("production_panels").update({ assignee_ids: assigneeIds }).eq("id", panelId),
     ]);
     if (taskResult.error || panelResult.error) {
@@ -182,7 +193,7 @@ export function ProductionStage({ orderId, stage, setStageStatus, employees }: S
       toast.error("Could not assign");
     } else if (unknown.length) {
       toast.info(
-        `${unknown.join(", ")} ${unknown.length === 1 ? "is" : "are"} not in Employees, so the panel's material won't be shared with them in the app.`,
+        `${unknown.join(", ")} ${unknown.length === 1 ? "is" : "are"} not in Employees, so this work won't show in their phone app.`,
       );
     }
   }
@@ -197,7 +208,7 @@ export function ProductionStage({ orderId, stage, setStageStatus, employees }: S
           panel_id: panelId,
           work,
           display_order: offset + index,
-          ...patchToRow(defaults),
+          ...patchToRow(withIds(defaults)),
         })),
       )
       .select();

@@ -52,7 +52,10 @@ export type Task = {
   id: string;
   panelId: string;
   work: string;
+  /** Names, for display. */
   assignees: string[];
+  /** Employee ids of the same people; access and notifications follow these. */
+  assigneeIds: string[];
   startDate?: string;
   endDate?: string;
   status: TaskStatus;
@@ -81,6 +84,7 @@ export function mapTask(row: TaskRow): Task {
     panelId: row.panel_id,
     work: row.work,
     assignees: Array.isArray(row.assignees) ? row.assignees.map(String) : [],
+    assigneeIds: row.assignee_ids ?? [],
     startDate: row.start_date ?? undefined,
     endDate: row.end_date ?? undefined,
     status,

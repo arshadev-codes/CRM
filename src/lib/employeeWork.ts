@@ -4,7 +4,8 @@ import { panelLabel } from "@/lib/production";
 import type { RatingSource } from "@/data/employeesData";
 
 // One piece of work someone is (or was) responsible for, gathered from the
-// production tasks, order stages and QA action points. Matching is by name.
+// production tasks, order stages and QA action points. Tasks and stages are matched by
+// employee id; QA action points (whose owner is typed in) by name.
 export type WorkItem = {
   key: string;
   kind: RatingSource;
@@ -31,6 +32,21 @@ export function nameKey(name: string) {
   return name.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+const idKey = (id: string) => `id:${id}`;
+
+/** One person's work: everything under their employee id, plus anything still under their name. */
+export function workFor(
+  byPerson: Map<string, WorkItem[]>,
+  person: { id?: string | null; name: string },
+): WorkItem[] {
+  const list = [
+    ...(person.id ? (byPerson.get(idKey(person.id)) ?? []) : []),
+    ...(byPerson.get(nameKey(person.name)) ?? []),
+  ];
+  const seen = new Set<string>();
+  return list.filter((item) => !seen.has(item.key) && Boolean(seen.add(item.key)));
+}
+
 export function today() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -47,7 +63,8 @@ function lateFor(
 }
 
 /**
- * Every work item in the system, keyed by assignee name (normalised). With `lenient`, a table
+ * Every work item in the system, keyed by employee id (`id:<id>`) or, where no id is known,
+ * by assignee name (normalised); read one person's list with `workFor`. With `lenient`, a table
  * this account may not read (field staff in the phone app) counts as empty instead of failing.
  */
 export async function loadWorkByPerson({ lenient = false } = {}): Promise<Map<string, WorkItem[]>> {
@@ -62,8 +79,8 @@ export async function loadWorkByPerson({ lenient = false } = {}): Promise<Map<st
   if (firstError && !lenient) throw firstError;
 
   const byPerson = new Map<string, WorkItem[]>();
-  const add = (person: string, item: WorkItem) => {
-    const key = nameKey(person);
+  const add = (person: string, item: WorkItem, byId = false) => {
+    const key = byId ? idKey(person) : nameKey(person);
     if (!key) return;
     const list = byPerson.get(key) ?? [];
     if (!list.some((w) => w.key === item.key)) list.push(item);
@@ -90,8 +107,12 @@ export async function loadWorkByPerson({ lenient = false } = {}): Promise<Map<st
       completedOn,
       late: lateFor(done, dueDate, completedOn, now),
     };
-    const assignees: unknown[] = Array.isArray(t.assignees) ? t.assignees : [];
-    for (const person of assignees) add(String(person), item);
+    const ids = t.assignee_ids ?? [];
+    if (ids.length) for (const id of ids) add(id, item, true);
+    else {
+      const assignees: unknown[] = Array.isArray(t.assignees) ? t.assignees : [];
+      for (const person of assignees) add(String(person), item);
+    }
   }
 
   for (const s of stages.data ?? []) {
@@ -99,7 +120,7 @@ export async function loadWorkByPerson({ lenient = false } = {}): Promise<Map<st
     const done = s.status === "done";
     const dueDate = s.expected_date ?? undefined;
     const completedOn = done ? s.updated_at.slice(0, 10) : undefined;
-    add(s.assigned_to, {
+    const stageItem: WorkItem = {
       key: `stage:${s.id}`,
       kind: "stage",
       id: s.id,
@@ -112,7 +133,9 @@ export async function loadWorkByPerson({ lenient = false } = {}): Promise<Map<st
       dueDate,
       completedOn,
       late: lateFor(done, dueDate, completedOn, now),
-    });
+    };
+    if (s.assignee_id) add(s.assignee_id, stageItem, true);
+    else add(s.assigned_to, stageItem);
   }
 
   for (const p of points.data ?? []) {

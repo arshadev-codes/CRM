@@ -19,6 +19,7 @@ import { isFieldUser, useAuthMode, useAuthStore, useCurrentUser } from "@/store/
 import { Home, RotateCcw } from "lucide-react";
 import { freshStart } from "@/lib/freshStart";
 import { captureAppInstall } from "@/lib/push";
+import { useProposalStore } from "@/store/proposalStore";
 
 // Runs before any page renders, so no page sees the old database's leftovers.
 freshStart();
@@ -114,6 +115,11 @@ function RootComponent() {
       navigator.serviceWorker.register("/sw.js").catch(() => undefined);
     }
   }, []);
+  // The shared employee list (and ratings) comes from the database once someone signs in.
+  const userId = user?.id;
+  useEffect(() => {
+    if (userId) void useProposalStore.getState().hydrateEmployees();
+  }, [userId]);
   // Field staff only use the app; the office website is not theirs.
   const fieldOnly = Boolean(user && isFieldUser(user)) && !isApp && !isLogin && !isPrint;
   useEffect(() => {
