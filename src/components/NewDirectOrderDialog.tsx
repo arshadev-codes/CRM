@@ -11,6 +11,10 @@ import { toast } from "sonner";
 import { isDirectOrder, useProposalStore } from "@/store/proposalStore";
 import { getFY, pad3 } from "@/lib/offerNumber";
 import { todayIso } from "@/lib/procurement";
+import { setCurrentStage, STAGE_NAMES, type CurrentStage } from "@/lib/stages";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 const labelClass = "text-[11px] uppercase tracking-widest text-slate-400";
 
@@ -56,15 +60,16 @@ export function NewDirectOrderDialog({
   const [readinessDate, setReadinessDate] = useState("");
   const [inspectionDate, setInspectionDate] = useState("");
   const [dispatchDate, setDispatchDate] = useState("");
+  const [currentStage, setStage] = useState<CurrentStage>("Design");
 
   const reset = () => {
     setOrderNumber(""); setCustomerName(""); setProjectName("");
     setPoNumber(""); setPoDate(""); setDueDate("");
     setSupervisor(""); setQaOfficer(""); setReadinessDate("");
-    setInspectionDate(""); setDispatchDate("");
+    setInspectionDate(""); setDispatchDate(""); setStage("Design");
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!customerName.trim() || !projectName.trim() || !poNumber.trim()) {
       toast.error("Customer, Project name and PO number are required.");
       return;
@@ -91,10 +96,14 @@ export function NewDirectOrderDialog({
       readinessDate,
       inspectionDate: inspectionDate || undefined,
       dispatchDate: dispatchDate || undefined,
+      status: currentStage === "all" ? "Completed" : currentStage === "Design" ? "Open" : "In Progress",
     });
+    const stage = currentStage;
     reset();
     onOpenChange(false);
     toast.success("Inward order created");
+    if (!(await setCurrentStage(id, stage)))
+      toast.error("Order created, but its stage could not be set. Set it on the order page.");
     void navigate({ to: "/inward-orders/$id", params: { id } });
   };
 
@@ -190,15 +199,43 @@ export function NewDirectOrderDialog({
               </div>
             </div>
           </div>
+
+          <div>
+            <Label className={labelClass}>Where is this order now?</Label>
+            <CurrentStageSelect value={currentStage} onChange={setStage} />
+            <p className="mt-1 text-[11px] text-slate-400">
+              For an order already running: the stages before this are marked done.
+            </p>
+          </div>
         </div>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => { reset(); onOpenChange(false); }}>Cancel</Button>
-          <Button className="neo-pop !bg-transparent !text-indigo-600 font-semibold" onClick={submit}>
+          <Button className="neo-pop !bg-transparent !text-indigo-600 font-semibold" onClick={() => void submit()}>
             Create order
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function CurrentStageSelect({
+  value, onChange, className = "mt-1",
+}: {
+  value: CurrentStage | "";
+  onChange: (v: CurrentStage) => void;
+  className?: string;
+}) {
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as CurrentStage)}>
+      <SelectTrigger className={className}><SelectValue placeholder="Choose the stage" /></SelectTrigger>
+      <SelectContent>
+        {STAGE_NAMES.map((name, i) => (
+          <SelectItem key={name} value={name}>{i === 0 ? `${name} (new order)` : name}</SelectItem>
+        ))}
+        <SelectItem value="all">All done (order finished)</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }

@@ -8,7 +8,10 @@ import {
 import { toast } from "sonner";
 import { useProposalStore, type InwardOrder } from "@/store/proposalStore";
 import { supabase } from "@/lib/db";
-import { loadStages, stageProgress, STAGE_NAMES, type Stage } from "@/lib/stages";
+import {
+  loadStages, setCurrentStage, stageProgress, STAGE_NAMES, type CurrentStage, type Stage,
+} from "@/lib/stages";
+import { CurrentStageSelect } from "@/components/NewDirectOrderDialog";
 import { StageCards } from "@/components/stages/StageCards";
 import { PageSkeleton } from "@/components/stages/StageSkeleton";
 import { ProgressRing } from "@/components/stages/shared";
@@ -128,6 +131,21 @@ function InwardOrderDetail() {
   }, [id]);
 
   const progress = useMemo(() => stageProgress(stages), [stages]);
+
+  // Puts the order at one stage in one go (for orders already running before the app was used).
+  async function jumpToStage(current: CurrentStage) {
+    if (!order) return;
+    if (!(await setCurrentStage(id, current))) {
+      toast.error("Could not set the stage — check your connection or permission");
+      return;
+    }
+    const status: InwardOrder["status"] =
+      current === "all" ? "Completed" : current === "Design" ? "Open" : "In Progress";
+    if (order.status !== status) updateOrder(id, { status });
+    const reloaded = await loadStages(id);
+    setStages(reloaded.stages);
+    toast.success(current === "all" ? "All stages marked done" : `Order is now at ${current}`);
+  }
   const doneCount = stages.filter((stage) => stage.status === "done").length;
 
   async function uploadFiles(files: FileList | null) {
@@ -277,6 +295,16 @@ function InwardOrderDetail() {
           <div>
             <h2 className="text-lg font-semibold text-slate-800">Stages</h2>
             <p className="mt-0.5 text-sm text-slate-500">Open a stage to see its work, updates and files.</p>
+            <Can perm="inward_orders">
+              <div className="mt-3 w-64">
+                <Label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Set where this order is now</Label>
+                <CurrentStageSelect
+                  value=""
+                  className="mt-1"
+                  onChange={(v) => void jumpToStage(v)}
+                />
+              </div>
+            </Can>
           </div>
           <div className="w-full max-w-xs">
             <div className="flex justify-between text-xs font-semibold text-slate-500">

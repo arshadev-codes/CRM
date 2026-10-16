@@ -229,7 +229,7 @@ interface ProposalStore {
   employees: Employee[];
   companies: Company[];
   inwardOrders: InwardOrder[];
-  createInwardOrder: (o: Omit<InwardOrder, "id" | "createdAt" | "status"> & { id?: string }) => InwardOrder;
+  createInwardOrder: (o: Omit<InwardOrder, "id" | "createdAt" | "status"> & { id?: string; status?: InwardOrder["status"] }) => InwardOrder;
   updateInwardOrder: (id: string, patch: Partial<InwardOrder>) => void;
   deleteInwardOrder: (id: string) => void;
   hydrateInwardOrders: () => Promise<void>;
@@ -350,7 +350,7 @@ export const useProposalStore = create<ProposalStore>()(
       companies: companiesData,
       inwardOrders: [],
       createInwardOrder: (o) => {
-        const order: InwardOrder = { ...o, id: o.id ?? crypto.randomUUID(), status: "Open", createdAt: Date.now() };
+        const order: InwardOrder = { ...o, id: o.id ?? crypto.randomUUID(), status: o.status ?? "Open", createdAt: Date.now() };
         set(s => ({ inwardOrders: [order, ...s.inwardOrders] }));
         void pushInwardOrder(order);
         return order;

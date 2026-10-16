@@ -96,3 +96,29 @@ export function stageProgress(stages: Stage[]) {
   );
   return Math.round((score / STAGE_NAMES.length) * 100);
 }
+
+/** "all" = every stage done (order finished). */
+export type CurrentStage = (typeof STAGE_NAMES)[number] | "all";
+
+/**
+ * Puts an order at one stage: the stages before it done, it in progress, the rest not started.
+ * Used to bring orders already running in the workshop into the app at the right place.
+ * Retries for a few seconds while a just-created order is still being saved.
+ */
+export async function setCurrentStage(inwardOrderId: string, current: CurrentStage) {
+  const at = current === "all" ? STAGE_NAMES.length : STAGE_NAMES.indexOf(current);
+  const rows = STAGE_NAMES.map((stageName, index) => ({
+    inward_order_id: inwardOrderId,
+    stage_name: stageName,
+    display_order: index + 1,
+    status: (index < at ? "done" : index === at ? "in progress" : "not started") as StageStatus,
+  }));
+  for (let attempt = 0; ; attempt++) {
+    const { error } = await supabase
+      .from("project_stages")
+      .upsert(rows, { onConflict: "inward_order_id,stage_name" });
+    if (!error) return true;
+    if (error.code !== "23503" || attempt >= 8) return false;
+    await new Promise((resolve) => setTimeout(resolve, 750));
+  }
+}
