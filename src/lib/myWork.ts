@@ -8,6 +8,7 @@ import {
   type Task,
   type TaskRow,
 } from "@/lib/production";
+import { mapSiteTask, type SiteTask, type SiteTaskRow } from "@/lib/commissioning";
 import type { AppUser } from "@/store/authStore";
 
 // What the phone app shows one person: the orders where they have work, with their panels
@@ -20,6 +21,8 @@ export type MyOrder = {
   order: OrderRow;
   panels: Panel[];
   tasks: Task[];
+  /** Commissioning & Installation work at the client's site assigned to this person. */
+  siteTasks: SiteTask[];
   /** Order stages (Design, Testing, ...) assigned to this person. */
   stages: string[];
 };
@@ -27,10 +30,11 @@ export type MyOrder = {
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 export async function loadMyWork(user: AppUser): Promise<MyOrder[]> {
-  const [panelResult, taskResult, stageResult] = await Promise.all([
+  const [panelResult, taskResult, stageResult, siteResult] = await Promise.all([
     supabase.from("production_panels").select("*").order("display_order"),
     supabase.from("production_tasks").select("*").order("display_order"),
     supabase.from("project_stages").select("inward_order_id, stage_name, assigned_to, assignee_id"),
+    supabase.from("commissioning_tasks").select("*").order("display_order"),
   ]);
   const error = panelResult.error ?? taskResult.error ?? stageResult.error;
   if (error) throw error;
@@ -69,7 +73,13 @@ export async function loadMyWork(user: AppUser): Promise<MyOrder[]> {
   const entry = (orderId: string) => {
     let found = byOrder.get(orderId);
     if (!found) {
-      found = { order: null as unknown as OrderRow, panels: [], tasks: [], stages: [] };
+      found = {
+        order: null as unknown as OrderRow,
+        panels: [],
+        tasks: [],
+        siteTasks: [],
+        stages: [],
+      };
       byOrder.set(orderId, found);
     }
     return found;
@@ -79,6 +89,14 @@ export async function loadMyWork(user: AppUser): Promise<MyOrder[]> {
     entry(panelOrder.get(panel.id)!).panels.push(panel);
   }
   for (const task of myTasks) entry(panelOrder.get(task.panelId)!).tasks.push(task);
+  // Site work: only once the table exists (older databases simply show none).
+  for (const site of ((siteResult.error ? [] : siteResult.data) ?? []) as SiteTaskRow[]) {
+    const task = mapSiteTask(site);
+    const mine = user.employeeId
+      ? task.assigneeIds.includes(user.employeeId)
+      : task.assignees.some((name) => same(name, user.name));
+    if (mine) entry(task.orderId).siteTasks.push(task);
+  }
   for (const stage of stageResult.data ?? []) {
     const mine = user.employeeId
       ? stage.assignee_id === user.employeeId

@@ -1,13 +1,14 @@
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
-import type { Employee, EmployeeRating, EmployeeScope } from "@/data/employeesData";
+import type { Employee, EmployeeRating, EmployeeScope, RatingRule } from "@/data/employeesData";
 
 // Employees and ratings are kept in the database so every computer sees the same list.
 // The store keeps a copy for instant screens; these helpers read and write the database.
 
 type EmployeeRow = Database["public"]["Tables"]["employees"]["Row"];
 type RatingRow = Database["public"]["Tables"]["employee_ratings"]["Row"];
+type RuleRow = Database["public"]["Tables"]["rating_rules"]["Row"];
 
 function fromEmployeeRow(row: EmployeeRow): Employee {
   return {
@@ -42,6 +43,7 @@ function fromRatingRow(row: RatingRow): EmployeeRating {
     stars: row.stars,
     comment: row.comment,
     ratedBy: row.rated_by,
+    ratedById: row.rated_by_id ?? undefined,
     createdAt: new Date(row.created_at).getTime(),
     taskRef: (row.task_ref as EmployeeRating["taskRef"]) ?? undefined,
   };
@@ -54,6 +56,7 @@ function toRatingRow(r: EmployeeRating) {
     stars: r.stars,
     comment: r.comment,
     rated_by: r.ratedBy,
+    rated_by_id: r.ratedById ?? null,
     task_ref: (r.taskRef ?? null) as Json,
     created_at: new Date(r.createdAt).toISOString(),
   };
@@ -111,4 +114,35 @@ export async function saveRating(r: EmployeeRating) {
 export async function removeRating(id: string) {
   const { error } = await supabase.from("employee_ratings").delete().eq("id", id);
   if (error) failed("the rating", error);
+}
+
+function fromRuleRow(row: RuleRow): RatingRule {
+  return {
+    id: row.id,
+    raterDesignation: row.rater_designation,
+    targetKind: row.target_kind === "department" ? "department" : "designation",
+    target: row.target,
+  };
+}
+
+export async function loadRatingRules(): Promise<RatingRule[] | null> {
+  const { data, error } = await supabase.from("rating_rules").select("*").order("created_at");
+  if (error) return null;
+  return data.map(fromRuleRow);
+}
+
+export async function saveRatingRule(r: RatingRule) {
+  const { error } = await supabase.from("rating_rules").insert({
+    id: r.id,
+    rater_designation: r.raterDesignation.trim(),
+    target_kind: r.targetKind,
+    target: r.target.trim(),
+  });
+  if (error) failed("the rating rule", error);
+  return !error;
+}
+
+export async function removeRatingRule(id: string) {
+  const { error } = await supabase.from("rating_rules").delete().eq("id", id);
+  if (error) failed("the rating rule", error);
 }

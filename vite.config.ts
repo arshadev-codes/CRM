@@ -24,6 +24,22 @@ export default defineConfig(({ command }) => ({
     viteReact(),
   ],
   css: { transformer: "lightningcss" },
+  build: {
+    rolldownOptions: {
+      output: {
+        // Heavy libraries get their own files, so only the pages that use them download them.
+        // Without this they land in the shared chunk every page (and the phone app) loads first.
+        codeSplitting: {
+          includeDependenciesRecursively: false,
+          groups: [
+            { name: "gsap", test: /node_modules[\\/]gsap/ },
+            { name: "motion", test: /node_modules[\\/](framer-motion|motion-dom|motion-utils)/ },
+            { name: "charts", test: /node_modules[\\/](recharts|d3-|lodash|react-smooth|decimal\.js-light|victory-vendor)/ },
+          ],
+        },
+      },
+    },
+  },
   resolve: {
     alias: { "@": `${process.cwd()}/src` },
     dedupe: [

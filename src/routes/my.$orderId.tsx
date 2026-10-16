@@ -6,12 +6,14 @@ import {
   CircleDashed,
   ExternalLink,
   FileText,
+  HardHat,
   LoaderCircle,
   Package,
   Play,
   Ruler,
   Trash2,
   Wrench,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppHeader } from "@/components/app/AppHeader";
@@ -27,6 +29,7 @@ import {
   type ProcurementItem,
 } from "@/lib/procurement";
 import { remarkTime, useTaskRemarks, type TaskRemark } from "@/lib/taskRemarks";
+import { isSiteLate, SITE_META, type SiteStatus, type SiteTask } from "@/lib/commissioning";
 import { canSee, useCurrentUser } from "@/store/authStore";
 
 export const Route = createFileRoute("/my/$orderId")({
@@ -71,7 +74,13 @@ function MyOrderPage() {
         title={work?.order.customer_name || work?.order.project_name || "Order"}
         subtitle={
           work
-            ? `${work.order.project_number} · ${work.panels.map((p) => p.panelType).join(", ")}`
+            ? [
+                work.order.project_number,
+                work.panels.map((p) => p.panelType).join(", "),
+                work.siteTasks.length ? "Site work" : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")
             : ""
         }
       />
@@ -101,7 +110,22 @@ function MyOrderPage() {
         ) : work === null ? (
           <Empty icon={AlertTriangle} title="Not found" text="This order is not assigned to you." />
         ) : tab === "tasks" ? (
-          <TaskList work={work} onChange={(tasks) => setWork({ ...work, tasks })} />
+          <div className="space-y-6">
+            {work.siteTasks.length > 0 && (
+              <SiteTaskList
+                tasks={work.siteTasks}
+                onSaved={(next) =>
+                  setWork({
+                    ...work,
+                    siteTasks: work.siteTasks.map((t) => (t.id === next.id ? next : t)),
+                  })
+                }
+              />
+            )}
+            {(work.tasks.length > 0 || work.siteTasks.length === 0) && (
+              <TaskList work={work} onChange={(tasks) => setWork({ ...work, tasks })} />
+            )}
+          </div>
         ) : tab === "drawings" ? (
           <Drawings orderId={orderId} />
         ) : (
@@ -318,6 +342,159 @@ function TaskCard({
               <Check className="h-4 w-4" />
             )}
             Add remark
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Site work (Commissioning & Installation) ---------- */
+
+const SITE_STEPS: { value: SiteStatus; label: string; icon: typeof Check; on: string }[] = [
+  { value: "pending", label: "Not started", icon: CircleDashed, on: "bg-slate-200 text-slate-700" },
+  { value: "in progress", label: "Started", icon: Play, on: "bg-sky-500 text-white" },
+  { value: "done", label: "Done", icon: Check, on: "bg-emerald-500 text-white" },
+  { value: "not done", label: "Not done", icon: X, on: "bg-rose-500 text-white" },
+];
+
+function SiteTaskList({
+  tasks,
+  onSaved,
+}: {
+  tasks: SiteTask[];
+  onSaved: (task: SiteTask) => void;
+}) {
+  return (
+    <section>
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-lime-700">
+        <HardHat className="h-3.5 w-3.5" /> Site work · Commissioning & Installation
+      </div>
+      <div className="space-y-3">
+        {tasks.map((task) => (
+          <SiteTaskCard key={task.id} task={task} onSaved={onSaved} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SiteTaskCard({ task, onSaved }: { task: SiteTask; onSaved: (task: SiteTask) => void }) {
+  const [draft, setDraft] = useState(task.remarks);
+  const [saving, setSaving] = useState<"status" | "remarks" | null>(null);
+  const late = isSiteLate(task, todayIso());
+  const changed = draft.trim() !== task.remarks.trim();
+
+  async function save(kind: "status" | "remarks", status?: SiteStatus) {
+    // "Not done" needs a reason so the person responsible knows what is pending.
+    if (status === "not done" && !draft.trim()) {
+      toast.error("Write the reason in the remark box first, then tap Not done");
+      return;
+    }
+    setSaving(kind);
+    const row: Database["public"]["Tables"]["commissioning_tasks"]["Update"] = {
+      remarks: draft.trim(),
+    };
+    if (status) {
+      row.status = status;
+      row.completed_on = status === "done" ? todayIso() : null;
+    }
+    const { error } = await supabase.from("commissioning_tasks").update(row).eq("id", task.id);
+    setSaving(null);
+    if (error) {
+      toast.error("Could not save. Check the internet and try again.");
+      return;
+    }
+    onSaved({
+      ...task,
+      remarks: draft.trim(),
+      ...(status
+        ? { status, completedOn: status === "done" ? todayIso() : undefined }
+        : {}),
+    });
+    toast.success(
+      status === "done"
+        ? "Marked done"
+        : status === "not done"
+          ? "Marked not done"
+          : status
+            ? "Status updated"
+            : "Remark saved",
+    );
+  }
+
+  return (
+    <div
+      className={`rounded-2xl bg-white p-4 shadow-sm ring-1 ${late ? "ring-rose-200" : "ring-slate-200/70"}`}
+    >
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="text-base font-bold text-slate-800">{task.title}</div>
+          {task.details && (
+            <div className="mt-0.5 whitespace-pre-wrap text-sm text-slate-600">{task.details}</div>
+          )}
+          <div className="mt-0.5 text-xs text-slate-500">
+            {task.startDate || task.endDate
+              ? `${day(task.startDate) || "?"} → ${day(task.endDate) || "?"}`
+              : "No dates set"}
+            {task.status === "done" && task.completedOn
+              ? ` · finished ${day(task.completedOn)}`
+              : ""}
+          </div>
+        </div>
+        {late ? (
+          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+            Late
+          </span>
+        ) : (
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${SITE_META[task.status].chip}`}
+          >
+            {SITE_META[task.status].label}
+          </span>
+        )}
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-1.5">
+        {SITE_STEPS.map(({ value, label, icon: Icon, on }) => {
+          const active = task.status === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              disabled={saving !== null || active}
+              onClick={() => void save("status", value)}
+              className={`flex items-center justify-center gap-1 rounded-xl py-2.5 text-xs font-semibold transition-colors ${
+                active ? on : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" /> {label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-3">
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={2}
+          placeholder="Remark (e.g. client power not ready, cable short) — needed for Not done"
+          className="w-full rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none ring-1 ring-slate-200 focus:ring-lime-500"
+        />
+        {changed && (
+          <button
+            type="button"
+            disabled={saving !== null}
+            onClick={() => void save("remarks")}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-lime-600 py-2.5 text-sm font-semibold text-white"
+          >
+            {saving === "remarks" ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <Check className="h-4 w-4" />
+            )}
+            Save remark
           </button>
         )}
       </div>

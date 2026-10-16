@@ -9,6 +9,7 @@ export const STAGE_NAMES = [
   "Testing",
   "Inspection",
   "Dispatch",
+  "Commissioning & Installation",
 ] as const;
 export type StageStatus = "not started" | "in progress" | "done";
 export const STAGE_STATUSES: StageStatus[] = ["not started", "in progress", "done"];
@@ -38,6 +39,10 @@ export const STAGE_PAGES = {
     summary: "Client inspection visits, witnessed tests, minutes and outcome",
   },
   dispatch: { name: "Dispatch", summary: "Pre-dispatch inspection, packing, transport and delivery" },
+  commissioning: {
+    name: "Commissioning & Installation",
+    summary: "Site work assigned to engineers, confirmed from their phones",
+  },
 } as const;
 export type StagePageSlug = keyof typeof STAGE_PAGES;
 // Remembers the order last opened on a stage page, for the sidebar stage links.
@@ -64,7 +69,7 @@ export function mapStage(row: Database["public"]["Tables"]["project_stages"]["Ro
   };
 }
 
-// Creates the seven default stages if missing, then returns them in order.
+// Creates the default stages if missing, then returns them in order.
 export async function loadStages(inwardOrderId: string) {
   const defaultRows = STAGE_NAMES.map((stageName, index) => ({
     inward_order_id: inwardOrderId,
@@ -82,7 +87,7 @@ export async function loadStages(inwardOrderId: string) {
   return { stages: (result.data ?? []).map(mapStage), error: result.error };
 }
 
-// Not started = 0, in progress = 0.5, done = 1, over all seven stages.
+// Not started = 0, in progress = 0.5, done = 1, over all stages.
 export function stageProgress(stages: Stage[]) {
   const score = stages.reduce(
     (total, stage) =>

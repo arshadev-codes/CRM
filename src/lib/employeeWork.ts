@@ -4,7 +4,7 @@ import { panelLabel } from "@/lib/production";
 import type { RatingSource } from "@/data/employeesData";
 
 // One piece of work someone is (or was) responsible for, gathered from the
-// production tasks, order stages and QA action points. Tasks and stages are matched by
+// production tasks, site (commissioning) tasks, order stages and QA action points. Tasks and stages are matched by
 // employee id; QA action points (whose owner is typed in) by name.
 export type WorkItem = {
   key: string;
@@ -24,6 +24,7 @@ export type WorkItem = {
 
 export const SOURCE_LABEL: Record<RatingSource, string> = {
   production: "Production task",
+  commissioning: "Site work",
   stage: "Order stage",
   qa: "QA action",
 };
@@ -47,8 +48,10 @@ export function workFor(
   return list.filter((item) => !seen.has(item.key) && Boolean(seen.add(item.key)));
 }
 
+// Local date (India), not UTC: before 5:30 am UTC is still yesterday.
 export function today() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
 function lateFor(
@@ -69,13 +72,14 @@ function lateFor(
  */
 export async function loadWorkByPerson({ lenient = false } = {}): Promise<Map<string, WorkItem[]>> {
   const now = today();
-  const [tasks, panels, stages, points] = await Promise.all([
+  const [tasks, panels, stages, points, site] = await Promise.all([
     supabase.from("production_tasks").select("*"),
     supabase.from("production_panels").select("*"),
     supabase.from("project_stages").select("*"),
     supabase.from("mom_points").select("*"),
+    supabase.from("commissioning_tasks").select("*"),
   ]);
-  const firstError = tasks.error ?? panels.error ?? stages.error ?? points.error;
+  const firstError = tasks.error ?? panels.error ?? stages.error ?? points.error ?? site.error;
   if (firstError && !lenient) throw firstError;
 
   const byPerson = new Map<string, WorkItem[]>();
@@ -101,6 +105,32 @@ export async function loadWorkByPerson({ lenient = false } = {}): Promise<Map<st
       context: panel ? panelLabel({ panelType: panel.panel_type, tag: panel.tag }) : "Production",
       orderId: t.inward_order_id,
       stageSlug: "production",
+      status: t.status,
+      done,
+      dueDate,
+      completedOn,
+      late: lateFor(done, dueDate, completedOn, now),
+    };
+    const ids = t.assignee_ids ?? [];
+    if (ids.length) for (const id of ids) add(id, item, true);
+    else {
+      const assignees: unknown[] = Array.isArray(t.assignees) ? t.assignees : [];
+      for (const person of assignees) add(String(person), item);
+    }
+  }
+
+  for (const t of site.data ?? []) {
+    const done = t.status === "done";
+    const dueDate = t.end_date ?? undefined;
+    const completedOn = t.completed_on ?? undefined;
+    const item: WorkItem = {
+      key: `commissioning:${t.id}`,
+      kind: "commissioning",
+      id: t.id,
+      title: t.title || "Site work",
+      context: "Commissioning & Installation",
+      orderId: t.inward_order_id,
+      stageSlug: "commissioning",
       status: t.status,
       done,
       dueDate,

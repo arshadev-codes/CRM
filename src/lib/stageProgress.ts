@@ -2,6 +2,7 @@ import { supabase } from "@/lib/db";
 import { MILESTONES, OUTCOME_META, type Milestone, type Outcome } from "@/lib/qa";
 import { fabricationPercent } from "@/lib/fabrication";
 import { taskPercent, type TaskStatus } from "@/lib/production";
+import { sitePercent, type SiteStatus } from "@/lib/commissioning";
 import { STAGE_PAGES, type Stage, type StagePageSlug, type StageStatus } from "@/lib/stages";
 
 export type StageProgress = { percent: number; detail: string };
@@ -16,29 +17,32 @@ export async function loadStageProgress(
   orderId: string,
   stages: Stage[],
 ): Promise<Partial<Record<StagePageSlug, StageProgress>>> {
-  const [updates, items, tests, outcome, dispatch, fabrication, production] = await Promise.all([
-    supabase.from("stage_updates").select("stage_name, kind").eq("inward_order_id", orderId),
-    supabase
-      .from("procurement_items")
-      .select("qty_required, qty_in_stock, qty_received")
-      .eq("inward_order_id", orderId),
-    supabase.from("test_items").select("status, witness_status").eq("inward_order_id", orderId),
-    supabase
-      .from("inspection_outcomes")
-      .select("outcome")
-      .eq("inward_order_id", orderId)
-      .maybeSingle(),
-    supabase
-      .from("dispatch_details")
-      .select("milestone")
-      .eq("inward_order_id", orderId)
-      .maybeSingle(),
-    supabase
-      .from("fabrication_jobs")
-      .select("phase, given_on, received_on")
-      .eq("inward_order_id", orderId),
-    supabase.from("production_tasks").select("status").eq("inward_order_id", orderId),
-  ]);
+  const [updates, items, tests, outcome, dispatch, fabrication, production, site] =
+    await Promise.all([
+      supabase.from("stage_updates").select("stage_name, kind").eq("inward_order_id", orderId),
+      supabase
+        .from("procurement_items")
+        .select("qty_required, qty_in_stock, qty_received")
+        .eq("inward_order_id", orderId),
+      supabase.from("test_items").select("status, witness_status").eq("inward_order_id", orderId),
+      supabase
+        .from("inspection_outcomes")
+        .select("outcome")
+        .eq("inward_order_id", orderId)
+        .maybeSingle(),
+      supabase
+        .from("dispatch_details")
+        .select("milestone")
+        .eq("inward_order_id", orderId)
+        .maybeSingle(),
+      supabase
+        .from("fabrication_jobs")
+        .select("phase, given_on, received_on")
+        .eq("inward_order_id", orderId),
+      supabase.from("production_tasks").select("status").eq("inward_order_id", orderId),
+      supabase.from("commissioning_tasks").select("status").eq("inward_order_id", orderId),
+    ]);
+  const siteRows = site.data ?? [];
   const fabRows = fabrication.data ?? [];
   const taskRows = production.data ?? [];
   const updateRows = updates.data ?? [];
@@ -138,6 +142,15 @@ export async function loadStageProgress(
           percent = Math.round((step / (MILESTONES.length - 1)) * 100);
           detail = MILESTONES[step]?.label ?? "Planned";
         } else detail = "Not planned yet";
+        break;
+      }
+      case "commissioning": {
+        if (siteRows.length) {
+          percent = sitePercent(siteRows.map((t) => ({ status: t.status as SiteStatus })));
+          const done = siteRows.filter((t) => t.status === "done").length;
+          const notDone = siteRows.filter((t) => t.status === "not done").length;
+          detail = `${done}/${siteRows.length} site tasks done${notDone ? ` · ${notDone} not done` : ""}`;
+        } else detail = "No site work assigned yet";
         break;
       }
     }

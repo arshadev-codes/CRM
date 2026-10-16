@@ -2,6 +2,7 @@ import {
   Factory,
   FlaskConical,
   Hammer,
+  HardHat,
   PackageSearch,
   PenTool,
   ShieldCheck,
@@ -85,5 +86,14 @@ export const STAGE_THEME: Record<StagePageSlug, StageTheme> = {
     gradient: "from-emerald-500 to-teal-500",
     bar: "from-emerald-400 to-teal-400",
     ring: "ring-emerald-300",
+  },
+  commissioning: {
+    icon: HardHat,
+    text: "text-lime-700",
+    solid: "bg-lime-600",
+    soft: "bg-lime-50",
+    gradient: "from-lime-500 to-green-600",
+    bar: "from-lime-400 to-green-500",
+    ring: "ring-lime-300",
   },
 };

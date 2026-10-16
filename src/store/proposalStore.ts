@@ -9,17 +9,20 @@ import { paymentTemplatesData, type PaymentMilestone } from "@/data/paymentTerms
 import { makesOfSupplyData } from "@/data/makesOfSupplyData";
 import { exclusionsData } from "@/data/exclusionsData";
 import { getMajorSubsystems } from "@/data/proposalContent";
-import { employeesData, type Employee, type EmployeeRating } from "@/data/employeesData";
+import { employeesData, type Employee, type EmployeeRating, type RatingRule } from "@/data/employeesData";
 import { companiesData, type Company } from "@/data/companiesData";
 import { supabase } from "@/lib/supabaseClient";
 // Inward orders, stages and attachments live in the app's own cloud backend.
 import { supabase as cloud } from "@/integrations/supabase/client";
 import {
   loadEmployeesFromCloud,
+  loadRatingRules,
   removeEmployee,
   removeRating,
+  removeRatingRule,
   saveEmployee,
   saveRating,
+  saveRatingRule,
   uploadLocalEmployees,
 } from "@/lib/employeesCloud";
 import { buildOfferBase, buildOfferNumber, getFY, slugCompany } from "@/lib/offerNumber";
@@ -245,6 +248,10 @@ interface ProposalStore {
   ratings: EmployeeRating[];
   addRating: (r: Omit<EmployeeRating, "id" | "createdAt">) => EmployeeRating;
   deleteRating: (id: string) => void;
+  /** Who may rate whom (set by the admin, kept in the database). */
+  ratingRules: RatingRule[];
+  addRatingRule: (r: Omit<RatingRule, "id">) => Promise<boolean>;
+  deleteRatingRule: (id: string) => void;
   /** Set once this browser's old local employees and ratings were uploaded. */
   employeesSynced: boolean;
   /** Loads employees and ratings from the database (the shared list). */
@@ -332,6 +339,7 @@ export const useProposalStore = create<ProposalStore>()(
       paymentTemplates: paymentTemplatesData,
       employees: employeesData,
       ratings: [],
+      ratingRules: [],
       employeesSynced: false,
       companies: companiesData,
       inwardOrders: [],
@@ -548,7 +556,18 @@ export const useProposalStore = create<ProposalStore>()(
         set(s => ({ ratings: s.ratings.filter(r => r.id !== id) }));
         void removeRating(id);
       },
+      addRatingRule: async (r) => {
+        const rule: RatingRule = { ...r, id: crypto.randomUUID() };
+        const ok = await saveRatingRule(rule);
+        if (ok) set(s => ({ ratingRules: [...s.ratingRules, rule] }));
+        return ok;
+      },
+      deleteRatingRule: (id) => {
+        set(s => ({ ratingRules: s.ratingRules.filter(r => r.id !== id) }));
+        void removeRatingRule(id);
+      },
       hydrateEmployees: async () => {
+        void loadRatingRules().then(rules => rules && set({ ratingRules: rules }));
         let cloudList = await loadEmployeesFromCloud();
         if (!cloudList) return; // offline or not allowed: keep the copy we have
         // First time on this browser: send up anyone and any rating only it knows about.

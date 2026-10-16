@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { AlertTriangle, Briefcase, Coffee, Plus, Search, Star, Trophy, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Can } from "@/components/auth/Can";
+import { useIsAdmin } from "@/store/authStore";
 import { EmployeeFormDialog } from "@/components/employees/EmployeeFormDialog";
 import { Avatar } from "@/components/stages/AssigneePicker";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,7 +30,13 @@ function EmployeesPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("points");
   const [showInactive, setShowInactive] = useState(false);
+  const [designation, setDesignation] = useState("");
+  const designations = useMemo(
+    () => [...new Set(summaries.map((s) => s.employee.designation).filter(Boolean))].sort(),
+    [summaries],
+  );
   const [adding, setAdding] = useState(false);
+  const isAdmin = useIsAdmin();
 
   const active = summaries.filter((s) => s.employee.active !== false);
   const rated = active.filter((s) => s.score.ratings.count);
@@ -42,6 +49,7 @@ function EmployeesPage() {
     return summaries
       .filter((s) => showInactive || s.employee.active !== false)
       .filter((s) => (filter === "busy" ? s.busy : filter === "available" ? !s.busy : true))
+      .filter((s) => !designation || s.employee.designation === designation)
       .filter(
         (s) =>
           !needle ||
@@ -55,7 +63,7 @@ function EmployeesPage() {
         if (sort === "workload") return b.current.length - a.current.length;
         return b.score.total - a.score.total;
       });
-  }, [summaries, query, filter, sort, showInactive]);
+  }, [summaries, query, filter, sort, showInactive, designation]);
 
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6">
@@ -66,11 +74,20 @@ function EmployeesPage() {
             Who is working on what, who is free, and how everyone is scoring.
           </p>
         </div>
-        <Can perm="employees">
-          <Button className="rounded-xl" onClick={() => setAdding(true)}>
-            <Plus className="h-4 w-4" /> Add employee
-          </Button>
-        </Can>
+        <div className="flex flex-wrap items-center gap-2">
+          {isAdmin && (
+            <Button asChild variant="outline" className="rounded-xl">
+              <Link to="/employees/rating-rules">
+                <Star className="h-4 w-4" /> Rating rules
+              </Link>
+            </Button>
+          )}
+          <Can perm="employees">
+            <Button className="rounded-xl" onClick={() => setAdding(true)}>
+              <Plus className="h-4 w-4" /> Add employee
+            </Button>
+          </Can>
+        </div>
       </div>
       {adding && <EmployeeFormDialog onClose={() => setAdding(false)} />}
 
@@ -120,6 +137,21 @@ function EmployeesPage() {
             </button>
           ))}
         </div>
+        {designations.length > 0 && (
+          <select
+            className="neo-inset px-3 py-2 text-xs outline-none"
+            value={designation}
+            onChange={(e) => setDesignation(e.target.value)}
+            aria-label="Designation"
+          >
+            <option value="">All designations</option>
+            {designations.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        )}
         <select
           className="neo-inset px-3 py-2 text-xs outline-none"
           value={sort}

@@ -1,6 +1,6 @@
 import { isWorkshopPerson } from "@/data/employeesData";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { motion, MotionConfig } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -22,18 +22,40 @@ import { STAGE_THEME } from "@/lib/stageTheme";
 import { Button } from "@/components/ui/button";
 import { OrderSwitcher } from "@/components/stages/OrderSwitcher";
 import { EASE, ProgressRing, StatusPicker, useStageAuthor } from "@/components/stages/shared";
-import { DesignStage, type StageBodyProps } from "@/components/stages/DesignStage";
-import { ProcurementStage } from "@/components/stages/ProcurementStage";
-import { TestingStage } from "@/components/stages/TestingStage";
-import { InspectionStage } from "@/components/stages/InspectionStage";
-import { DispatchStage } from "@/components/stages/DispatchStage";
-import { FabricationStage } from "@/components/stages/FabricationStage";
-import { ProductionStage } from "@/components/stages/ProductionStage";
-import { StagePageSkeleton } from "@/components/stages/StageSkeleton";
+import type { StageBodyProps } from "@/components/stages/DesignStage";
+import { ListSkeleton, StagePageSkeleton } from "@/components/stages/StageSkeleton";
 import { StageAccessProvider } from "@/components/stages/stageAccess";
 import { ViewOnlyBadge } from "@/components/auth/Can";
 import { useCan } from "@/store/authStore";
 import { STAGE_PERMISSION } from "@/lib/permissions";
+
+// Each stage's code is downloaded only when that stage is opened.
+const DesignStage = lazy(() =>
+  import("@/components/stages/DesignStage").then((m) => ({ default: m.DesignStage })),
+);
+const ProcurementStage = lazy(() =>
+  import("@/components/stages/ProcurementStage").then((m) => ({ default: m.ProcurementStage })),
+);
+const TestingStage = lazy(() =>
+  import("@/components/stages/TestingStage").then((m) => ({ default: m.TestingStage })),
+);
+const InspectionStage = lazy(() =>
+  import("@/components/stages/InspectionStage").then((m) => ({ default: m.InspectionStage })),
+);
+const DispatchStage = lazy(() =>
+  import("@/components/stages/DispatchStage").then((m) => ({ default: m.DispatchStage })),
+);
+const FabricationStage = lazy(() =>
+  import("@/components/stages/FabricationStage").then((m) => ({ default: m.FabricationStage })),
+);
+const ProductionStage = lazy(() =>
+  import("@/components/stages/ProductionStage").then((m) => ({ default: m.ProductionStage })),
+);
+const CommissioningStage = lazy(() =>
+  import("@/components/stages/CommissioningStage").then((m) => ({
+    default: m.CommissioningStage,
+  })),
+);
 
 export const Route = createFileRoute("/inward-orders/$id_/stages/$stage")({
   beforeLoad: ({ params }) => {
@@ -216,6 +238,7 @@ function StagePage() {
 
         {/* Keyed by order so switching orders starts each page fresh. */}
         <StageAccessProvider canEdit={canEdit}>
+        <Suspense fallback={<ListSkeleton sections={2} rows={4} />}>
         <div key={id}>
           {pageSlug === "design" && (
             <DesignStage {...body} drawingLabel="SLD" drawingTitle="Single Line Diagram" />
@@ -232,7 +255,9 @@ function StagePage() {
           {pageSlug === "testing" && <TestingStage {...body} />}
           {pageSlug === "inspection" && <InspectionStage {...body} />}
           {pageSlug === "dispatch" && <DispatchStage {...body} />}
+          {pageSlug === "commissioning" && <CommissioningStage {...body} />}
         </div>
+        </Suspense>
         </StageAccessProvider>
       </div>
     </MotionConfig>

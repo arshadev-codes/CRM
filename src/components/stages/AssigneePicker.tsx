@@ -36,12 +36,15 @@ export function AssigneePicker({
   onChange,
   compact = false,
   placeholder = "Assign",
+  hints,
 }: {
   value: string[];
   employees: string[];
   onChange: (next: string[]) => void;
   compact?: boolean;
   placeholder?: string;
+  /** A short note under each name, e.g. the designation. */
+  hints?: Record<string, string>;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -129,7 +132,14 @@ export function AssigneePicker({
                   className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-primary/[0.07] ${selected ? "text-primary" : ""}`}
                 >
                   <Avatar name={name} />
-                  <span className="min-w-0 flex-1 truncate">{name}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {name}
+                    {hints?.[name] && (
+                      <span className="block truncate text-[11px] text-muted-foreground">
+                        {hints[name]}
+                      </span>
+                    )}
+                  </span>
                   {selected && <Check className="h-4 w-4" />}
                 </button>
               </li>

@@ -36,6 +36,7 @@ import { Route as MyPerformanceRouteImport } from './routes/my.performance'
 import { Route as MyAttendanceRouteImport } from './routes/my.attendance'
 import { Route as MyOrderIdRouteImport } from './routes/my.$orderId'
 import { Route as InwardOrdersIdRouteImport } from './routes/inward-orders.$id'
+import { Route as EmployeesRatingRulesRouteImport } from './routes/employees.rating-rules'
 import { Route as EmployeesIdRouteImport } from './routes/employees.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminActivityRouteImport } from './routes/admin.activity'
@@ -179,6 +180,11 @@ const InwardOrdersIdRoute = InwardOrdersIdRouteImport.update({
   path: '/inward-orders/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmployeesRatingRulesRoute = EmployeesRatingRulesRouteImport.update({
+  id: '/employees/rating-rules',
+  path: '/employees/rating-rules',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EmployeesIdRoute = EmployeesIdRouteImport.update({
   id: '/employees/$id',
   path: '/employees/$id',
@@ -223,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/admin/activity': typeof AdminActivityRoute
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
+  '/employees/rating-rules': typeof EmployeesRatingRulesRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/my/$orderId': typeof MyOrderIdRoute
   '/my/attendance': typeof MyAttendanceRoute
@@ -259,6 +266,7 @@ export interface FileRoutesByTo {
   '/admin/activity': typeof AdminActivityRoute
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
+  '/employees/rating-rules': typeof EmployeesRatingRulesRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/my/$orderId': typeof MyOrderIdRoute
   '/my/attendance': typeof MyAttendanceRoute
@@ -296,6 +304,7 @@ export interface FileRoutesById {
   '/admin/activity': typeof AdminActivityRoute
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
+  '/employees/rating-rules': typeof EmployeesRatingRulesRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/my/$orderId': typeof MyOrderIdRoute
   '/my/attendance': typeof MyAttendanceRoute
@@ -334,6 +343,7 @@ export interface FileRouteTypes {
     | '/admin/activity'
     | '/admin/users'
     | '/employees/$id'
+    | '/employees/rating-rules'
     | '/inward-orders/$id'
     | '/my/$orderId'
     | '/my/attendance'
@@ -370,6 +380,7 @@ export interface FileRouteTypes {
     | '/admin/activity'
     | '/admin/users'
     | '/employees/$id'
+    | '/employees/rating-rules'
     | '/inward-orders/$id'
     | '/my/$orderId'
     | '/my/attendance'
@@ -406,6 +417,7 @@ export interface FileRouteTypes {
     | '/admin/activity'
     | '/admin/users'
     | '/employees/$id'
+    | '/employees/rating-rules'
     | '/inward-orders/$id'
     | '/my/$orderId'
     | '/my/attendance'
@@ -443,6 +455,7 @@ export interface RootRouteChildren {
   AdminActivityRoute: typeof AdminActivityRoute
   AdminUsersRoute: typeof AdminUsersRoute
   EmployeesIdRoute: typeof EmployeesIdRoute
+  EmployeesRatingRulesRoute: typeof EmployeesRatingRulesRoute
   InwardOrdersIdRoute: typeof InwardOrdersIdRoute
   MyOrderIdRoute: typeof MyOrderIdRoute
   MyAttendanceRoute: typeof MyAttendanceRoute
@@ -664,6 +677,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InwardOrdersIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/employees/rating-rules': {
+      id: '/employees/rating-rules'
+      path: '/employees/rating-rules'
+      fullPath: '/employees/rating-rules'
+      preLoaderRoute: typeof EmployeesRatingRulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/employees/$id': {
       id: '/employees/$id'
       path: '/employees/$id'
@@ -723,6 +743,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminActivityRoute: AdminActivityRoute,
   AdminUsersRoute: AdminUsersRoute,
   EmployeesIdRoute: EmployeesIdRoute,
+  EmployeesRatingRulesRoute: EmployeesRatingRulesRoute,
   InwardOrdersIdRoute: InwardOrdersIdRoute,
   MyOrderIdRoute: MyOrderIdRoute,
   MyAttendanceRoute: MyAttendanceRoute,

@@ -78,6 +78,71 @@ export type Database = {
         }
         Relationships: []
       }
+      commissioning_tasks: {
+        Row: {
+          assignee_ids: string[]
+          assignees: Json
+          completed_on: string | null
+          confirmed_at: string | null
+          confirmed_by: string
+          created_at: string
+          details: string
+          display_order: number
+          end_date: string | null
+          id: string
+          inward_order_id: string
+          remarks: string
+          start_date: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_ids?: string[]
+          assignees?: Json
+          completed_on?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string
+          created_at?: string
+          details?: string
+          display_order?: number
+          end_date?: string | null
+          id?: string
+          inward_order_id: string
+          remarks?: string
+          start_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_ids?: string[]
+          assignees?: Json
+          completed_on?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string
+          created_at?: string
+          details?: string
+          display_order?: number
+          end_date?: string | null
+          id?: string
+          inward_order_id?: string
+          remarks?: string
+          start_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commissioning_tasks_inward_order_id_fkey"
+            columns: ["inward_order_id"]
+            isOneToOne: false
+            referencedRelation: "inward_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dcc_registry: {
         Row: {
           dcc: string
@@ -255,6 +320,7 @@ export type Database = {
           employee_id: string
           id: string
           rated_by: string
+          rated_by_id: string | null
           stars: number
           task_ref: Json | null
         }
@@ -264,6 +330,7 @@ export type Database = {
           employee_id: string
           id?: string
           rated_by?: string
+          rated_by_id?: string | null
           stars: number
           task_ref?: Json | null
         }
@@ -273,6 +340,7 @@ export type Database = {
           employee_id?: string
           id?: string
           rated_by?: string
+          rated_by_id?: string | null
           stars?: number
           task_ref?: Json | null
         }
@@ -280,6 +348,13 @@ export type Database = {
           {
             foreignKeyName: "employee_ratings_employee_id_fkey"
             columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_ratings_rated_by_id_fkey"
+            columns: ["rated_by_id"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]
@@ -1124,6 +1199,30 @@ export type Database = {
           },
         ]
       }
+      rating_rules: {
+        Row: {
+          created_at: string
+          id: string
+          rater_designation: string
+          target: string
+          target_kind: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          rater_designation: string
+          target: string
+          target_kind: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          rater_designation?: string
+          target?: string
+          target_kind?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -1351,6 +1450,7 @@ export type Database = {
       audit_merge: { Args: { newer: Json; older: Json }; Returns: Json }
       auth_setup_needed: { Args: never; Returns: boolean }
       can_edit: { Args: { perms: string[] }; Returns: boolean }
+      can_rate: { Args: { p_employee: string }; Returns: boolean }
       can_edit_any: { Args: never; Returns: boolean }
       can_read_order: { Args: { o: string }; Returns: boolean }
       can_view: { Args: { p: string }; Returns: boolean }

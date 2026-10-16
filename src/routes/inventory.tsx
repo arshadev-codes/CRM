@@ -20,6 +20,7 @@ import { formatQty, readSpreadsheet, rowsToItems, type InventoryRow } from "@/li
 import { EASE, timeAgo } from "@/components/stages/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SuggestInput } from "@/components/SuggestInput";
 
 export const Route = createFileRoute("/inventory")({
   head: () => ({
@@ -48,6 +49,10 @@ type Draft = {
   qty_in_stock: string;
   location: string;
 };
+type TextField = "item_name" | "category" | "make" | "model" | "location" | "unit";
+type Suggestions = Record<TextField, string[]>;
+const COMMON_UNITS = ["Nos", "Mtr", "Set", "Pair", "Kg", "Ltr", "Box", "Roll", "Pkt", "Lot"];
+
 const EMPTY: Draft = {
   item_name: "",
   category: "",
@@ -65,6 +70,7 @@ function InventoryPage() {
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [orderItems, setOrderItems] = useState<Partial<Record<TextField, string>>[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -77,6 +83,11 @@ function InventoryPage() {
         setRows(data ?? []);
         setLoading(false);
       });
+    // Order material lists add more names, makes and models to the suggestions.
+    void supabase
+      .from("procurement_items")
+      .select("item_name, category, make, model, unit")
+      .then(({ data }) => setOrderItems(data ?? []));
   }, []);
 
   const visible = useMemo(() => {
@@ -89,6 +100,22 @@ function InventoryPage() {
         .includes(needle),
     );
   }, [rows, query]);
+
+  // Values already used in each column, offered while typing.
+  const suggestions = useMemo<Suggestions>(() => {
+    const column = (field: TextField) => [
+      ...rows.map((row) => row[field] ?? ""),
+      ...orderItems.map((item) => item[field] ?? ""),
+    ];
+    return {
+      item_name: column("item_name"),
+      category: column("category"),
+      make: column("make"),
+      model: column("model"),
+      location: column("location"),
+      unit: [...COMMON_UNITS, ...column("unit")],
+    };
+  }, [rows, orderItems]);
 
   async function create(draft: Draft) {
     const { data, error } = await supabase
@@ -257,6 +284,7 @@ function InventoryPage() {
                 {adding && (
                   <NewRow
                     key="new"
+                    suggestions={suggestions}
                     onCancel={() => setAdding(false)}
                     onSave={async (draft) => {
                       if (await create(draft)) setAdding(false);
@@ -276,12 +304,29 @@ function InventoryPage() {
                     <EditableCell
                       value={row.item_name}
                       onSave={(v) => v && save(row, { item_name: v })}
+                      suggestions={suggestions.item_name}
                       bold
                     />
-                    <EditableCell value={row.category} onSave={(v) => save(row, { category: v })} />
-                    <EditableCell value={row.make} onSave={(v) => save(row, { make: v })} />
-                    <EditableCell value={row.model} onSave={(v) => save(row, { model: v })} />
-                    <EditableCell value={row.location} onSave={(v) => save(row, { location: v })} />
+                    <EditableCell
+                      value={row.category}
+                      onSave={(v) => save(row, { category: v })}
+                      suggestions={suggestions.category}
+                    />
+                    <EditableCell
+                      value={row.make}
+                      onSave={(v) => save(row, { make: v })}
+                      suggestions={suggestions.make}
+                    />
+                    <EditableCell
+                      value={row.model}
+                      onSave={(v) => save(row, { model: v })}
+                      suggestions={suggestions.model}
+                    />
+                    <EditableCell
+                      value={row.location}
+                      onSave={(v) => save(row, { location: v })}
+                      suggestions={suggestions.location}
+                    />
                     <EditableCell
                       value={formatQty(Number(row.qty_in_stock) || 0)}
                       numeric
@@ -291,6 +336,7 @@ function InventoryPage() {
                     <EditableCell
                       value={row.unit}
                       onSave={(v) => save(row, { unit: v || "Nos" })}
+                      suggestions={suggestions.unit}
                     />
                     <td className="px-2 py-1 text-right">
                       <button
@@ -335,12 +381,14 @@ function EditableCell({
   numeric,
   bold,
   title,
+  suggestions,
 }: {
   value: string;
   onSave: (value: string) => unknown;
   numeric?: boolean;
   bold?: boolean;
   title?: string;
+  suggestions?: string[];
 }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
@@ -348,22 +396,36 @@ function EditableCell({
     const next = draft.trim();
     if (next !== value) void onSave(next);
   };
+  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") event.currentTarget.blur();
+    if (event.key === "Escape") setDraft(value);
+  };
+  const className = `w-full rounded-lg bg-transparent px-2 py-1.5 outline-none transition-shadow focus:bg-white/70 focus:ring-2 focus:ring-primary/30 ${numeric ? "text-right font-semibold text-primary" : ""} ${bold ? "font-medium text-foreground" : "text-foreground/80"}`;
   return (
     <td className="px-1 py-1" title={title}>
-      <input
-        data-no-neo
-        value={draft}
-        type={numeric ? "number" : "text"}
-        min={numeric ? 0 : undefined}
-        step={numeric ? "any" : undefined}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") event.currentTarget.blur();
-          if (event.key === "Escape") setDraft(value);
-        }}
-        className={`w-full rounded-lg bg-transparent px-2 py-1.5 outline-none transition-shadow focus:bg-white/70 focus:ring-2 focus:ring-primary/30 ${numeric ? "text-right font-semibold text-primary" : ""} ${bold ? "font-medium text-foreground" : "text-foreground/80"}`}
-      />
+      {suggestions ? (
+        <SuggestInput
+          data-no-neo
+          value={draft}
+          onValueChange={setDraft}
+          suggestions={suggestions}
+          onBlur={commit}
+          onKeyDown={onKeyDown}
+          className={`h-auto text-sm ${className}`}
+        />
+      ) : (
+        <input
+          data-no-neo
+          value={draft}
+          type={numeric ? "number" : "text"}
+          min={numeric ? 0 : undefined}
+          step={numeric ? "any" : undefined}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commit}
+          onKeyDown={onKeyDown}
+          className={className}
+        />
+      )}
     </td>
   );
 }
@@ -371,20 +433,22 @@ function EditableCell({
 function NewRow({
   onSave,
   onCancel,
+  suggestions,
 }: {
   onSave: (draft: Draft) => Promise<void>;
   onCancel: () => void;
+  suggestions: Suggestions;
 }) {
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [saving, setSaving] = useState(false);
-  const cell = (key: keyof Draft, placeholder: string, numeric = false) => (
+  const cell = (key: TextField, placeholder: string) => (
     <td className="px-1 py-1">
-      <Input
+      <SuggestInput
         value={draft[key]}
-        type={numeric ? "number" : "text"}
         placeholder={placeholder}
-        onChange={(event) => setDraft((current) => ({ ...current, [key]: event.target.value }))}
-        className={`h-9 ${numeric ? "text-right" : ""}`}
+        onValueChange={(next) => setDraft((current) => ({ ...current, [key]: next }))}
+        suggestions={suggestions[key]}
+        className="h-9"
         autoFocus={key === "item_name"}
       />
     </td>
@@ -414,7 +478,17 @@ function NewRow({
       {cell("make", "Make")}
       {cell("model", "Model")}
       {cell("location", "Rack / bin")}
-      {cell("qty_in_stock", "0", true)}
+      <td className="px-1 py-1">
+        <Input
+          value={draft.qty_in_stock}
+          type="number"
+          placeholder="0"
+          onChange={(event) =>
+            setDraft((current) => ({ ...current, qty_in_stock: event.target.value }))
+          }
+          className="h-9 text-right"
+        />
+      </td>
       {cell("unit", "Nos")}
       <td className="px-1 py-1">
         <div className="flex gap-1">

@@ -13,6 +13,7 @@ export type Permission =
   | "testing"
   | "inspection"
   | "dispatch"
+  | "commissioning"
   | "inventory"
   | "employees"
   | "settings";
@@ -49,6 +50,11 @@ export const PERMISSION_GROUPS: { title: string; items: PermissionInfo[] }[] = [
       { key: "testing", label: "Testing", hint: "Test checklist and testing sessions" },
       { key: "inspection", label: "Inspection", hint: "Client inspection visits and outcome" },
       { key: "dispatch", label: "Dispatch", hint: "PDI, packing, transport and delivery" },
+      {
+        key: "commissioning",
+        label: "Commissioning & Installation",
+        hint: "Assign site work to engineers and rate it",
+      },
     ],
   },
   {
@@ -76,6 +82,7 @@ export const STAGE_PERMISSION: Record<string, Permission> = {
   testing: "testing",
   inspection: "inspection",
   dispatch: "dispatch",
+  commissioning: "commissioning",
 };
 
 // What a person can see. Office staff get "view_all"; field staff see only their own

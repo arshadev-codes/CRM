@@ -8,6 +8,7 @@ import { supabase } from "@/lib/db";
 import { STAGE_NAMES, STAGE_PAGES, STAGE_SLUGS, type StageStatus } from "@/lib/stages";
 import { STAGE_THEME } from "@/lib/stageTheme";
 import { StatTile } from "@/components/StatTile";
+import { todayIso } from "@/lib/procurement";
 
 export const Route = createFileRoute("/inward-orders/")({
   head: () => ({
@@ -29,7 +30,6 @@ const STATUS_META: Record<InwardOrder["status"], { chip: string; accent: string 
   Completed: { chip: "bg-emerald-50 text-emerald-700", accent: "from-emerald-400 to-teal-500" },
 };
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
 
 function daysUntil(date: string) {
   const ms = new Date(`${date}T00:00:00`).getTime() - new Date(`${todayIso()}T00:00:00`).getTime();

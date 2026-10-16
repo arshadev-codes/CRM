@@ -1,11 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { CalendarClock, ChevronRight, ClipboardList, LayoutList, RefreshCw } from "lucide-react";
+import {
+  CalendarClock,
+  ChevronRight,
+  ClipboardList,
+  HardHat,
+  LayoutList,
+  RefreshCw,
+} from "lucide-react";
 import { AppHeader } from "@/components/app/AppHeader";
 import { AppNotifications } from "@/components/app/AppNotifications";
 import { AppTabBar } from "@/components/app/AppTabBar";
 import { loadMyWork, type MyOrder } from "@/lib/myWork";
-import { isLate, taskPercent } from "@/lib/production";
+import { isSiteLate as isLate, sitePercent, type SiteTask } from "@/lib/commissioning";
 import { todayIso } from "@/lib/procurement";
 import { useCurrentUser } from "@/store/authStore";
 
@@ -40,10 +47,12 @@ function MyWorkPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const openTasks =
-    orders?.reduce((n, o) => n + o.tasks.filter((t) => t.status !== "done").length, 0) ?? 0;
+  // Panel work and site work together; "not done" site work was reported, so it is not open.
+  const allOf = (o: MyOrder): Pick<SiteTask, "status" | "endDate">[] => [...o.tasks, ...o.siteTasks];
+  const isOpen = (t: Pick<SiteTask, "status">) => t.status === "pending" || t.status === "in progress";
+  const openTasks = orders?.reduce((n, o) => n + allOf(o).filter(isOpen).length, 0) ?? 0;
   const lateTasks =
-    orders?.reduce((n, o) => n + o.tasks.filter((t) => isLate(t, today)).length, 0) ?? 0;
+    orders?.reduce((n, o) => n + allOf(o).filter((t) => isLate(t, today)).length, 0) ?? 0;
 
   return (
     <div className="min-h-svh bg-slate-50 pb-24">
@@ -88,17 +97,19 @@ function MyWorkPage() {
             <ClipboardList className="mx-auto h-10 w-10 text-slate-300" />
             <div className="mt-3 font-semibold text-slate-700">No work assigned yet</div>
             <div className="mt-1 text-sm text-slate-500">
-              When a panel or task is assigned to you, it will show here.
+              When a panel, task or site work is assigned to you, it will show here.
             </div>
           </div>
         )}
 
-        {orders?.map(({ order, panels, tasks, stages }) => {
-          const open = tasks.filter((t) => t.status !== "done").length;
+        {orders?.map((item) => {
+          const { order, panels, stages } = item;
+          const tasks = allOf(item);
+          const open = tasks.filter(isOpen).length;
           const late = tasks.filter((t) => isLate(t, today)).length;
-          const percent = taskPercent(tasks);
+          const percent = sitePercent(tasks);
           const next = tasks
-            .filter((t) => t.status !== "done" && t.endDate)
+            .filter((t) => isOpen(t) && t.endDate)
             .map((t) => t.endDate!)
             .sort()[0];
           return (
@@ -131,6 +142,11 @@ function MyWorkPage() {
                     <LayoutList className="h-3 w-3" /> {p.panelType}
                   </span>
                 ))}
+                {item.siteTasks.length > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-lime-50 px-2 py-0.5 text-[11px] font-semibold text-lime-800">
+                    <HardHat className="h-3 w-3" /> Site work · {item.siteTasks.length}
+                  </span>
+                )}
                 {stages.map((s) => (
                   <span
                     key={s}

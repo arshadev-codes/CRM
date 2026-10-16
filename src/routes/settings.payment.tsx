@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SettingsShell } from "@/components/settings/SettingsShell";
 import { useProposalStore } from "@/store/proposalStore";
-export const Route = createFileRoute("/settings/payment")({ component: () => {
+export const Route = createFileRoute("/settings/payment")({ component: PaymentTemplates });
+
+function PaymentTemplates() {
   const templates = useProposalStore(s => s.paymentTemplates);
   return (
   <SettingsShell title="Payment Templates">
@@ -12,4 +14,4 @@ export const Route = createFileRoute("/settings/payment")({ component: () => {
       </div>
     ))}</div>
   </SettingsShell>
-)}});
+)}

@@ -21,6 +21,7 @@ import { useEmployeeDirectory } from "@/components/employees/useEmployeeDirector
 import { useProposalStore } from "@/store/proposalStore";
 import { requireAdminPassword } from "@/lib/passwordGate";
 import { POINTS } from "@/lib/employeeScore";
+import { useCanRate } from "@/lib/ratingRules";
 import { SOURCE_LABEL, type WorkItem } from "@/lib/employeeWork";
 import type { EmployeeRating } from "@/data/employeesData";
 
@@ -45,6 +46,8 @@ function EmployeeProfile() {
   const [removing, setRemoving] = useState(false);
   const [rating, setRating] = useState<{ open: boolean; task?: EmployeeRating["taskRef"] }>({ open: false });
 
+  const canRate = useCanRate();
+
   const s = summaries.find((x) => x.employee.id === id);
   if (!s) {
     return (
@@ -61,6 +64,7 @@ function EmployeeProfile() {
 
   const { employee, score, current, completed, ratings } = s;
   const ratedKeys = new Set(ratings.map((r) => r.taskRef && `${r.taskRef.kind}:${r.taskRef.id}`));
+  const mayRate = canRate(employee);
 
   return (
     <div className="mx-auto max-w-6xl p-4 sm:p-6">
@@ -113,11 +117,13 @@ function EmployeeProfile() {
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
-              <Button onClick={() => setRating({ open: true })}>
-                <Star className="mr-1.5 h-4 w-4" /> Add rating
-              </Button>
             </div>
           </Can>
+          {mayRate && (
+            <Button onClick={() => setRating({ open: true })}>
+              <Star className="mr-1.5 h-4 w-4" /> Add rating
+            </Button>
+          )}
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -185,7 +191,7 @@ function EmployeeProfile() {
                   w={w}
                   orderLabel={orderLabel}
                   action={
-                    ratedKeys.has(w.key) ? (
+                    !mayRate ? null : ratedKeys.has(w.key) ? (
                       <span className="flex items-center gap-1 text-xs font-medium text-amber-600">
                         <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> Rated
                       </span>
@@ -216,11 +222,13 @@ function EmployeeProfile() {
         </TabsContent>
 
         <TabsContent value="ratings" className="mt-4">
-          <div className="mb-3 flex justify-end">
-            <Button size="sm" variant="outline" onClick={() => setRating({ open: true })}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Add rating
-            </Button>
-          </div>
+          {mayRate && (
+            <div className="mb-3 flex justify-end">
+              <Button size="sm" variant="outline" onClick={() => setRating({ open: true })}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> Add rating
+              </Button>
+            </div>
+          )}
           {ratings.length === 0 ? (
             <Empty text="No ratings yet. Rate a completed task or add a general rating." />
           ) : (

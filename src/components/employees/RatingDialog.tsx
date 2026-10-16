@@ -5,7 +5,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useProposalStore } from "@/store/proposalStore";
-import { requireAdminPassword } from "@/lib/passwordGate";
+import { useCurrentUser } from "@/store/authStore";
+import { useCanRate, useMyEmployee } from "@/lib/ratingRules";
 import type { Employee, EmployeeRating } from "@/data/employeesData";
 import { POINTS } from "@/lib/employeeScore";
 import { StarInput } from "./Stars";
@@ -24,11 +25,14 @@ export function RatingDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const employees = useProposalStore((s) => s.employees);
   const addRating = useProposalStore((s) => s.addRating);
+  const user = useCurrentUser();
+  const me = useMyEmployee();
+  const allowed = useCanRate()(employee);
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState("");
-  const [ratedBy, setRatedBy] = useState("");
+  // The rating is always given by the signed-in person.
+  const ratedBy = me?.name ?? user?.name ?? "";
 
   function close(next: boolean) {
     if (!next) {
@@ -40,9 +44,15 @@ export function RatingDialog({
 
   function save() {
     if (!stars) return toast.error("Pick a star rating");
-    if (!ratedBy) return toast.error("Choose who is giving the rating");
-    if (!requireAdminPassword("employees")) return;
-    addRating({ employeeId: employee.id, stars, comment: comment.trim(), ratedBy, taskRef: task });
+    if (!allowed) return toast.error(notAllowedText(Boolean(me)));
+    addRating({
+      employeeId: employee.id,
+      stars,
+      comment: comment.trim(),
+      ratedBy,
+      ratedById: me?.id,
+      taskRef: task,
+    });
     toast.success(`Rated ${employee.name} ${stars}★ · +${stars * POINTS.perStar} points`);
     close(false);
   }
@@ -74,32 +84,32 @@ export function RatingDialog({
               placeholder="What went well, what to improve"
             />
           </label>
-          <label className="block">
-            <span className="text-xs font-medium text-slate-600">Rated by *</span>
-            <select
-              className="neo-inset mt-1 w-full px-3 py-2 text-sm outline-none"
-              value={ratedBy}
-              onChange={(e) => setRatedBy(e.target.value)}
-            >
-              <option value="">Select…</option>
-              {employees
-                .filter((e) => e.id !== employee.id && e.active !== false)
-                .map((e) => (
-                  <option key={e.id} value={e.name}>
-                    {e.name}
-                  </option>
-                ))}
-            </select>
-          </label>
+          {allowed ? (
+            <p className="text-xs text-slate-500">
+              Rating as <span className="font-medium text-slate-700">{ratedBy}</span>
+            </p>
+          ) : (
+            <p className="rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700">
+              {notAllowedText(Boolean(me))}
+            </p>
+          )}
         </div>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => close(false)}>
             Cancel
           </Button>
-          <Button onClick={save}>Save rating</Button>
+          <Button onClick={save} disabled={!allowed}>
+            Save rating
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
+}
+
+function notAllowedText(linked: boolean) {
+  return linked
+    ? "You can't rate this person. Ask the admin to add a rating rule for your designation."
+    : "Your login isn't linked to an employee, so you can't give ratings. Ask the admin to link it.";
 }

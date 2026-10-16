@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useProposalStore } from "@/store/proposalStore";
-import type { Employee } from "@/data/employeesData";
+import { DESIGNATIONS, type Employee } from "@/data/employeesData";
 
 type Form = {
   name: string;
@@ -90,7 +90,10 @@ export function EmployeeFormDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="emp-designation">Designation</Label>
-              <Input id="emp-designation" value={form.designation} onChange={(e) => set({ designation: e.target.value })} placeholder="e.g. Wireman" />
+              <Input id="emp-designation" list="emp-designations" value={form.designation} onChange={(e) => set({ designation: e.target.value })} placeholder="e.g. Site Engineer" />
+              <datalist id="emp-designations">
+                {DESIGNATIONS.map((d) => <option key={d} value={d} />)}
+              </datalist>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="emp-department">Department</Label>

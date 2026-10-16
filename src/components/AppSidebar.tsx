@@ -80,7 +80,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
             </SidebarMenu>
 
-            {/* The seven stages, in order, each in its own colour. */}
+            {/* The stages, in order, each in its own colour. */}
             <SidebarMenu className={`mt-1 ${collapsed ? "" : "relative ml-3 border-l border-slate-300/60 pl-2"}`}>
               {STAGE_SLUGS.map((slug, index) => {
                 const page = STAGE_PAGES[slug];
