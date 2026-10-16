@@ -1199,6 +1199,27 @@ export type Database = {
           },
         ]
       }
+      password_register: {
+        Row: {
+          password: string
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          password: string
+          updated_at?: string
+          user_id: string
+          username?: string
+        }
+        Update: {
+          password?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
       rating_rules: {
         Row: {
           created_at: string

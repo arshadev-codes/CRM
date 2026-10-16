@@ -78,6 +78,15 @@ Deno.serve(async (req) => {
     };
   }
 
+  // The admin keeps a readable copy of every password (see the password_register migration).
+  async function rememberPassword(id: string, username: string, password: string) {
+    const { error } = await db.from("password_register").upsert(
+      { user_id: id, username: normalise(username), password, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" },
+    );
+    if (error) console.warn("password register:", error.message);
+  }
+
   async function createLogin(user: UserInput) {
     const bad = checkUsername(user.username);
     if (bad) return fail(bad);
@@ -102,6 +111,7 @@ Deno.serve(async (req) => {
       await db.auth.admin.deleteUser(created.user.id);
       return fail(rowError.message, 500);
     }
+    await rememberPassword(created.user.id, user.username!, user.password);
     return reply({ ok: true, id: created.user.id });
   }
 
@@ -162,6 +172,8 @@ Deno.serve(async (req) => {
     const row = profileRow(id, input);
     const { error: rowError } = await db.from("profiles").update(row).eq("id", id);
     if (rowError) return fail(rowError.message, 500);
+    if (input.password) await rememberPassword(id, input.username!, input.password);
+    else await db.from("password_register").update({ username: row.username }).eq("user_id", id);
     return reply({ ok: true });
   }
 
