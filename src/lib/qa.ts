@@ -103,17 +103,21 @@ export function sessionsFor(page: "testing" | "inspection", sessions: QaSession[
 
 /* ---------- Tests ---------- */
 
-export type TestStatus = "pending" | "in progress" | "passed" | "failed" | "retest";
+export type TestStatus = "pending" | "in progress" | "passed" | "failed" | "retest" | "na";
 export type WitnessStatus = "" | "witnessed" | "accepted" | "rejected";
 
-export const TEST_STATUSES: TestStatus[] = ["pending", "in progress", "passed", "failed", "retest"];
+export const TEST_STATUSES: TestStatus[] = ["pending", "in progress", "passed", "failed", "retest", "na"];
 export const TEST_STATUS_META: Record<TestStatus, { label: string; chip: string; bar: string }> = {
   pending: { label: "Pending", chip: "bg-slate-200/70 text-slate-600", bar: "bg-slate-300" },
   "in progress": { label: "In progress", chip: "bg-sky-100 text-sky-700", bar: "bg-sky-500" },
-  passed: { label: "Passed", chip: "bg-emerald-100 text-emerald-700", bar: "bg-emerald-500" },
-  failed: { label: "Failed", chip: "bg-rose-100 text-rose-700", bar: "bg-rose-500" },
+  passed: { label: "OK", chip: "bg-emerald-100 text-emerald-700", bar: "bg-emerald-500" },
+  failed: { label: "Not OK", chip: "bg-rose-100 text-rose-700", bar: "bg-rose-500" },
   retest: { label: "Retest", chip: "bg-amber-100 text-amber-800", bar: "bg-amber-500" },
+  na: { label: "N.A.", chip: "bg-slate-100 text-slate-500", bar: "bg-slate-400" },
 };
+
+/** A test needs no more work once it is OK or not applicable. */
+export const isTestDone = (status: TestStatus) => status === "passed" || status === "na";
 export const WITNESS_META: Record<Exclude<WitnessStatus, "">, { label: string; chip: string }> = {
   witnessed: { label: "Witnessed", chip: "bg-violet-100 text-violet-700" },
   accepted: { label: "Accepted", chip: "bg-emerald-100 text-emerald-700" },
@@ -123,6 +127,8 @@ export const WITNESS_META: Record<Exclude<WitnessStatus, "">, { label: string; c
 export type TestItem = {
   id: string;
   key?: string;
+  /** Production panel this test is for; missing on older order-wide tests. */
+  panelId?: string;
   title: string;
   group: string;
   status: TestStatus;
@@ -139,6 +145,7 @@ export function mapTest(row: TestRow): TestItem {
   return {
     id: row.id,
     key: row.test_key ?? undefined,
+    panelId: row.panel_id ?? undefined,
     title: row.title,
     group: row.test_group,
     status: row.status as TestStatus,

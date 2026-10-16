@@ -45,6 +45,8 @@ import { OpenPoints, orderSessions, SessionsBoard } from "./qa/Sessions";
 import { useQaData, type QaData } from "./qa/useQaData";
 import { DispatchPlanDialog, planDispatch } from "./qa/DispatchPlanDialog";
 import { NextSessionCard } from "./TestingStage";
+import { useOrderPanels } from "@/lib/panelTests";
+import { panelLabel } from "@/lib/production";
 
 export function InspectionStage({
   orderId,
@@ -169,7 +171,7 @@ export function InspectionStage({
         onFinish={() => (openPoints > 0 ? setConfirmOpenPoints(true) : setAskDispatch(true))}
       />
 
-      <WitnessChecklist qa={qa} />
+      <WitnessChecklist qa={qa} orderId={orderId} />
 
       <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
         <div className="min-w-0">
@@ -405,8 +407,18 @@ function OutcomePanel({
   );
 }
 
-function WitnessChecklist({ qa }: { qa: QaData }) {
+function WitnessChecklist({ qa, orderId }: { qa: QaData; orderId: string }) {
+  const { panels } = useOrderPanels(orderId);
   const tests = [...qa.tests].sort((a, b) => a.displayOrder - b.displayOrder);
+  // Panel-wise, like the Testing page; tests not tied to a panel come last.
+  const sections = [
+    ...panels.map((p) => ({ key: p.id, label: panelLabel(p), tests: tests.filter((t) => t.panelId === p.id) })),
+    {
+      key: "other",
+      label: panels.length ? "Other tests" : "",
+      tests: tests.filter((t) => !t.panelId || !panels.some((p) => p.id === t.panelId)),
+    },
+  ].filter((s) => s.tests.length);
   return (
     <motion.section
       initial={{ opacity: 0, y: 16 }}
@@ -432,9 +444,20 @@ function WitnessChecklist({ qa }: { qa: QaData }) {
           The test checklist is set up on the Testing page.
         </div>
       ) : (
-        <div className="grid gap-2 lg:grid-cols-2">
-          {tests.map((test, index) => (
-            <WitnessRow key={test.id} test={test} index={index} qa={qa} />
+        <div className="space-y-5">
+          {sections.map((section) => (
+            <div key={section.key}>
+              {section.label && (
+                <div className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {section.label}
+                </div>
+              )}
+              <div className="grid gap-2 lg:grid-cols-2">
+                {section.tests.map((test, index) => (
+                  <WitnessRow key={test.id} test={test} index={index} qa={qa} />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}

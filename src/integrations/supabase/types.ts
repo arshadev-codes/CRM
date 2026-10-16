@@ -1199,6 +1199,36 @@ export type Database = {
           },
         ]
       }
+      panel_test_templates: {
+        Row: {
+          aliases: string[]
+          created_at: string
+          display_order: number
+          id: string
+          name: string
+          tests: Json
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          created_at?: string
+          display_order?: number
+          id?: string
+          name: string
+          tests?: Json
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          created_at?: string
+          display_order?: number
+          id?: string
+          name?: string
+          tests?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       password_register: {
         Row: {
           password: string
@@ -1402,6 +1432,7 @@ export type Database = {
           session_id: string | null
           status: string
           test_group: string
+          panel_id: string | null
           test_key: string | null
           tested_by: string
           title: string
@@ -1418,6 +1449,7 @@ export type Database = {
           session_id?: string | null
           status?: string
           test_group?: string
+          panel_id?: string | null
           test_key?: string | null
           tested_by?: string
           title: string
@@ -1434,6 +1466,7 @@ export type Database = {
           session_id?: string | null
           status?: string
           test_group?: string
+          panel_id?: string | null
           test_key?: string | null
           tested_by?: string
           title?: string

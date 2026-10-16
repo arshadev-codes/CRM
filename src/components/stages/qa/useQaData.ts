@@ -148,7 +148,7 @@ export function useQaData(orderId: string) {
         .from("test_items")
         .upsert(
           rows.map((row) => ({ ...row, inward_order_id: orderId })),
-          { onConflict: "inward_order_id,test_key", ignoreDuplicates: true },
+          { onConflict: "inward_order_id,panel_id,test_key", ignoreDuplicates: true },
         )
         .select("*");
       if (error) {

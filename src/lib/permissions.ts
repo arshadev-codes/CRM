@@ -14,6 +14,7 @@ export type Permission =
   | "inspection"
   | "dispatch"
   | "commissioning"
+  | "panel_tests"
   | "inventory"
   | "employees"
   | "settings";
@@ -60,6 +61,11 @@ export const PERMISSION_GROUPS: { title: string; items: PermissionInfo[] }[] = [
   {
     title: "Other",
     items: [
+      {
+        key: "panel_tests",
+        label: "Panel tests library",
+        hint: "Add panel types and the tests done on each (usually the Jr Designer)",
+      },
       { key: "inventory", label: "Inventory", hint: "Import and edit inventory items" },
       { key: "employees", label: "Employees", hint: "Add and edit employees, give ratings" },
       { key: "settings", label: "Quotation settings", hint: "Companies, templates and masters" },

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Boxes, FileSpreadsheet, History, LayoutGrid, ShieldCheck, Users } from "lucide-react";
+import { Boxes, ClipboardCheck, FileSpreadsheet, History, LayoutGrid, ShieldCheck, Users } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarSeparator, useSidebar,
@@ -128,6 +128,19 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname.startsWith("/employees")} tooltip="Employees">
                   <Link to="/employees"><Users className="h-4 w-4" />{!collapsed && <span>Employees</span>}</Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Design</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.startsWith("/panel-tests")} tooltip="Panel tests">
+                  <Link to="/panel-tests"><ClipboardCheck className="h-4 w-4" />{!collapsed && <span>Panel tests</span>}</Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

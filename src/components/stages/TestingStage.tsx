@@ -13,10 +13,18 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useProposalStore } from "@/store/proposalStore";
-import { testsData } from "@/data/testsData";
+import { panelLabel, type Panel } from "@/lib/production";
+import {
+  matchTemplate,
+  TEST_GROUPS,
+  testKey,
+  useOrderPanels,
+  usePanelTemplates,
+  type PanelTemplate,
+} from "@/lib/panelTests";
 import {
   formatLongDate,
+  isTestDone,
   relativeDay,
   sessionsFor,
   sessionTitle,
@@ -41,8 +49,9 @@ import { EASE } from "./shared";
 import { OpenPoints, orderSessions, SessionsBoard } from "./qa/Sessions";
 import { useQaData, type QaData } from "./qa/useQaData";
 
-const GROUP_ORDER = ["Routine", "Type", "Special"];
-
+// Tests are done panel-wise: every panel of the order (from the BOM / Production) gets the
+// tests of its panel type from the Panel tests library, and each test is marked OK, Not OK or
+// N.A. with a reading where one is taken.
 export function TestingStage({
   orderId,
   stage,
@@ -52,47 +61,43 @@ export function TestingStage({
 }: StageBodyProps) {
   const canEdit = useStageCanEdit();
   const qa = useQaData(orderId);
-  const order = useProposalStore((s) => s.inwardOrders.find((o) => o.id === orderId));
-  const project = useProposalStore((s) => s.projects.find((p) => p.id === order?.projectId));
-  const hydrateProjects = useProposalStore((s) => s.hydrateFromCloud);
+  const { panels, loading: panelsLoading } = useOrderPanels(orderId);
+  const { templates, loading: templatesLoading } = usePanelTemplates();
   const [filter, setFilter] = useState<TestStatus | "all">("all");
-  const seeded = useRef(false);
+  const seeded = useRef(new Set<string>());
 
-  useEffect(() => {
-    if (order?.projectId && !project) void hydrateProjects();
-  }, [order?.projectId, project, hydrateProjects]);
+  const testsOf = (panelId?: string) =>
+    qa.tests.filter((t) => t.panelId === panelId).sort((a, b) => a.displayOrder - b.displayOrder);
 
-  // Tests sold in the quotation that are not on this order's checklist yet.
-  const quotationTests = useMemo(
-    () =>
-      (project?.data.selectedTests ?? [])
-        .map((key) => testsData.find((t) => t.id === key))
-        .filter((t): t is (typeof testsData)[number] => Boolean(t)),
-    [project],
-  );
-  const missing = quotationTests.filter((t) => !qa.tests.some((item) => item.key === t.id));
-
-  async function loadFromQuotation(silent = false) {
+  async function loadTemplate(panel: Panel, template: PanelTemplate, silent = false) {
+    const have = new Set(testsOf(panel.id).map((t) => t.key));
     const start = qa.tests.reduce((max, t) => Math.max(max, t.displayOrder), 0);
-    const added = await qa.addTests(
-      missing.map((t, i) => ({
-        test_key: t.id,
+    const rows = template.tests
+      .filter((t) => !have.has(testKey(t)))
+      .map((t, i) => ({
+        panel_id: panel.id,
+        test_key: testKey(t),
         title: t.title,
         test_group: t.group,
         display_order: start + i + 1,
-      })),
-    );
-    if (added.length && !silent) toast.success(`${added.length} tests loaded from the quotation`);
+      }));
+    const added = await qa.addTests(rows);
+    if (added.length && !silent)
+      toast.success(`${added.length} tests added to ${panelLabel(panel)}`);
   }
 
   useEffect(() => {
-    // First visit: fill the checklist from the quotation automatically.
-    if (!qa.loading && !seeded.current && qa.tests.length === 0 && missing.length) {
-      seeded.current = true;
-      void loadFromQuotation(true);
+    // First visit: give each panel without tests the tests of its panel type.
+    if (!canEdit || qa.loading || panelsLoading || templatesLoading) return;
+    for (const panel of panels) {
+      if (seeded.current.has(panel.id)) continue;
+      seeded.current.add(panel.id);
+      const template = matchTemplate(panel.panelType, templates);
+      if (template && !qa.tests.some((t) => t.panelId === panel.id))
+        void loadTemplate(panel, template, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qa.loading, qa.tests.length, missing.length]);
+  }, [canEdit, qa.loading, panelsLoading, templatesLoading, panels, templates]);
 
   const counts = useMemo(() => {
     const result = Object.fromEntries(TEST_STATUSES.map((s) => [s, 0])) as Record<
@@ -103,8 +108,9 @@ export function TestingStage({
     return result;
   }, [qa.tests]);
   const total = qa.tests.length;
-  const passedPct = total ? Math.round((counts.passed / total) * 100) : 0;
-  const allPassed = total > 0 && counts.passed === total;
+  const done = counts.passed + counts.na;
+  const donePct = total ? Math.round((done / total) * 100) : 0;
+  const allPassed = total > 0 && qa.tests.every((t) => isTestDone(t.status));
 
   const today = todayIso();
   const sessions = orderSessions(sessionsFor("testing", qa.sessions), today);
@@ -123,12 +129,14 @@ export function TestingStage({
       await setStageStatus("in progress");
   }
 
-  const visible = qa.tests
-    .filter((t) => filter === "all" || t.status === filter)
+  const panelIds = new Set(panels.map((p) => p.id));
+  // Older orders: tests from the quotation, not tied to a panel.
+  const loose = qa.tests
+    .filter((t) => !t.panelId || !panelIds.has(t.panelId))
     .sort((a, b) => a.displayOrder - b.displayOrder);
-  const groups = [...new Set([...GROUP_ORDER, ...visible.map((t) => t.group || "Other")])]
-    .map((group) => ({ group, tests: visible.filter((t) => (t.group || "Other") === group) }))
-    .filter((g) => g.tests.length);
+  const shownStatuses = TEST_STATUSES.filter(
+    (s) => ["pending", "passed", "failed", "na"].includes(s) || counts[s] > 0,
+  );
 
   return (
     <div className="mx-auto w-full max-w-[80vw] space-y-6 max-lg:max-w-full">
@@ -140,21 +148,21 @@ export function TestingStage({
       >
         <div>
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Tests passed
+            Tests done
           </div>
           <div className="mt-1 flex flex-wrap items-baseline gap-2">
             <motion.span
-              key={passedPct}
+              key={donePct}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               className="text-4xl font-bold text-foreground"
             >
-              {passedPct}%
+              {donePct}%
             </motion.span>
             <span className="text-sm text-muted-foreground">
-              {counts.passed} of {total} passed
+              {done} of {total} done · {panels.length} panel{panels.length === 1 ? "" : "s"}
               {counts.failed > 0 && (
-                <span className="font-semibold text-rose-600"> · {counts.failed} failed</span>
+                <span className="font-semibold text-rose-600"> · {counts.failed} not OK</span>
               )}
               {counts.retest > 0 && (
                 <span className="font-semibold text-amber-600"> · {counts.retest} to retest</span>
@@ -162,7 +170,7 @@ export function TestingStage({
             </span>
           </div>
           <div className="neo-inset mt-4 flex h-3.5 overflow-hidden rounded-full">
-            {(["passed", "in progress", "retest", "failed"] as TestStatus[]).map((s) => (
+            {(["passed", "na", "in progress", "retest", "failed"] as TestStatus[]).map((s) => (
               <motion.div
                 key={s}
                 className={`h-full ${TEST_STATUS_META[s].bar}`}
@@ -180,7 +188,7 @@ export function TestingStage({
               active={filter === "all"}
               onClick={() => setFilter("all")}
             />
-            {TEST_STATUSES.map((s) => (
+            {shownStatuses.map((s) => (
               <FilterChip
                 key={s}
                 label={TEST_STATUS_META[s].label}
@@ -208,7 +216,7 @@ export function TestingStage({
                 <FlaskConical className="h-6 w-6" />
               </span>
               <div className="flex-1">
-                <div className="text-lg font-bold">All {total} tests passed</div>
+                <div className="text-lg font-bold">All {total} tests done</div>
                 <div className="text-sm text-white/85">
                   Mark Testing as done to move the order to inspection.
                 </div>
@@ -229,76 +237,48 @@ export function TestingStage({
         )}
       </AnimatePresence>
 
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: EASE, delay: 0.14 }}
-        className="neo-surface rounded-3xl p-5 sm:p-6"
-      >
-        <div className="mb-5 flex flex-wrap items-center gap-3">
-          <span className="neo-pop grid h-10 w-10 place-items-center rounded-xl text-primary">
-            <ClipboardList className="h-5 w-5" />
-          </span>
-          <div className="flex-1">
-            <h2 className="text-lg font-semibold text-foreground">Test checklist</h2>
-            <p className="text-xs text-muted-foreground">
-              {project
-                ? `From quotation ${project.name}. Click a status to update it.`
-                : "Click a status to update it."}
-            </p>
-          </div>
-          {canEdit && missing.length > 0 && qa.tests.length > 0 && (
-            <Button variant="outline" onClick={() => void loadFromQuotation()}>
-              <ListPlus /> Add {missing.length} from quotation
-            </Button>
-          )}
+      {qa.loading || panelsLoading ? (
+        <div className="neo-surface space-y-2 rounded-3xl p-6">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-14 animate-pulse" />
+          ))}
         </div>
-
-        {qa.loading ? (
-          <div className="space-y-2">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="h-14 animate-pulse" />
-            ))}
-          </div>
-        ) : (
-          <>
-            {!total && (
-              <div className="neo-inset mb-4 rounded-2xl px-6 py-10 text-center text-sm text-muted-foreground">
-                {order?.projectId
-                  ? "Loading tests from the quotation… If none appear, the quotation had no tests selected. Add them below."
-                  : "This order is not linked to a quotation. Add the tests below."}
-              </div>
-            )}
-            <div className="space-y-6">
-              {groups.map(({ group, tests }) => (
-                <div key={group}>
-                  <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    {group} tests
-                    <span className="rounded-full bg-muted px-2 py-0.5">{tests.length}</span>
-                  </div>
-                  <div className="space-y-2">
-                    <AnimatePresence initial={true}>
-                      {tests.map((test, index) => (
-                        <TestRow
-                          key={test.id}
-                          test={test}
-                          index={index}
-                          qa={qa}
-                          employees={employees}
-                          onStatus={(s) => void setStatus(test, s)}
-                        />
-                      ))}
-                    </AnimatePresence>
-                  </div>
-                </div>
-              ))}
+      ) : (
+        <>
+          {!panels.length && (
+            <div className="neo-surface rounded-3xl px-6 py-10 text-center text-sm text-muted-foreground">
+              This order has no panels yet. Panels come from the BOM (Design) or are added in
+              Production; their tests then appear here.
             </div>
-            <EditOnly>
-              <AddTest qa={qa} />
-            </EditOnly>
-          </>
-        )}
-      </motion.section>
+          )}
+          {panels.map((panel, i) => (
+            <PanelTests
+              key={panel.id}
+              panel={panel}
+              index={i}
+              tests={testsOf(panel.id)}
+              filter={filter}
+              qa={qa}
+              employees={employees}
+              templates={templates}
+              matched={matchTemplate(panel.panelType, templates)}
+              onLoad={(t) => void loadTemplate(panel, t)}
+              onStatus={(test, s) => void setStatus(test, s)}
+            />
+          ))}
+          {loose.length > 0 && (
+            <PanelTests
+              index={panels.length}
+              tests={loose}
+              filter={filter}
+              qa={qa}
+              employees={employees}
+              templates={templates}
+              onStatus={(test, s) => void setStatus(test, s)}
+            />
+          )}
+        </>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
         <div className="min-w-0">
@@ -309,6 +289,140 @@ export function TestingStage({
         </div>
       </div>
     </div>
+  );
+}
+
+// One panel's tests, grouped as on its inspection report (Checklist, Megger test, ...).
+function PanelTests({
+  panel,
+  index,
+  tests,
+  filter,
+  qa,
+  employees,
+  templates,
+  matched,
+  onLoad,
+  onStatus,
+}: {
+  panel?: Panel;
+  index: number;
+  tests: TestItem[];
+  filter: TestStatus | "all";
+  qa: QaData;
+  employees: string[];
+  templates: PanelTemplate[];
+  matched?: PanelTemplate;
+  onLoad?: (template: PanelTemplate) => void;
+  onStatus: (test: TestItem, status: TestStatus) => void;
+}) {
+  const canEdit = useStageCanEdit();
+  const [pick, setPick] = useState("");
+  const done = tests.filter((t) => isTestDone(t.status)).length;
+  const failed = tests.filter((t) => t.status === "failed").length;
+  const visible = tests.filter((t) => filter === "all" || t.status === filter);
+  const groups = [...new Set(visible.map((t) => t.group || "Other"))].map((group) => ({
+    group,
+    tests: visible.filter((t) => (t.group || "Other") === group),
+  }));
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: EASE, delay: 0.1 + Math.min(index, 6) * 0.05 }}
+      className="neo-surface rounded-3xl p-5 sm:p-6"
+    >
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <span className="neo-pop grid h-10 w-10 place-items-center rounded-xl text-primary">
+          <ClipboardList className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-semibold text-foreground">
+            {panel ? panelLabel(panel) : "Other tests (whole order)"}
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            {tests.length ? `${done} of ${tests.length} done` : "No tests yet"}
+            {failed > 0 && <span className="font-semibold text-rose-600"> · {failed} not OK</span>}
+            {panel && matched && ` · tests of "${matched.name}"`}
+            {panel && !matched && " · not in the Panel tests library"}
+          </p>
+        </div>
+        {panel && canEdit && onLoad && (
+          <div className="flex flex-wrap items-center gap-2">
+            {matched && tests.length > 0 && tests.length < matched.tests.length && (
+              <Button variant="outline" size="sm" onClick={() => onLoad(matched)}>
+                <ListPlus /> Add missing tests
+              </Button>
+            )}
+            {(!matched || !tests.length) && (
+              <>
+                <Select value={pick} onValueChange={setPick}>
+                  <SelectTrigger className="h-9 w-52">
+                    <SelectValue placeholder="Take tests from…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name} ({t.tests.length})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  disabled={!pick}
+                  onClick={() => {
+                    const t = templates.find((x) => x.id === pick);
+                    if (t) onLoad(t);
+                  }}
+                >
+                  <ListPlus /> Add tests
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {panel && !tests.length && (
+        <div className="neo-inset mb-4 rounded-2xl px-6 py-8 text-center text-sm text-muted-foreground">
+          {matched
+            ? "Loading this panel's tests…"
+            : "This panel type is not in the Panel tests library yet. Pick a similar panel above, ask the designer to add it under Panel tests, or add tests by hand below."}
+        </div>
+      )}
+
+      <div className="space-y-6">
+        {groups.map(({ group, tests: groupTests }) => (
+          <div key={group}>
+            <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              {group}
+              <span className="rounded-full bg-muted px-2 py-0.5">{groupTests.length}</span>
+            </div>
+            <div className="space-y-2">
+              <AnimatePresence initial={true}>
+                {groupTests.map((test, i) => (
+                  <TestRow
+                    key={test.id}
+                    test={test}
+                    index={i}
+                    qa={qa}
+                    employees={employees}
+                    onStatus={(s) => onStatus(test, s)}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+          </div>
+        ))}
+      </div>
+      {panel && (
+        <EditOnly>
+          <AddTest qa={qa} panelId={panel.id} groups={[...new Set(tests.map((t) => t.group))]} />
+        </EditOnly>
+      )}
+    </motion.section>
   );
 }
 
@@ -390,6 +504,8 @@ export function NextSessionCard({
   );
 }
 
+const RESULT_BUTTONS: TestStatus[] = ["passed", "failed", "na"];
+
 function TestRow({
   test,
   index,
@@ -437,6 +553,8 @@ function TestRow({
         >
           {test.status === "passed" ? (
             <Check className="h-4 w-4" strokeWidth={3} />
+          ) : test.status === "na" ? (
+            <span className="text-[9px] font-bold">NA</span>
           ) : test.status === "failed" ? (
             <X className="h-4 w-4" strokeWidth={3} />
           ) : (
@@ -450,23 +568,32 @@ function TestRow({
         >
           <div className="font-medium text-foreground">{test.title}</div>
           <div className="truncate text-xs text-muted-foreground">
-            {[test.testedBy && `by ${test.testedBy}`, session && sessionTitle(session), test.notes]
+            {[test.testedBy && `by ${test.testedBy}`, session && sessionTitle(session)]
               .filter(Boolean)
               .join(" · ") || "Not tested yet"}
           </div>
         </button>
+        <Input
+          value={notes}
+          disabled={!canEdit}
+          onChange={(e) => setNotes(e.target.value)}
+          onBlur={() => notes !== test.notes && void qa.updateTest(test.id, { result_notes: notes })}
+          placeholder="Reading / remark"
+          aria-label={`Reading for ${test.title}`}
+          className="h-8 w-40 bg-white/70 text-xs"
+        />
         <div
           className="flex flex-wrap gap-1"
           role="radiogroup"
           aria-label={`Status of ${test.title}`}
         >
-          {TEST_STATUSES.map((s) => (
+          {RESULT_BUTTONS.map((s) => (
             <button
               key={s}
               type="button"
               role="radio"
               aria-checked={test.status === s}
-              onClick={() => test.status !== s && onStatus(s)}
+              onClick={() => onStatus(test.status === s ? "pending" : s)}
               disabled={!canEdit && test.status !== s}
               className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all ${test.status === s ? `${TEST_STATUS_META[s].chip} shadow-sm ring-1 ring-black/5` : "text-muted-foreground hover:bg-white/80"}`}
             >
@@ -492,16 +619,7 @@ function TestRow({
             className="overflow-hidden"
           >
             <EditLock>
-            <div className="grid gap-3 border-t border-border/40 p-4 sm:grid-cols-[1fr_200px_220px_auto]">
-              <Textarea
-                rows={2}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                onBlur={() =>
-                  notes !== test.notes && void qa.updateTest(test.id, { result_notes: notes })
-                }
-                placeholder="Readings, observations, why it failed…"
-              />
+            <div className="grid gap-3 border-t border-border/40 p-4 sm:grid-cols-[1fr_220px_auto]">
               <Input
                 list="test-employees"
                 defaultValue={test.testedBy}
@@ -551,11 +669,12 @@ function TestRow({
   );
 }
 
-function AddTest({ qa }: { qa: QaData }) {
+function AddTest({ qa, panelId, groups }: { qa: QaData; panelId: string; groups: string[] }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [group, setGroup] = useState("Routine");
+  const [group, setGroup] = useState(groups[0] || "Checklist");
   const [saving, setSaving] = useState(false);
+  const listId = `test-groups-${panelId}`;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -564,9 +683,10 @@ function AddTest({ qa }: { qa: QaData }) {
     const order = qa.tests.reduce((max, t) => Math.max(max, t.displayOrder), 0) + 1;
     const added = await qa.addTests([
       {
+        panel_id: panelId,
         test_key: `custom-${crypto.randomUUID()}`,
         title: title.trim(),
-        test_group: group,
+        test_group: group.trim() || "Checklist",
         display_order: order,
       },
     ]);
@@ -597,18 +717,18 @@ function AddTest({ qa }: { qa: QaData }) {
         placeholder="Test name"
         className="min-w-[220px] flex-1"
       />
-      <Select value={group} onValueChange={setGroup}>
-        <SelectTrigger className="w-36">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {[...GROUP_ORDER, "Other"].map((g) => (
-            <SelectItem key={g} value={g}>
-              {g}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Input
+        list={listId}
+        value={group}
+        onChange={(e) => setGroup(e.target.value)}
+        placeholder="Group"
+        className="w-48"
+      />
+      <datalist id={listId}>
+        {[...new Set([...groups, ...TEST_GROUPS])].map((g) => (
+          <option key={g} value={g} />
+        ))}
+      </datalist>
       <Button type="submit" disabled={saving || !title.trim()}>
         {saving ? <LoaderCircle className="animate-spin" /> : <Plus />} Add
       </Button>

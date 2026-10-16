@@ -111,10 +111,10 @@ export async function loadStageProgress(
       }
       case "testing": {
         if (testRows.length) {
-          const passed = testRows.filter((t) => t.status === "passed").length;
+          const done = testRows.filter((t) => t.status === "passed" || t.status === "na").length;
           const failed = testRows.filter((t) => t.status === "failed").length;
-          percent = Math.round((passed / testRows.length) * 100);
-          detail = `${passed}/${testRows.length} tests passed${failed ? ` · ${failed} failed` : ""}`;
+          percent = Math.round((done / testRows.length) * 100);
+          detail = `${done}/${testRows.length} tests done${failed ? ` · ${failed} not OK` : ""}`;
         } else detail = "No tests yet";
         break;
       }

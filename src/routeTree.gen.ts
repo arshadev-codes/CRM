@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PanelTestsRouteImport } from './routes/panel-tests'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as IndexRouteImport } from './routes/index'
@@ -45,6 +46,11 @@ import { Route as ProjectsIdPreviewRouteImport } from './routes/projects.$id.pre
 import { Route as PrintMomSessionIdRouteImport } from './routes/print.mom.$sessionId'
 import { Route as InwardOrdersIdStagesStageRouteImport } from './routes/inward-orders.$id_.stages.$stage'
 
+const PanelTestsRoute = PanelTestsRouteImport.update({
+  id: '/panel-tests',
+  path: '/panel-tests',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -226,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
+  '/panel-tests': typeof PanelTestsRoute
   '/admin/activity': typeof AdminActivityRoute
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
@@ -263,6 +270,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
+  '/panel-tests': typeof PanelTestsRoute
   '/admin/activity': typeof AdminActivityRoute
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
@@ -301,6 +309,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/inventory': typeof InventoryRoute
   '/login': typeof LoginRoute
+  '/panel-tests': typeof PanelTestsRoute
   '/admin/activity': typeof AdminActivityRoute
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
@@ -340,6 +349,7 @@ export interface FileRouteTypes {
     | '/'
     | '/inventory'
     | '/login'
+    | '/panel-tests'
     | '/admin/activity'
     | '/admin/users'
     | '/employees/$id'
@@ -377,6 +387,7 @@ export interface FileRouteTypes {
     | '/'
     | '/inventory'
     | '/login'
+    | '/panel-tests'
     | '/admin/activity'
     | '/admin/users'
     | '/employees/$id'
@@ -414,6 +425,7 @@ export interface FileRouteTypes {
     | '/'
     | '/inventory'
     | '/login'
+    | '/panel-tests'
     | '/admin/activity'
     | '/admin/users'
     | '/employees/$id'
@@ -452,6 +464,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   InventoryRoute: typeof InventoryRoute
   LoginRoute: typeof LoginRoute
+  PanelTestsRoute: typeof PanelTestsRoute
   AdminActivityRoute: typeof AdminActivityRoute
   AdminUsersRoute: typeof AdminUsersRoute
   EmployeesIdRoute: typeof EmployeesIdRoute
@@ -488,6 +501,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/panel-tests': {
+      id: '/panel-tests'
+      path: '/panel-tests'
+      fullPath: '/panel-tests'
+      preLoaderRoute: typeof PanelTestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -740,6 +760,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   InventoryRoute: InventoryRoute,
   LoginRoute: LoginRoute,
+  PanelTestsRoute: PanelTestsRoute,
   AdminActivityRoute: AdminActivityRoute,
   AdminUsersRoute: AdminUsersRoute,
   EmployeesIdRoute: EmployeesIdRoute,
