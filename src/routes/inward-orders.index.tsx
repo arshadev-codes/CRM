@@ -1,9 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle, CalendarClock, CalendarCheck, CheckCircle2, Factory, PackageCheck, Search, User,
+  AlertTriangle, CalendarClock, CalendarCheck, CheckCircle2, Factory, PackageCheck, Plus, Search, User,
 } from "lucide-react";
-import { useProposalStore, type InwardOrder } from "@/store/proposalStore";
+import { isDirectOrder, useProposalStore, type InwardOrder } from "@/store/proposalStore";
+import { useCan } from "@/store/authStore";
+import { Button } from "@/components/ui/button";
+import { NewDirectOrderDialog } from "@/components/NewDirectOrderDialog";
 import { supabase } from "@/lib/db";
 import { STAGE_NAMES, STAGE_PAGES, STAGE_SLUGS, type StageStatus } from "@/lib/stages";
 import { STAGE_THEME } from "@/lib/stageTheme";
@@ -62,6 +65,8 @@ function InwardOrders() {
   const [stageMap, setStageMap] = useState<Record<string, Record<string, StageStatus>>>({});
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [creating, setCreating] = useState(false);
+  const canCreate = useCan("inward_orders");
 
   useEffect(() => { void hydrate(); }, [hydrate]);
   useEffect(() => {
@@ -94,10 +99,18 @@ function InwardOrders() {
 
   return (
     <div className="mx-auto max-w-7xl p-4 sm:p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-800">Inward Orders</h1>
-        <p className="mt-1 text-sm text-slate-500">Won quotations moving through design, production and dispatch.</p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-800">Inward Orders</h1>
+          <p className="mt-1 text-sm text-slate-500">Orders moving through design, production and dispatch.</p>
+        </div>
+        {canCreate && (
+          <Button onClick={() => setCreating(true)}>
+            <Plus /> New order without quotation
+          </Button>
+        )}
       </div>
+      <NewDirectOrderDialog open={creating} onOpenChange={setCreating} />
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile icon={PackageCheck} label="All orders" value={orders.length} tone="text-indigo-600 bg-indigo-50" active={filter === "all"} onClick={() => setFilter("all")} />
@@ -135,7 +148,7 @@ function InwardOrders() {
         <div className="neo-surface rounded-3xl py-20 text-center">
           <PackageCheck className="mx-auto mb-3 h-12 w-12 text-indigo-300" />
           <p className="font-semibold text-slate-700">No inward orders yet</p>
-          <p className="mt-1 text-sm text-slate-500">Move a completed quotation here to start tracking it.</p>
+          <p className="mt-1 text-sm text-slate-500">Move a completed quotation here, or create an order directly for a regular customer.</p>
         </div>
       ) : shown.length === 0 ? (
         <div className="neo-surface rounded-3xl py-16 text-center text-sm text-slate-500">No orders match this view.</div>
@@ -170,6 +183,11 @@ function OrderCard({ order: o, statuses }: { order: InwardOrder; statuses: Recor
             <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${meta.chip}`}>
               {o.status}
             </span>
+            {isDirectOrder(o) && (
+              <span className="shrink-0 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700">
+                Direct
+              </span>
+            )}
           </div>
           <p className="mt-1 truncate text-base font-semibold text-slate-800 group-hover:text-indigo-700">
             {o.projectName || "Untitled project"}

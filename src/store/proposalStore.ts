@@ -128,7 +128,10 @@ export interface ProposalData {
   layout?: ProposalLayout;
 }
 
-/** A works order created from a won ("Completed") quotation. */
+/**
+ * A works order, created from a won ("Completed") quotation or directly (a regular customer
+ * ordering without a quotation). A direct order has no quotation: its projectId is its own id.
+ */
 export interface InwardOrder {
   id: string;
   projectId: string;
@@ -210,6 +213,9 @@ function defaultsForSystem(systemType: SystemType): ProposalData {
   };
 }
 
+/** True for an order made without a quotation. */
+export const isDirectOrder = (o: Pick<InwardOrder, "id" | "projectId">) => o.projectId === o.id;
+
 export function newProject(name = "Untitled Project", systemType: SystemType = "Advanced"): Project {
   const id = crypto.randomUUID();
   const now = Date.now();
@@ -223,7 +229,7 @@ interface ProposalStore {
   employees: Employee[];
   companies: Company[];
   inwardOrders: InwardOrder[];
-  createInwardOrder: (o: Omit<InwardOrder, "id" | "createdAt" | "status">) => InwardOrder;
+  createInwardOrder: (o: Omit<InwardOrder, "id" | "createdAt" | "status"> & { id?: string }) => InwardOrder;
   updateInwardOrder: (id: string, patch: Partial<InwardOrder>) => void;
   deleteInwardOrder: (id: string) => void;
   hydrateInwardOrders: () => Promise<void>;
@@ -344,7 +350,7 @@ export const useProposalStore = create<ProposalStore>()(
       companies: companiesData,
       inwardOrders: [],
       createInwardOrder: (o) => {
-        const order: InwardOrder = { ...o, id: crypto.randomUUID(), status: "Open", createdAt: Date.now() };
+        const order: InwardOrder = { ...o, id: o.id ?? crypto.randomUUID(), status: "Open", createdAt: Date.now() };
         set(s => ({ inwardOrders: [order, ...s.inwardOrders] }));
         void pushInwardOrder(order);
         return order;
