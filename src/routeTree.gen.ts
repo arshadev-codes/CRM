@@ -14,8 +14,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as RfqIndexRouteImport } from './routes/rfq.index'
 import { Route as MyIndexRouteImport } from './routes/my.index'
 import { Route as InwardOrdersIndexRouteImport } from './routes/inward-orders.index'
+import { Route as EnquiriesIndexRouteImport } from './routes/enquiries.index'
 import { Route as EmployeesIndexRouteImport } from './routes/employees.index'
 import { Route as StagesStageRouteImport } from './routes/stages.$stage'
 import { Route as SettingsTestsRouteImport } from './routes/settings.tests'
@@ -32,11 +34,13 @@ import { Route as SettingsEmployeesRouteImport } from './routes/settings.employe
 import { Route as SettingsDeliveryRouteImport } from './routes/settings.delivery'
 import { Route as SettingsConnectionsRouteImport } from './routes/settings.connections'
 import { Route as SettingsCompaniesRouteImport } from './routes/settings.companies'
+import { Route as RfqTokenRouteImport } from './routes/rfq.$token'
 import { Route as PrintIdRouteImport } from './routes/print.$id'
 import { Route as MyPerformanceRouteImport } from './routes/my.performance'
 import { Route as MyAttendanceRouteImport } from './routes/my.attendance'
 import { Route as MyOrderIdRouteImport } from './routes/my.$orderId'
 import { Route as InwardOrdersIdRouteImport } from './routes/inward-orders.$id'
+import { Route as EnquiriesIdRouteImport } from './routes/enquiries.$id'
 import { Route as EmployeesRatingRulesRouteImport } from './routes/employees.rating-rules'
 import { Route as EmployeesIdRouteImport } from './routes/employees.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
@@ -71,6 +75,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RfqIndexRoute = RfqIndexRouteImport.update({
+  id: '/rfq/',
+  path: '/rfq/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MyIndexRoute = MyIndexRouteImport.update({
   id: '/my/',
   path: '/my/',
@@ -79,6 +88,11 @@ const MyIndexRoute = MyIndexRouteImport.update({
 const InwardOrdersIndexRoute = InwardOrdersIndexRouteImport.update({
   id: '/inward-orders/',
   path: '/inward-orders/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EnquiriesIndexRoute = EnquiriesIndexRouteImport.update({
+  id: '/enquiries/',
+  path: '/enquiries/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmployeesIndexRoute = EmployeesIndexRouteImport.update({
@@ -161,6 +175,11 @@ const SettingsCompaniesRoute = SettingsCompaniesRouteImport.update({
   path: '/settings/companies',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RfqTokenRoute = RfqTokenRouteImport.update({
+  id: '/rfq/$token',
+  path: '/rfq/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrintIdRoute = PrintIdRouteImport.update({
   id: '/print/$id',
   path: '/print/$id',
@@ -184,6 +203,11 @@ const MyOrderIdRoute = MyOrderIdRouteImport.update({
 const InwardOrdersIdRoute = InwardOrdersIdRouteImport.update({
   id: '/inward-orders/$id',
   path: '/inward-orders/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EnquiriesIdRoute = EnquiriesIdRouteImport.update({
+  id: '/enquiries/$id',
+  path: '/enquiries/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmployeesRatingRulesRoute = EmployeesRatingRulesRouteImport.update({
@@ -237,11 +261,13 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
   '/employees/rating-rules': typeof EmployeesRatingRulesRoute
+  '/enquiries/$id': typeof EnquiriesIdRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/my/$orderId': typeof MyOrderIdRoute
   '/my/attendance': typeof MyAttendanceRoute
   '/my/performance': typeof MyPerformanceRoute
   '/print/$id': typeof PrintIdRoute
+  '/rfq/$token': typeof RfqTokenRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/delivery': typeof SettingsDeliveryRoute
@@ -258,8 +284,10 @@ export interface FileRoutesByFullPath {
   '/settings/tests': typeof SettingsTestsRoute
   '/stages/$stage': typeof StagesStageRoute
   '/employees/': typeof EmployeesIndexRoute
+  '/enquiries/': typeof EnquiriesIndexRoute
   '/inward-orders/': typeof InwardOrdersIndexRoute
   '/my/': typeof MyIndexRoute
+  '/rfq/': typeof RfqIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/print/mom/$sessionId': typeof PrintMomSessionIdRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
@@ -275,11 +303,13 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
   '/employees/rating-rules': typeof EmployeesRatingRulesRoute
+  '/enquiries/$id': typeof EnquiriesIdRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/my/$orderId': typeof MyOrderIdRoute
   '/my/attendance': typeof MyAttendanceRoute
   '/my/performance': typeof MyPerformanceRoute
   '/print/$id': typeof PrintIdRoute
+  '/rfq/$token': typeof RfqTokenRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/delivery': typeof SettingsDeliveryRoute
@@ -296,8 +326,10 @@ export interface FileRoutesByTo {
   '/settings/tests': typeof SettingsTestsRoute
   '/stages/$stage': typeof StagesStageRoute
   '/employees': typeof EmployeesIndexRoute
+  '/enquiries': typeof EnquiriesIndexRoute
   '/inward-orders': typeof InwardOrdersIndexRoute
   '/my': typeof MyIndexRoute
+  '/rfq': typeof RfqIndexRoute
   '/settings': typeof SettingsIndexRoute
   '/print/mom/$sessionId': typeof PrintMomSessionIdRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
@@ -314,11 +346,13 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/employees/$id': typeof EmployeesIdRoute
   '/employees/rating-rules': typeof EmployeesRatingRulesRoute
+  '/enquiries/$id': typeof EnquiriesIdRoute
   '/inward-orders/$id': typeof InwardOrdersIdRoute
   '/my/$orderId': typeof MyOrderIdRoute
   '/my/attendance': typeof MyAttendanceRoute
   '/my/performance': typeof MyPerformanceRoute
   '/print/$id': typeof PrintIdRoute
+  '/rfq/$token': typeof RfqTokenRoute
   '/settings/companies': typeof SettingsCompaniesRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/delivery': typeof SettingsDeliveryRoute
@@ -335,8 +369,10 @@ export interface FileRoutesById {
   '/settings/tests': typeof SettingsTestsRoute
   '/stages/$stage': typeof StagesStageRoute
   '/employees/': typeof EmployeesIndexRoute
+  '/enquiries/': typeof EnquiriesIndexRoute
   '/inward-orders/': typeof InwardOrdersIndexRoute
   '/my/': typeof MyIndexRoute
+  '/rfq/': typeof RfqIndexRoute
   '/settings/': typeof SettingsIndexRoute
   '/print/mom/$sessionId': typeof PrintMomSessionIdRoute
   '/projects/$id/preview': typeof ProjectsIdPreviewRoute
@@ -354,11 +390,13 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/employees/$id'
     | '/employees/rating-rules'
+    | '/enquiries/$id'
     | '/inward-orders/$id'
     | '/my/$orderId'
     | '/my/attendance'
     | '/my/performance'
     | '/print/$id'
+    | '/rfq/$token'
     | '/settings/companies'
     | '/settings/connections'
     | '/settings/delivery'
@@ -375,8 +413,10 @@ export interface FileRouteTypes {
     | '/settings/tests'
     | '/stages/$stage'
     | '/employees/'
+    | '/enquiries/'
     | '/inward-orders/'
     | '/my/'
+    | '/rfq/'
     | '/settings/'
     | '/print/mom/$sessionId'
     | '/projects/$id/preview'
@@ -392,11 +432,13 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/employees/$id'
     | '/employees/rating-rules'
+    | '/enquiries/$id'
     | '/inward-orders/$id'
     | '/my/$orderId'
     | '/my/attendance'
     | '/my/performance'
     | '/print/$id'
+    | '/rfq/$token'
     | '/settings/companies'
     | '/settings/connections'
     | '/settings/delivery'
@@ -413,8 +455,10 @@ export interface FileRouteTypes {
     | '/settings/tests'
     | '/stages/$stage'
     | '/employees'
+    | '/enquiries'
     | '/inward-orders'
     | '/my'
+    | '/rfq'
     | '/settings'
     | '/print/mom/$sessionId'
     | '/projects/$id/preview'
@@ -430,11 +474,13 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/employees/$id'
     | '/employees/rating-rules'
+    | '/enquiries/$id'
     | '/inward-orders/$id'
     | '/my/$orderId'
     | '/my/attendance'
     | '/my/performance'
     | '/print/$id'
+    | '/rfq/$token'
     | '/settings/companies'
     | '/settings/connections'
     | '/settings/delivery'
@@ -451,8 +497,10 @@ export interface FileRouteTypes {
     | '/settings/tests'
     | '/stages/$stage'
     | '/employees/'
+    | '/enquiries/'
     | '/inward-orders/'
     | '/my/'
+    | '/rfq/'
     | '/settings/'
     | '/print/mom/$sessionId'
     | '/projects/$id/preview'
@@ -469,11 +517,13 @@ export interface RootRouteChildren {
   AdminUsersRoute: typeof AdminUsersRoute
   EmployeesIdRoute: typeof EmployeesIdRoute
   EmployeesRatingRulesRoute: typeof EmployeesRatingRulesRoute
+  EnquiriesIdRoute: typeof EnquiriesIdRoute
   InwardOrdersIdRoute: typeof InwardOrdersIdRoute
   MyOrderIdRoute: typeof MyOrderIdRoute
   MyAttendanceRoute: typeof MyAttendanceRoute
   MyPerformanceRoute: typeof MyPerformanceRoute
   PrintIdRoute: typeof PrintIdRoute
+  RfqTokenRoute: typeof RfqTokenRoute
   SettingsCompaniesRoute: typeof SettingsCompaniesRoute
   SettingsConnectionsRoute: typeof SettingsConnectionsRoute
   SettingsDeliveryRoute: typeof SettingsDeliveryRoute
@@ -490,8 +540,10 @@ export interface RootRouteChildren {
   SettingsTestsRoute: typeof SettingsTestsRoute
   StagesStageRoute: typeof StagesStageRoute
   EmployeesIndexRoute: typeof EmployeesIndexRoute
+  EnquiriesIndexRoute: typeof EnquiriesIndexRoute
   InwardOrdersIndexRoute: typeof InwardOrdersIndexRoute
   MyIndexRoute: typeof MyIndexRoute
+  RfqIndexRoute: typeof RfqIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
   PrintMomSessionIdRoute: typeof PrintMomSessionIdRoute
   ProjectsIdPreviewRoute: typeof ProjectsIdPreviewRoute
@@ -536,6 +588,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rfq/': {
+      id: '/rfq/'
+      path: '/rfq'
+      fullPath: '/rfq/'
+      preLoaderRoute: typeof RfqIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/my/': {
       id: '/my/'
       path: '/my'
@@ -548,6 +607,13 @@ declare module '@tanstack/react-router' {
       path: '/inward-orders'
       fullPath: '/inward-orders/'
       preLoaderRoute: typeof InwardOrdersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/enquiries/': {
+      id: '/enquiries/'
+      path: '/enquiries'
+      fullPath: '/enquiries/'
+      preLoaderRoute: typeof EnquiriesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/employees/': {
@@ -662,6 +728,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsCompaniesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rfq/$token': {
+      id: '/rfq/$token'
+      path: '/rfq/$token'
+      fullPath: '/rfq/$token'
+      preLoaderRoute: typeof RfqTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/print/$id': {
       id: '/print/$id'
       path: '/print/$id'
@@ -695,6 +768,13 @@ declare module '@tanstack/react-router' {
       path: '/inward-orders/$id'
       fullPath: '/inward-orders/$id'
       preLoaderRoute: typeof InwardOrdersIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/enquiries/$id': {
+      id: '/enquiries/$id'
+      path: '/enquiries/$id'
+      fullPath: '/enquiries/$id'
+      preLoaderRoute: typeof EnquiriesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/employees/rating-rules': {
@@ -765,11 +845,13 @@ const rootRouteChildren: RootRouteChildren = {
   AdminUsersRoute: AdminUsersRoute,
   EmployeesIdRoute: EmployeesIdRoute,
   EmployeesRatingRulesRoute: EmployeesRatingRulesRoute,
+  EnquiriesIdRoute: EnquiriesIdRoute,
   InwardOrdersIdRoute: InwardOrdersIdRoute,
   MyOrderIdRoute: MyOrderIdRoute,
   MyAttendanceRoute: MyAttendanceRoute,
   MyPerformanceRoute: MyPerformanceRoute,
   PrintIdRoute: PrintIdRoute,
+  RfqTokenRoute: RfqTokenRoute,
   SettingsCompaniesRoute: SettingsCompaniesRoute,
   SettingsConnectionsRoute: SettingsConnectionsRoute,
   SettingsDeliveryRoute: SettingsDeliveryRoute,
@@ -786,8 +868,10 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsTestsRoute: SettingsTestsRoute,
   StagesStageRoute: StagesStageRoute,
   EmployeesIndexRoute: EmployeesIndexRoute,
+  EnquiriesIndexRoute: EnquiriesIndexRoute,
   InwardOrdersIndexRoute: InwardOrdersIndexRoute,
   MyIndexRoute: MyIndexRoute,
+  RfqIndexRoute: RfqIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
   PrintMomSessionIdRoute: PrintMomSessionIdRoute,
   ProjectsIdPreviewRoute: ProjectsIdPreviewRoute,

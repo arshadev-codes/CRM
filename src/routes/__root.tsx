@@ -100,7 +100,8 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: r => r.location.pathname });
-  const isPrint = pathname.startsWith("/print/");
+  // The client requirement form is public, like print pages: no sign-in, no app chrome.
+  const isPrint = pathname.startsWith("/print/") || pathname === "/rfq" || pathname.startsWith("/rfq/");
   const isLogin = pathname === "/login";
   // The phone app for field staff: full-screen, no sidebar.
   const isApp = pathname === "/my" || pathname.startsWith("/my/");

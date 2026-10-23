@@ -400,6 +400,84 @@ export type Database = {
         }
         Relationships: []
       }
+      enquiries: {
+        Row: {
+          answers: Json
+          company: string
+          contact_person: string
+          created_at: string
+          email: string
+          email_error: string | null
+          email_sent_at: string | null
+          enquiry_no: string | null
+          files: Json
+          finish_key: string | null
+          id: string
+          invited_at: string | null
+          invited_by: string | null
+          ip_hash: string | null
+          notes: string
+          phone: string
+          seen_at: string | null
+          seen_by: string | null
+          source: string
+          status: string
+          submitted_at: string | null
+          token: string | null
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json
+          company?: string
+          contact_person?: string
+          created_at?: string
+          email?: string
+          email_error?: string | null
+          email_sent_at?: string | null
+          enquiry_no?: string | null
+          files?: Json
+          finish_key?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          ip_hash?: string | null
+          notes?: string
+          phone?: string
+          seen_at?: string | null
+          seen_by?: string | null
+          source?: string
+          status?: string
+          submitted_at?: string | null
+          token?: string | null
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json
+          company?: string
+          contact_person?: string
+          created_at?: string
+          email?: string
+          email_error?: string | null
+          email_sent_at?: string | null
+          enquiry_no?: string | null
+          files?: Json
+          finish_key?: string | null
+          id?: string
+          invited_at?: string | null
+          invited_by?: string | null
+          ip_hash?: string | null
+          notes?: string
+          phone?: string
+          seen_at?: string | null
+          seen_by?: string | null
+          source?: string
+          status?: string
+          submitted_at?: string | null
+          token?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fabrication_jobs: {
         Row: {
           contact: string

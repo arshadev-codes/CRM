@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Boxes, ClipboardCheck, FileSpreadsheet, History, LayoutGrid, ShieldCheck, Users } from "lucide-react";
+import { Boxes, ClipboardCheck, FileSpreadsheet, History, Inbox, LayoutGrid, ShieldCheck, Users } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuBadge, SidebarMenuButton, SidebarMenuItem, SidebarSeparator, useSidebar,
@@ -9,6 +9,7 @@ import logoUrl from "@/assets/electrosoft-logo.png";
 import { STAGE_PAGES, STAGE_SLUGS } from "@/lib/stages";
 import { STAGE_THEME } from "@/lib/stageTheme";
 import { loadActiveStageCounts } from "@/lib/stageProgress";
+import { countNewEnquiries } from "@/lib/enquiries";
 import { useIsAdmin } from "@/store/authStore";
 
 export function AppSidebar() {
@@ -17,6 +18,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed" && !isMobile;
   const pathname = useRouterState({ select: r => r.location.pathname });
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [newEnquiries, setNewEnquiries] = useState(0);
   const isQuotation = pathname === "/" || pathname.startsWith("/projects/") || pathname.startsWith("/settings");
   const stageMatch = pathname.match(/\/stages\/([a-z]+)/);
   const activeStage = stageMatch?.[1];
@@ -38,6 +40,7 @@ export function AppSidebar() {
   // and close the mobile menu once a page is chosen.
   useEffect(() => {
     void loadActiveStageCounts().then(setCounts);
+    void countNewEnquiries().then(setNewEnquiries);
     setOpenMobile(false);
   }, [pathname, setOpenMobile]);
 
@@ -64,6 +67,20 @@ export function AppSidebar() {
                 <SidebarMenuButton asChild isActive={isQuotation} tooltip="Quotations">
                   <Link to="/"><FileSpreadsheet className="h-4 w-4" />{!collapsed && <span>Quotations</span>}</Link>
                 </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith("/enquiries")}
+                  tooltip={`Enquiries${newEnquiries ? ` · ${newEnquiries} new` : ""}`}
+                >
+                  <Link to="/enquiries"><Inbox className="h-4 w-4" />{!collapsed && <span>Enquiries</span>}</Link>
+                </SidebarMenuButton>
+                {!collapsed && newEnquiries > 0 && (
+                  <SidebarMenuBadge className="rounded-full bg-rose-50 font-bold text-rose-700">
+                    {newEnquiries}
+                  </SidebarMenuBadge>
+                )}
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
