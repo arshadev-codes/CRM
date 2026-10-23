@@ -34,12 +34,21 @@ export interface SubsystemVariantOption {
   images?: string[];   // NEW — lets each variant show its own photo (e.g. Cloud vs Local screenshot)
 }
 
+export interface SubsystemImageSize {
+  width: number;   // % of the text width, 10–100
+  height: number;  // mm, 30–180
+}
+
 export interface SubsystemContent {
   id: string;
   title: string;
   preview: string;          // shown in wizard checkbox list ONLY
   description: string;      // full PDF body
   images?: string[];        // optional asset URLs — 1 (full width), 2, or 3 (side-by-side)
+  // Optional size per image, same order as `images` (set from Settings).
+  // width = % of the page's text width, height = mm. When absent, the
+  // default layout above is used.
+  imageSizes?: SubsystemImageSize[];
   // Optional — when present, the wizard shows a dropdown for this subsystem
   // and the selected option's title/description are used in the PDF instead
   // of the defaults above. `default` is the option `key` used when the

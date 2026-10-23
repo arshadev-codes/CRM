@@ -2,6 +2,7 @@ import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
 import { employeesData } from "@/data/employeesData";
 import { useProposalStore } from "@/store/proposalStore";
+import { proposalSubject } from "@/data/proposalSubject";
 
 // Names come from the live list (people added in Settings), falling back to the seed.
 const personName = (id: string) =>
@@ -35,7 +36,7 @@ export function RFQPdf({ project, pageNumber = 1 }: { project: Project; pageNumb
   const { customer, meta, transformer, systemType } = project.data;
   const prep = personName(meta.preparedBy);
   const chk = personName(meta.checkedBy);
-  const subject = `Techno-commercial offer for ${transformer.rating} ${transformer.ratingUnit}, ${transformer.voltage}${transformer.voltageUnit} Transformer Testing System - ${systemType}`;
+  const subject = proposalSubject(project.data);
   const revisionNum = meta.revision.replace(/^R/i, "");
 
   return (

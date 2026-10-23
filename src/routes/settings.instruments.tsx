@@ -1,13 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SettingsShell } from "@/components/settings/SettingsShell";
-import { instrumentsData } from "@/data/instrumentsData";
+import { LibraryEditor } from "@/components/settings/LibraryEditor";
+
 export const Route = createFileRoute("/settings/instruments")({ component: () => (
   <SettingsShell title="Instruments Library">
-    <table className="w-full text-xs border">
-      <thead className="bg-slate-100"><tr>{["Instrument","Make","Model","Spec-1","Spec-2","Spec-3","Spec-4","Spec-5"].map(h => <th key={h} className="border p-1.5 text-left">{h}</th>)}</tr></thead>
-      <tbody>{instrumentsData.map(i => (
-        <tr key={i.id}><td className="border p-1.5">{i.instrument}</td><td className="border p-1.5">{i.make}</td><td className="border p-1.5">{i.model}</td><td className="border p-1.5">{i.spec1}</td><td className="border p-1.5">{i.spec2}</td><td className="border p-1.5">{i.spec3}</td><td className="border p-1.5">{i.spec4}</td><td className="border p-1.5">{i.spec5}</td></tr>
-      ))}</tbody>
-    </table>
+    <p className="text-sm text-muted-foreground mb-4">
+      The "Add from library" list in the wizard's Instruments table.
+    </p>
+    <LibraryEditor
+      library="instruments"
+      itemLabel="instrument"
+      titleKey="instrument"
+      subtitle={i => [i.make, i.model].filter(Boolean).join(" · ")}
+      newItem={{ instrument: "New instrument", make: "", model: "", spec1: "", spec2: "", spec3: "", spec4: "", spec5: "" }}
+      fields={[
+        { key: "instrument", label: "Instrument", type: "text" },
+        { key: "make", label: "Make", type: "text" },
+        { key: "model", label: "Model", type: "text" },
+        { key: "spec1", label: "Spec-1", type: "text" },
+        { key: "spec2", label: "Spec-2", type: "text" },
+        { key: "spec3", label: "Spec-3", type: "text" },
+        { key: "spec4", label: "Spec-4", type: "text" },
+        { key: "spec5", label: "Spec-5", type: "text" },
+      ]}
+    />
   </SettingsShell>
 )});

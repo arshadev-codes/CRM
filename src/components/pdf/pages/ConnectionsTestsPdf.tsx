@@ -1,9 +1,9 @@
 import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
-import { testsData } from "@/data/testsData";
+import { useLibrary } from "@/hooks/useLibrary";
+import { useConnectionsMap } from "@/data/connectionsHelpers";
 import {
   connectionLabels,
-  testToConnection,
   METHOD_415V_IMPLIED_B,
   type ConnectionGroup,
 } from "@/data/connectionsData";
@@ -25,6 +25,9 @@ export function ConnectionsTestsPdf({
   project: Project;
   pageNumber: number;
 }) {
+  const testsData = useLibrary("tests");
+  // Settings -> Connections edits on top of the built-in test-to-connection map.
+  const testToConnection = useConnectionsMap();
   const selected = new Set(project.data.selectedTests);
   const has415v = selected.has("415v-method");
 

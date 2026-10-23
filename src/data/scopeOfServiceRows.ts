@@ -1,5 +1,5 @@
 import type { Project } from "@/store/proposalStore";
-import { proprietaryItemsData } from "@/data/proprietaryItemsData";
+import { proprietaryItemsData, type ProprietaryItem } from "@/data/proprietaryItemsData";
 
 export interface ServiceRow {
   key: string;
@@ -21,11 +21,11 @@ const EXCLUDED_FROM_ONSITE = /dedicated .*software|report generation software|do
  *     (and is skipped entirely if selected but no month count was set)
  *   - Installation (full or supervision), if selected
  */
-export function getOnSiteServiceRows(project: Project): ServiceRow[] {
+export function getOnSiteServiceRows(project: Project, items: ProprietaryItem[] = proprietaryItemsData): ServiceRow[] {
   const selected = new Set(project.data.proprietary);
   const rows: ServiceRow[] = [];
 
-  proprietaryItemsData
+  items
     .filter((p) => !p.inScopeOfSupply && selected.has(p.id))
     .forEach((p) => {
       if (p.id === "additional-warranty") {
@@ -38,9 +38,9 @@ export function getOnSiteServiceRows(project: Project): ServiceRow[] {
         }
         return;
       }
-      const text = `${p.title} ${p.scopeSummary ?? p.description ?? ""}`;
+      const text = `${p.title} ${p.scopeSummary || p.description || ""}`;
       if (EXCLUDED_FROM_ONSITE.test(text)) return; // skip software / documentation entries
-      rows.push({ key: p.id, description: p.scopeSummary ?? p.description });
+      rows.push({ key: p.id, description: p.scopeSummary || p.description });
     });
 
   if (project.data.installationType) {

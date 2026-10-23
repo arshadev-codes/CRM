@@ -1,8 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SettingsShell } from "@/components/settings/SettingsShell";
-import { exclusionsData } from "@/data/exclusionsData";
+import { LibraryEditor } from "@/components/settings/LibraryEditor";
+
 export const Route = createFileRoute("/settings/exclusions")({ component: () => (
   <SettingsShell title="Exclusions">
-    <ul className="text-sm space-y-1">{exclusionsData.map(e => <li key={e.id} className="border-b py-1">{e.title}</li>)}</ul>
+    <p className="text-sm text-muted-foreground mb-4">
+      Exclusions offered in the wizard and printed under "List of Exclusions".
+    </p>
+    <LibraryEditor
+      library="exclusions"
+      itemLabel="exclusion"
+      titleKey="title"
+      subtitle={e => e.defaultIncluded ? "Ticked on new quotations" : "Not ticked on new quotations"}
+      newItem={{ title: "New exclusion", defaultIncluded: true }}
+      fields={[
+        { key: "title", label: "Exclusion", type: "textarea" },
+        { key: "defaultIncluded", label: "Ticked on new quotations", type: "checkbox" },
+      ]}
+    />
   </SettingsShell>
 )});

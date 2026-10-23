@@ -7,14 +7,10 @@ import type {
 } from "@/store/proposalStore";
 import { useProposalStore } from "@/store/proposalStore";
 import { systemTypesData, type SystemType } from "@/data/systemTypesData";
-import { testsData } from "@/data/testsData";
 import { getMajorSubsystems, resolveSubsystemTitle } from "@/data/proposalContent";
-import { instrumentsData } from "@/data/instrumentsData";
-import { equipmentData } from "@/data/equipmentData";
-import { proprietaryItemsData } from "@/data/proprietaryItemsData";
-import { deliveryDurationOptions, deliveryDefaults } from "@/data/deliveryData";
-import { exclusionsData } from "@/data/exclusionsData";
-import { makesOfSupplyData } from "@/data/makesOfSupplyData";
+import { useLibrary, useDeliveryDurations } from "@/hooks/useLibrary";
+import { autoSubject } from "@/data/proposalSubject";
+import { CurrencyPanel } from "@/components/wizard/CurrencyPanel";
 import { getOnSiteServiceRows } from "@/data/scopeOfServiceRows";
 import { defaultLayoutImages } from "@/lib/defaultLayoutImages";
 import { lineTotal } from "@/data/pricingHelpers";
@@ -147,6 +143,16 @@ export function Step1ProjectSetup({ project, update }: { project: Project; updat
             </Select>
           </Field>
           <Field className="col-span-2" label="Date"><NeoInput type="date" value={meta.date} onChange={e => m({ date: e.target.value })} /></Field>
+          <Field className="col-span-12" label="Subject (first page)">
+            <NeoInput
+              value={meta.subject ?? ""}
+              onChange={e => m({ subject: e.target.value })}
+              placeholder={autoSubject(project.data)}
+            />
+          </Field>
+          <div className="col-span-12 -mt-2 text-[11px] text-slate-500">
+            Leave empty to use the line shown in grey, which is made from the transformer details.
+          </div>
           <div className="col-span-12 -mt-1 text-[11px] text-slate-500">
             Need to add or change someone? <Link to="/settings/employees" className="text-blue-700 underline font-medium">Manage in Settings → Quotation people</Link>
           </div>
@@ -212,6 +218,7 @@ export function Step2Tests({ project, update }: { project: Project; update: Upda
   const { selectedTests } = project.data;
   const notes = project.data.testsNotes ?? "";
   const toggle = (id: string) => update({ selectedTests: selectedTests.includes(id) ? selectedTests.filter(x => x !== id) : [...selectedTests, id] });
+  const testsData = useLibrary("tests");
   const groups = Array.from(new Set(testsData.map(t => t.group)));
   return (
     <div className="space-y-6">
@@ -253,7 +260,8 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
   const { selectedSubsystems, systemType } = project.data;
   const subsystemVariants = project.data.subsystemVariants ?? {};
   const proposalCustomizations = project.data.proposalCustomizations ?? [];
-  const items = getMajorSubsystems(systemType);
+  const cmsOverrides = useProposalStore(s => s.cmsOverrides);
+  const items = getMajorSubsystems(systemType, cmsOverrides);
   const toggle = (id: string) =>
     update({ selectedSubsystems: selectedSubsystems.includes(id) ? selectedSubsystems.filter(x => x !== id) : [...selectedSubsystems, id] });
 
@@ -426,6 +434,8 @@ export function Step3bSystemLayout({ project, update }: { project: Project; upda
 
 export function Step4InstrumentsEquipment({ project, update }: { project: Project; update: Update }) {
   const { instruments, equipment } = project.data;
+  const instrumentsData = useLibrary("instruments");
+  const equipmentData = useLibrary("equipment");
   return (
     <div className="space-y-6">
       <Section title="Instruments">
@@ -541,6 +551,7 @@ export function Step5Proprietary({ project, update }: { project: Project; update
     project.data.additionalWarrantyMonths ? String(project.data.additionalWarrantyMonths) : ""
   );
 
+  const proprietaryItemsData = useLibrary("proprietary");
   const visibleItems = proprietaryItemsData.filter(
     p => p.systemTypes.length === 0 || p.systemTypes.includes(systemType)
   );
@@ -1006,6 +1017,8 @@ export function Step6Delivery({ project, update }: { project: Project; update: U
     update({ delivery: delivery.map((r, idx) => idx === i ? { ...r, ...patch } : r) });
   const remove = (i: number) => update({ delivery: delivery.filter((_, idx) => idx !== i) });
   const add = () => update({ delivery: [...delivery, { id: crypto.randomUUID(), deliverable: "New Deliverable", duration: "Will Be Decided Later" }] });
+  const deliveryDefaults = useLibrary("delivery");
+  const durations = useDeliveryDurations();
 
   // ── Freight & Logistics ──────────────────────────────────────────────
   const fl: FreightLogisticsData = project.data.freightLogistics ?? {
@@ -1035,7 +1048,7 @@ export function Step6Delivery({ project, update }: { project: Project; update: U
                 <td className="border p-1">
                   <Select value={r.duration} onValueChange={v => updateRow(i, { duration: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{deliveryDurationOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                    <SelectContent>{(durations.includes(r.duration) ? durations : [r.duration, ...durations]).map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                   </Select>
                 </td>
                 <td className="border p-1">
@@ -1163,10 +1176,20 @@ export function Step6Delivery({ project, update }: { project: Project; update: U
 
 export function Step7ExclusionsMakes({ project, update }: { project: Project; update: Update }) {
   const { exclusions, makes, installationType } = project.data;
+  const exclusionsData = useLibrary("exclusions");
+  const makesOfSupplyData = useLibrary("makes");
   const toggleEx = (id: string) =>
     update({ exclusions: exclusions.includes(id) ? exclusions.filter(x => x !== id) : [...exclusions, id] });
-  const updMake = (id: string, patch: Partial<typeof makes[number]>) =>
-    update({ makes: makes.map(m => m.id === id ? { ...m, ...patch } : m) });
+  // A make item added in Settings after this quotation was made has no entry
+  // yet; it shows unticked and gets one on the first change.
+  const updMake = (id: string, patch: Partial<typeof makes[number]>) => {
+    if (makes.some(m => m.id === id)) {
+      update({ makes: makes.map(m => m.id === id ? { ...m, ...patch } : m) });
+      return;
+    }
+    const row = makesOfSupplyData.find(r => r.id === id);
+    update({ makes: [...makes, { id, enabled: false, make: row?.defaultMake ?? "", ...patch }] });
+  };
   return (
     <div className="space-y-6">
       {installationType === "full" && (
@@ -1199,8 +1222,8 @@ export function Step7ExclusionsMakes({ project, update }: { project: Project; up
           </thead>
           <tbody>
             {makesOfSupplyData.map(row => {
-              const sel = makes.find(m => m.id === row.id);
-              if (!sel) return null;
+              const sel = makes.find(m => m.id === row.id) ?? { id: row.id, enabled: false, make: row.defaultMake };
+              const makeOptions = sel.make && !row.options.includes(sel.make) ? [sel.make, ...row.options] : row.options;
               return (
                 <tr key={row.id}>
                   <td className="border p-1 text-center">
@@ -1210,7 +1233,7 @@ export function Step7ExclusionsMakes({ project, update }: { project: Project; up
                   <td className="border p-1">
                     <Select value={sel.make} onValueChange={v => updMake(row.id, { make: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{row.options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                      <SelectContent>{makeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                     </Select>
                   </td>
                 </tr>
@@ -1254,17 +1277,19 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
   // variant — Manual/Cloud/etc — not the default) + the 2 in-scope
   // proprietary items only. Instruments/Equipment are priced in their own
   // sections below, not mixed into this one.
-  const allSubs = getMajorSubsystems(project.data.systemType);
+  const cmsOverrides = useProposalStore(s => s.cmsOverrides);
+  const allSubs = getMajorSubsystems(project.data.systemType, cmsOverrides);
   const selectedSubIds = new Set(project.data.selectedSubsystems);
   const subsystemRows = allSubs.filter(s => selectedSubIds.has(s.id) || selectedSubIds.has(s.title));
   const subsystemVariants = project.data.subsystemVariants ?? {};
 
+  const proprietaryItemsData = useLibrary("proprietary");
   const selectedProprietaryIds = new Set(project.data.proprietary);
   const scopeProprietaryRows = proprietaryItemsData.filter(
     p => p.inScopeOfSupply && selectedProprietaryIds.has(p.id)
   );
 
-  const serviceRows = getOnSiteServiceRows(project);
+  const serviceRows = getOnSiteServiceRows(project, proprietaryItemsData);
 
   const specsOf = (row: { spec1?: string; spec2?: string; spec3?: string; spec4?: string; spec5?: string }) =>
     [row.spec1, row.spec2, row.spec3, row.spec4, row.spec5].filter((v): v is string => !!v && v.trim().length > 0);
@@ -1289,6 +1314,12 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
 
   const installationRowKey = "installation"; // ⚠ confirm this matches the key used in scopeOfServiceRows.ts
 
+  const sumEntries = (entries: Record<string, PriceEntry>) =>
+    Object.values(entries).reduce((sum, e) => sum + (Number(e.unitPrice) || 0) * (Number(e.qty) || 0), 0);
+  const totalInr =
+    sumEntries(pricing.scopeOfSupply) + sumEntries(pricing.instruments) + sumEntries(pricing.equipment) +
+    Object.values(pricing.scopeOfServices).reduce((sum, v) => sum + (Number(v) || 0), 0);
+
   return (
     <div className="space-y-8">
       <p className="text-sm text-muted-foreground">
@@ -1296,6 +1327,7 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
         and the total is calculated automatically. Scope of Services items below take a single direct price.
       </p>
 
+      <CurrencyPanel project={project} update={update} totalInr={totalInr} />
       <PricingSection title="Scope of Supply">
         <PricingTable
           rows={[

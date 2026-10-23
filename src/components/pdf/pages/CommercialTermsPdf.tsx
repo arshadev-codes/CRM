@@ -1,4 +1,5 @@
 import { PdfPage } from "../PdfPage";
+import { makeMoney } from "@/data/currency";
 import type { Project } from "@/store/proposalStore";
 import {
   freightLogisticsDefaults,
@@ -25,7 +26,6 @@ function resolveTransitInsurance(fl: FreightLogisticsData, buyer: string) {
   return fl.transitInsurance;
 }
 
-const inr = (n: number) => (n > 0 ? `₹${n.toLocaleString("en-IN")}` : "---");
 
 // ── theme (matches the rest of your PDF: blue-900/800/700, slate-300/100/50) ──
 const THEME = {
@@ -62,6 +62,8 @@ export function CommercialTermsPdf({
   };
 
   const pricing = project.data.pricing;
+  const money = makeMoney(project.data.currency);
+  const inr = (n: number) => (n > 0 ? money.fromInr(n) : "---");
   const sumEntries = (entries?: Record<string, { unitPrice: string; qty: string }>) =>
     Object.values(entries ?? {}).reduce((sum, e) => sum + (Number(e.unitPrice) || 0) * (Number(e.qty) || 0), 0);
   const sumServices = (services?: Record<string, string>) =>
@@ -136,7 +138,7 @@ export function CommercialTermsPdf({
         </h2>
 
         <Section title="Pricing">
-          <p style={{ color: THEME.black }}>All prices are quoted in INR, exclusive of GST and any other applicable statutory levies.</p>
+          <p style={{ color: THEME.black }}>All prices are quoted in {money.code}, exclusive of GST and any other applicable statutory levies.</p>
 
           <table className="ct-table" style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", marginTop: 10 }}>
             <thead>

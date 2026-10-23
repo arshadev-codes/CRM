@@ -1,5 +1,7 @@
 import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
+import { useLibrary } from "@/hooks/useLibrary";
+import { makeMoney, type Money } from "@/data/currency";
 import { scopeOfServicesData } from "@/data/scopeOfServicesData";
 import { getOnSiteServiceRows } from "@/data/scopeOfServiceRows";
 
@@ -19,8 +21,10 @@ export function ScopeOfServicesPdf({
     /document|engineering|drawing|datasheet|fat|manual/i.test(s.title)
   );
 
-  const allOnsiteRows = getOnSiteServiceRows(project);
+  const proprietaryItems = useLibrary("proprietary");
+  const allOnsiteRows = getOnSiteServiceRows(project, proprietaryItems);
   const servicePricing = project.data.pricing?.scopeOfServices ?? {};
+  const money = makeMoney(project.data.currency);
 
   // Additional Warranty gets pulled OUT of the generic on-site table and
   // rendered as its own table below, only when the user actually selected it.
@@ -43,24 +47,26 @@ export function ScopeOfServicesPdf({
       <div className="mt-4" />
 
       <OnSiteTable
+        money={money}
         title="ON-SITE"
         rows={onsiteRows.map((r, i) => ({
           sr: i + 1,
           desc: r.description,
-          price: servicePricing[r.key] ? `₹${Number(servicePricing[r.key]).toLocaleString("en-IN")}` : "---",
+          price: servicePricing[r.key] ? money.fromInr(Number(servicePricing[r.key])) : "---",
         }))}
       />
 
       {warrantyMonths && warrantyRow && (
         <div className="mt-4">
           <OnSiteTable
+            money={money}
             title="ADDITIONAL WARRANTY"
             rows={[
               {
                 sr: 1,
                 desc: `Additional Warranty — ${warrantyMonths} month${warrantyMonths === 1 ? "" : "s"} beyond the standard 12-month warranty period.`,
                 price: servicePricing[ADDITIONAL_WARRANTY_KEY]
-                  ? `₹${Number(servicePricing[ADDITIONAL_WARRANTY_KEY]).toLocaleString("en-IN")}`
+                  ? money.fromInr(Number(servicePricing[ADDITIONAL_WARRANTY_KEY]))
                   : "---",
               },
             ]}
@@ -148,9 +154,11 @@ function DocumentsTable({
 function OnSiteTable({
   title,
   rows,
+  money,
 }: {
   title: string;
   rows: { sr: number; desc: string; price: string }[];
+  money: Money;
 }) {
   const total = rows.reduce((sum, r) => {
     const n = Number(String(r.price).replace(/[^\d.-]/g, ""));
@@ -167,7 +175,7 @@ function OnSiteTable({
           <tr>
             <th className="border border-slate-300 p-1.5 text-left w-14">Sr. No.</th>
             <th className="border border-slate-300 p-1.5 text-left">Description</th>
-            <th className="border border-slate-300 p-1.5 text-right w-28">Price (INR)</th>
+            <th className="border border-slate-300 p-1.5 text-right w-28">Price ({money.code})</th>
           </tr>
         </thead>
         <tbody>
@@ -185,7 +193,7 @@ function OnSiteTable({
               <tr className="bg-slate-100 font-bold">
                 <td className="border border-slate-300 p-1.5 text-right" colSpan={2}>Total</td>
                 <td className="border border-slate-300 p-1.5 text-right text-blue-900">
-                  ₹{total.toLocaleString("en-IN")}
+                  {money.format(total)}
                 </td>
               </tr>
             </>

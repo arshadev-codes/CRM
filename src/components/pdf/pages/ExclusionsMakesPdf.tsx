@@ -1,7 +1,6 @@
 import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
-import { exclusionsData } from "@/data/exclusionsData";
-import { makesOfSupplyData } from "@/data/makesOfSupplyData";
+import { useLibrary } from "@/hooks/useLibrary";
 
 // Page: LIST OF EXCLUSIONS + MAKES OF SUPPLY — auto-built from project state.
 export function ExclusionsMakesPdf({
@@ -11,6 +10,8 @@ export function ExclusionsMakesPdf({
   project: Project;
   pageNumber: number;
 }) {
+  const exclusionsData = useLibrary("exclusions");
+  const makesOfSupplyData = useLibrary("makes");
   const selectedExclusionIds = new Set(project.data.exclusions);
   const excl = exclusionsData.filter((e) => selectedExclusionIds.has(e.id));
   const makes = project.data.makes.filter((m) => m.enabled).map((m) => {

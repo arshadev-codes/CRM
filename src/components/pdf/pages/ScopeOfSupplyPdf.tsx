@@ -1,12 +1,13 @@
 import type React from "react";
 import { useEffect } from "react";
 import { PdfPage } from "../PdfPage";
-import type { Project } from "@/store/proposalStore";
+import { useProposalStore, type Project } from "@/store/proposalStore";
 import { getMajorSubsystems, resolveSubsystemTitle } from "@/data/proposalContent";
 import { paginateByHeights } from "@/data/paginationHelpers";
 import { useBlockHeights } from "@/hooks/useBlockHeights";
-import { proprietaryItemsData } from "@/data/proprietaryItemsData";
+import { getLibrary } from "@/data/libraries";
 import { getEntry, lineTotal } from "@/data/pricingHelpers";
+import { makeMoney, type Money } from "@/data/currency";
 
 interface Row { sr: number; description: string; qty: string; unitPrice: string; price: string }
 
@@ -36,10 +37,12 @@ export function ScopeOfSupplyPdf({
   onPageCountKnown?: (count: number) => void;
 }): React.ReactElement | null {
   const scopePricing = project.data.pricing?.scopeOfSupply;
+  const money = makeMoney(project.data.currency);
   const subsystemVariants = project.data.subsystemVariants ?? {};
 
   // ── Subsystem rows ──────────────────────────────────────────────────────────
-  const all = getMajorSubsystems(project.data.systemType);
+  const cmsOverrides = useProposalStore((s) => s.cmsOverrides);
+  const all = getMajorSubsystems(project.data.systemType, cmsOverrides);
   const selectedIds = new Set(project.data.selectedSubsystems);
   const subs = all.filter((s) => selectedIds.has(s.id) || selectedIds.has(s.title));
   const list = subs.length ? subs : all;
@@ -54,7 +57,7 @@ export function ScopeOfSupplyPdf({
       description: `${title}\n${s.preview ?? ""}`.trim(),
       qty: entry.qty || "1",
       unitPrice: entry.unitPrice,
-      price: lineTotal(entry),
+      price: lineTotal(entry, money),
     };
   });
 
@@ -65,16 +68,16 @@ export function ScopeOfSupplyPdf({
   //    separately, outside this proposal document. ────────────────────────
   const selectedProprietaryIds = new Set(project.data.proprietary);
 
-  const proprietaryLibraryRows: Row[] = proprietaryItemsData
+  const proprietaryLibraryRows: Row[] = getLibrary("proprietary", cmsOverrides)
     .filter((p) => p.inScopeOfSupply && selectedProprietaryIds.has(p.id))
     .map((p, i) => {
       const entry = getEntry(scopePricing, p.id);
       return {
         sr: subsystemRows.length + i + 1,
-        description: `${p.title}\n${p.scopeSummary ?? p.description}`.trim(),
+        description: `${p.title}\n${p.scopeSummary || p.description}`.trim(),
         qty: entry.qty || "1",
         unitPrice: entry.unitPrice,
-        price: lineTotal(entry),
+        price: lineTotal(entry, money),
       };
     });
 
@@ -112,7 +115,7 @@ export function ScopeOfSupplyPdf({
                 : "Supervision Installation\nElectrosoft's engineers will supervise the customer's team during installation, providing technical guidance, inspection, and sign-off at each stage to ensure compliance with design specifications.",
             qty: entry.qty,
             unitPrice: entry.unitPrice,
-            price: lineTotal(entry),
+            price: lineTotal(entry, money),
           };
         })(),
       ]
@@ -143,7 +146,7 @@ export function ScopeOfSupplyPdf({
           ))}
         </colgroup>
         <tbody>
-          <ScopeRow row={r} />
+          <ScopeRow row={r} money={money} />
         </tbody>
       </table>
     ),
@@ -205,13 +208,13 @@ export function ScopeOfSupplyPdf({
                   <th className="border border-slate-300 p-1.5 text-left">Sr. No.</th>
                   <th className="border border-slate-300 p-1.5 text-left">Description</th>
                   <th className="border border-slate-300 p-1.5 text-center">Quantity</th>
-                  <th className="border border-slate-300 p-1.5 text-right">Unit Price (INR)</th>
-                  <th className="border border-slate-300 p-1.5 text-right">Price (INR)</th>
+                  <th className="border border-slate-300 p-1.5 text-right">Unit Price ({money.code})</th>
+                  <th className="border border-slate-300 p-1.5 text-right">Price ({money.code})</th>
                 </tr>
               </thead>
               <tbody>
                 {pageRows.map((r) => (
-                  <ScopeRow key={r.sr} row={r} />
+                  <ScopeRow key={r.sr} row={r} money={money} />
                 ))}
                 {isLast && (
                   <tr className="bg-slate-100 font-bold" style={{ breakInside: "avoid" }}>
@@ -219,7 +222,7 @@ export function ScopeOfSupplyPdf({
                       Grand Total
                     </td>
                     <td className="border border-slate-300 p-1.5 text-right text-blue-900">
-                      ₹{grandTotal.toLocaleString("en-IN")}
+                      {money.format(grandTotal)}
                     </td>
                   </tr>
                 )}
@@ -233,7 +236,7 @@ export function ScopeOfSupplyPdf({
   );
 }
 
-function ScopeRow({ row }: { row: Row }) {
+function ScopeRow({ row, money }: { row: Row; money: Money }) {
   const [title, ...rest] = row.description.split("\n");
   const subtitle = rest.join("\n");
   return (
@@ -244,7 +247,7 @@ function ScopeRow({ row }: { row: Row }) {
         {subtitle && <span className="block text-slate-600">{subtitle}</span>}
       </td>
       <td className="border border-slate-300 p-1.5 text-center align-top">{row.qty}</td>
-      <td className="border border-slate-300 p-1.5 text-right align-top">{row.unitPrice ? `₹${Number(row.unitPrice).toLocaleString("en-IN")}` : "---"}</td>
+      <td className="border border-slate-300 p-1.5 text-right align-top">{row.unitPrice ? money.fromInr(Number(row.unitPrice)) : "---"}</td>
       <td className="border border-slate-300 p-1.5 text-right align-top">{row.price}</td>
     </tr>
   );

@@ -1,11 +1,12 @@
 import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
-import { testsData } from "@/data/testsData";
+import { useLibrary } from "@/hooks/useLibrary";
 import { systemConfiguration } from "@/data/systemConfiguration";
 
 export function RequirementPdf({ project, pageNumber = 2 }: { project: Project; pageNumber?: number }) {
   const { selectedTests, systemType, transformer } = project.data;
   const cfg = systemConfiguration[systemType];
+  const testsData = useLibrary("tests");
   const selected = testsData.filter(t => selectedTests.includes(t.id));
   return (
     <PdfPage pageNumber={pageNumber}>

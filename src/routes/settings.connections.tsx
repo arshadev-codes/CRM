@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SettingsShell } from "@/components/settings/SettingsShell";
-import { testsData } from "@/data/testsData";
+import { useLibrary } from "@/hooks/useLibrary";
 import { connectionLabels, type ConnectionGroup } from "@/data/connectionsData";
 import { useProposalStore } from "@/store/proposalStore";
 import { CMS_CONNECTIONS_KEY, resolveConnectionsMap } from "@/data/connectionsHelpers";
@@ -18,6 +18,7 @@ function ConnectionsSettings() {
   const override = useProposalStore(s => s.cmsOverrides[CMS_CONNECTIONS_KEY]);
   const setCms = useProposalStore(s => s.setCms);
   const map = resolveConnectionsMap(override);
+  const testsData = useLibrary("tests");
 
   const setGroup = (testId: string, group: ConnectionGroup | "__unset__") => {
     const current = (override as Record<string, string>) ?? {};

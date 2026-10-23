@@ -29,6 +29,9 @@ export function SectionShell({
     onBlur: editable
       ? (e: React.FocusEvent<HTMLDivElement>) => onCommit?.(e.currentTarget.innerHTML)
       : undefined,
+    // Paste as plain text so copied fonts, sizes and colours don't come along;
+    // the pasted words take the styling of the spot they land in.
+    onPaste: editable ? pastePlainText : undefined,
     className: editable ? "outline-none ring-2 ring-blue-400/40 rounded-sm" : undefined,
   } as const;
 
@@ -36,4 +39,19 @@ export function SectionShell({
     return <div {...common} dangerouslySetInnerHTML={{ __html: overrideHtml }} />;
   }
   return <div {...common}>{children}</div>;
+}
+
+function pastePlainText(e: React.ClipboardEvent<HTMLDivElement>) {
+  const text = e.clipboardData.getData("text/plain");
+  e.preventDefault();
+  if (!text) return;
+  // insertText keeps the browser's undo (Ctrl+Z) working, unlike editing the DOM by hand.
+  if (!document.execCommand("insertText", false, text)) {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(document.createTextNode(text));
+    range.collapse(false);
+  }
 }

@@ -1,7 +1,7 @@
 import type React from "react";
 import { PdfPage } from "../PdfPage";
-import type { Project, CustomizationItem } from "@/store/proposalStore";
-import { getMajorSubsystems, type SubsystemContent } from "@/data/proposalContent";
+import { useProposalStore, type Project, type CustomizationItem } from "@/store/proposalStore";
+import { getMajorSubsystems, type SubsystemContent, type SubsystemImageSize } from "@/data/proposalContent";
 import { paginateByHeights, paginateBlocks, weightSubsystem } from "@/data/paginationHelpers";
 import { useBlockHeights } from "@/hooks/useBlockHeights";
 import { useEffect } from "react";
@@ -48,7 +48,8 @@ export function SubsystemsPdf({
   startPage?: number;
   onPageCountKnown?: (count: number) => void;
 }): React.ReactElement | null {
-  const all = getMajorSubsystems(project.data.systemType);
+  const cmsOverrides = useProposalStore((s) => s.cmsOverrides);
+  const all = getMajorSubsystems(project.data.systemType, cmsOverrides);
   const selectedIds = new Set(project.data.selectedSubsystems);
   const blocks: SubsystemContent[] = all.filter(
     (s) => selectedIds.has(s.id) || selectedIds.has(s.title),
@@ -204,13 +205,49 @@ function SubsystemBlockBody({
       </h3>
       <p className="text-[13px] leading-relaxed mt-1.5 text-justify">{description}</p>
 
-      <SubsystemImages images={s.images} title={title} />
+      <SubsystemImages images={s.images} sizes={s.imageSizes} title={title} />
     </section>
   );
 }
 
-function SubsystemImages({ images, title }: { images?: string[]; title: string }) {
+/** Default size for an image that has none set yet — matches the fixed layout below. */
+export function defaultImageSize(count: number): SubsystemImageSize {
+  return count <= 1
+    ? { width: 100, height: SINGLE_IMAGE_HEIGHT_MM }
+    : { width: Math.floor(100 / count), height: MULTI_IMAGE_HEIGHT_MM };
+}
+
+export function SubsystemImages({ images, sizes, title }: { images?: string[]; sizes?: SubsystemImageSize[]; title: string }) {
   if (!images || images.length === 0) return null;
+
+  // Sizes set in Settings: each image gets its own width (% of text width) and
+  // height (mm). Images wrap onto the next row when they don't fit side by side.
+  // Heights are explicit so the measurement pass sees the real block height.
+  if (sizes && sizes.length) {
+    return (
+      <div className="mt-3 flex flex-wrap justify-center" style={{ gap: "2mm" }}>
+        {images.map((src, i) => {
+          const size = sizes[i] ?? defaultImageSize(images.length);
+          return (
+            <div
+              key={i}
+              className="flex justify-center overflow-hidden"
+              style={{
+                width: `calc(${size.width}% - ${size.width < 100 ? 2 : 0}mm)`,
+                height: `${Math.round(size.height * MM_TO_PX)}px`,
+              }}
+            >
+              <img
+                src={src}
+                alt={`${title} ${i + 1}`}
+                style={{ height: "100%", maxWidth: "100%", width: "auto", objectFit: "contain" }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   if (images.length === 1) {
     return (

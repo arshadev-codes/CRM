@@ -2,12 +2,12 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { SystemType } from "@/data/systemTypesData";
 import { systemConfiguration } from "@/data/systemConfiguration";
-import { instrumentsData, type InstrumentRow } from "@/data/instrumentsData";
-import { equipmentData, type EquipmentRow } from "@/data/equipmentData";
-import { deliveryDefaults, type DeliveryRow } from "@/data/deliveryData";
-import { paymentTemplatesData, type PaymentMilestone } from "@/data/paymentTermsData";
-import { makesOfSupplyData } from "@/data/makesOfSupplyData";
-import { exclusionsData } from "@/data/exclusionsData";
+import type { InstrumentRow } from "@/data/instrumentsData";
+import type { EquipmentRow } from "@/data/equipmentData";
+import type { DeliveryRow } from "@/data/deliveryData";
+import { paymentTemplatesData, type PaymentMilestone, type PaymentTemplate } from "@/data/paymentTermsData";
+import { getLibrary } from "@/data/libraries";
+import type { QuoteCurrency } from "@/data/currency";
 import { getMajorSubsystems } from "@/data/proposalContent";
 import { employeesData, type Employee, type EmployeeRating, type RatingRule } from "@/data/employeesData";
 import { companiesData, type Company } from "@/data/companiesData";
@@ -41,6 +41,8 @@ export interface Customer {
 export interface Meta {
   preparedBy: string; checkedBy: string;
   offerNumber: string; revision: string; date: string;
+  /** Subject on the first page. Empty = made from the transformer details. */
+  subject?: string;
 }
 export interface Transformer { rating: string; ratingUnit: "MVA"|"KVA"; voltage: string; voltageUnit: string; }
 export interface MakeSelection { id: string; enabled: boolean; make: string; custom?: string; }
@@ -118,6 +120,8 @@ export interface ProposalData {
   additionalWarrantyMonths?: number | null;
   /** Editable unit-price/qty entries used to derive every price shown in Step 9 + PDFs */
   pricing: PricingData;
+  /** Currency the PDF shows prices in. Absent = INR. Prices are always typed in INR. */
+  currency?: QuoteCurrency;
   delivery: DeliveryRow[];
   exclusions: string[];
   makes: MakeSelection[];
@@ -185,29 +189,34 @@ const emptyMeta = (): Meta => ({
 const emptyTransformer = (): Transformer => ({ rating: "500", ratingUnit: "MVA", voltage: "765", voltageUnit: "kV" });
 const emptyPricing = (): PricingData => ({ scopeOfSupply: {}, instruments: {}, equipment: {}, scopeOfServices: {} });
 
-function defaultsForSystem(systemType: SystemType): ProposalData {
+/** The Settings a new quotation's defaults are taken from. */
+type DefaultsSource = { cmsOverrides?: Record<string, unknown>; paymentTemplates?: PaymentTemplate[] };
+
+function defaultsForSystem(systemType: SystemType, src: DefaultsSource = {}): ProposalData {
   const cfg = systemConfiguration[systemType];
+  const { cmsOverrides } = src;
+  const firstTemplate = src.paymentTemplates?.[0] ?? paymentTemplatesData[0];
   return {
     systemType,
     customer: emptyCustomer(),
     meta: emptyMeta(),
     transformer: emptyTransformer(),
     selectedTests: [...cfg.defaultTests],
-    selectedSubsystems: getMajorSubsystems(systemType).map(s => s.id),
+    selectedSubsystems: getMajorSubsystems(systemType, cmsOverrides).map(s => s.id),
     proposalCustomizations: [],
     subsystemVariants: {},
     systemLayout: {},
-    instruments: instrumentsData.filter(i => cfg.defaultInstruments.includes(i.id)).map(i => ({ ...i })),
-    equipment: equipmentData.map(e => ({ ...e, included: cfg.defaultEquipment.includes(e.id) })),
+    instruments: getLibrary("instruments", cmsOverrides).filter(i => cfg.defaultInstruments.includes(i.id)).map(i => ({ ...i })),
+    equipment: getLibrary("equipment", cmsOverrides).map(e => ({ ...e, included: cfg.defaultEquipment.includes(e.id) })),
     proprietary: [...cfg.defaultProprietary],
     proprietaryCustom: [],
     installationType: null,
     additionalWarrantyMonths: null,
     pricing: emptyPricing(),
-    delivery: deliveryDefaults.map(d => ({ ...d })),
-    exclusions: exclusionsData.filter(e => e.defaultIncluded).map(e => e.id),
-    makes: makesOfSupplyData.map(m => ({ id: m.id, enabled: !!m.defaultEnabled, make: m.defaultMake })),
-    payment: paymentTemplatesData[0].milestones.map(m => ({ ...m })),
+    delivery: getLibrary("delivery", cmsOverrides).map(d => ({ ...d })),
+    exclusions: getLibrary("exclusions", cmsOverrides).filter(e => e.defaultIncluded).map(e => e.id),
+    makes: getLibrary("makes", cmsOverrides).map(m => ({ id: m.id, enabled: !!m.defaultEnabled, make: m.defaultMake })),
+    payment: firstTemplate.milestones.map(m => ({ ...m })),
     freightLogistics: { ...freightLogisticsDefaults },
     layout: defaultLayout(),
   };
@@ -216,10 +225,10 @@ function defaultsForSystem(systemType: SystemType): ProposalData {
 /** True for an order made without a quotation. */
 export const isDirectOrder = (o: Pick<InwardOrder, "id" | "projectId">) => o.projectId === o.id;
 
-export function newProject(name = "Untitled Project", systemType: SystemType = "Advanced"): Project {
+export function newProject(name = "Untitled Project", systemType: SystemType = "Advanced", src?: DefaultsSource): Project {
   const id = crypto.randomUUID();
   const now = Date.now();
-  return { id, name, status: "Draft", createdAt: now, updatedAt: now, revision: 0, data: defaultsForSystem(systemType) };
+  return { id, name, status: "Draft", createdAt: now, updatedAt: now, revision: 0, data: defaultsForSystem(systemType, src) };
 }
 
 interface ProposalStore {
@@ -248,6 +257,9 @@ interface ProposalStore {
   getProject: (id: string) => Project | undefined;
   setCms: (key: string, value: unknown) => void;
   savePaymentTemplate: (name: string, milestones: PaymentMilestone[]) => void;
+  updatePaymentTemplate: (id: string, patch: Partial<Omit<PaymentTemplate, "id">>) => void;
+  deletePaymentTemplate: (id: string) => void;
+  resetPaymentTemplates: () => void;
   addEmployee: (emp: Omit<Employee, "id"> & { id?: string }) => Employee;
   updateEmployee: (id: string, patch: Partial<Employee>) => void;
   deleteEmployee: (id: string) => void;
@@ -417,7 +429,7 @@ export const useProposalStore = create<ProposalStore>()(
         }) })),
       createProject: (name, layout) => {
         // Next global sequence per FY, computed across local projects (cloud hydration keeps this in sync).
-        const p0 = newProject(name);
+        const p0 = newProject(name, undefined, get());
         if (layout) p0.data.layout = JSON.parse(JSON.stringify(layout));
         const fy = getFY(p0.data.meta.date);
         const nextSeq =
@@ -457,7 +469,7 @@ export const useProposalStore = create<ProposalStore>()(
       setSystemType: (id, systemType) =>
         set(s => ({ projects: s.projects.map(p => {
           if (p.id !== id) return p;
-          const fresh = defaultsForSystem(systemType);
+          const fresh = defaultsForSystem(systemType, s);
           const merged: Project = { ...p, updatedAt: Date.now(), data: {
             ...fresh,
             customer: p.data.customer,
@@ -534,6 +546,11 @@ export const useProposalStore = create<ProposalStore>()(
       setCms: (key, value) => set(s => ({ cmsOverrides: { ...s.cmsOverrides, [key]: value } })),
       savePaymentTemplate: (name, milestones) =>
         set(s => ({ paymentTemplates: [...s.paymentTemplates, { id: crypto.randomUUID(), name, milestones }] })),
+      updatePaymentTemplate: (id, patch) =>
+        set(s => ({ paymentTemplates: s.paymentTemplates.map(t => t.id === id ? { ...t, ...patch } : t) })),
+      deletePaymentTemplate: (id) =>
+        set(s => ({ paymentTemplates: s.paymentTemplates.filter(t => t.id !== id) })),
+      resetPaymentTemplates: () => set({ paymentTemplates: paymentTemplatesData }),
       addEmployee: (emp) => {
         const e: Employee = { ...emp, id: emp.id ?? crypto.randomUUID() };
         set(s => ({ employees: [...s.employees, e] }));

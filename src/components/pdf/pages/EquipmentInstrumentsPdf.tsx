@@ -3,6 +3,7 @@ import type { Project } from "@/store/proposalStore";
 import { equipmentData } from "@/data/equipmentData";
 import { instrumentsData } from "@/data/instrumentsData";
 import { getEntry, lineTotal } from "@/data/pricingHelpers";
+import { makeMoney, type Money } from "@/data/currency";
 
 // Pages dedicated to OTHER EQUIPMENT and TESTING INSTRUMENTS — formatted as
 // in the reference proposal (Sr. No / Description / Quantity / Price).
@@ -17,6 +18,7 @@ export function EquipmentInstrumentsPdf({
   const ins = project.data.instruments ?? instrumentsData;
   const eqPricing = project.data.pricing?.equipment;
   const insPricing = project.data.pricing?.instruments;
+  const money = makeMoney(project.data.currency);
 
   const describeEq = (e: typeof equipmentData[number]) =>
     [e.equipment, e.spec1, e.spec2, e.spec3, e.spec4, e.spec5]
@@ -28,12 +30,12 @@ export function EquipmentInstrumentsPdf({
 
   const eqRows = eq.map((e, i) => {
     const entry = getEntry(eqPricing, e.id);
-    return { sr: i + 1, desc: describeEq(e), qty: entry.qty || "1", price: lineTotal(entry) };
+    return { sr: i + 1, desc: describeEq(e), qty: entry.qty || "1", price: lineTotal(entry, money) };
   });
 
   const insRows = ins.map((i, idx) => {
     const entry = getEntry(insPricing, i.id);
-    return { sr: idx + 1, desc: describeIns(i), qty: entry.qty || "1", price: lineTotal(entry) };
+    return { sr: idx + 1, desc: describeIns(i), qty: entry.qty || "1", price: lineTotal(entry, money) };
   });
 
   return (
@@ -42,10 +44,10 @@ export function EquipmentInstrumentsPdf({
         Electrosoft's Scope of Supply
       </h2>
 
-      <SectionTable title="OTHER EQUIPMENT" rows={eqRows} />
+      <SectionTable title="OTHER EQUIPMENT" rows={eqRows} money={money} />
 
       <div className="mt-5">
-        <SectionTable title="TESTING INSTRUMENTS" rows={insRows} />
+        <SectionTable title="TESTING INSTRUMENTS" rows={insRows} money={money} />
       </div>
     </PdfPage>
   );
@@ -54,9 +56,11 @@ export function EquipmentInstrumentsPdf({
 function SectionTable({
   title,
   rows,
+  money,
 }: {
   title: string;
   rows: { sr: number; desc: string; qty: string; price: string }[];
+  money: Money;
 }) {
   const total = rows.reduce((sum, r) => {
     const n = Number(String(r.price).replace(/[^\d.-]/g, ""));
@@ -74,7 +78,7 @@ function SectionTable({
             <th className="border border-slate-300 p-1.5 text-left w-14">Sr. No.</th>
             <th className="border border-slate-300 p-1.5 text-left">Description</th>
             <th className="border border-slate-300 p-1.5 text-center w-16">Quantity</th>
-            <th className="border border-slate-300 p-1.5 text-right w-24">Price (INR)</th>
+            <th className="border border-slate-300 p-1.5 text-right w-24">Price ({money.code})</th>
           </tr>
         </thead>
         <tbody>
@@ -93,7 +97,7 @@ function SectionTable({
               <tr className="bg-slate-100 font-bold">
                 <td className="border border-slate-300 p-1.5 text-right" colSpan={3}>Subtotal</td>
                 <td className="border border-slate-300 p-1.5 text-right text-blue-900">
-                  ₹{total.toLocaleString("en-IN")}
+                  {money.format(total)}
                 </td>
               </tr>
             </>
