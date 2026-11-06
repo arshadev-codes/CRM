@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "87240973381",
+    "project_id": "electrosoft-b1876",
+    "storage_bucket": "electrosoft-b1876.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:87240973381:android:fddc12ef191988d1fdd72c",
+        "android_client_info": {
+          "package_name": "com.electrosoft.work"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPoE4NXJ-mUrqQO8Uy9ppk8lpIp2jUcRg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

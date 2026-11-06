@@ -1,0 +1,160 @@
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useProposalStore } from "@/store/proposalStore";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { ChevronLeft, ChevronRight, Save, Eye, Printer, RefreshCw, Lock } from "lucide-react";
+import { useCan } from "@/store/authStore";
+import {
+  Step1ProjectSetup, Step2Tests, Step3Subsystems, Step3bSystemLayout, Step4InstrumentsEquipment,
+  Step5Proprietary, Step6Delivery, Step7ExclusionsMakes, StepPricing, Step8Payment, Step9Review,
+} from "@/components/wizard/Steps";
+import { toast } from "sonner";
+import { resolveLayout } from "@/data/proposalLayout";
+
+export const Route = createFileRoute("/projects/$id/wizard")({
+  component: Wizard,
+});
+
+const ALL_STEPS = [
+  { key: "setup", label: "Project Setup", Comp: Step1ProjectSetup },
+  { key: "tests", label: "Tests", Comp: Step2Tests },
+  { key: "subsystems", label: "Major Sub Systems", Comp: Step3Subsystems },
+  { key: "layout", label: "System Layout", Comp: Step3bSystemLayout },
+  { key: "inst-eq", label: "Instruments & Equipment", Comp: Step4InstrumentsEquipment },
+  { key: "proprietary", label: "Proprietary Items", Comp: Step5Proprietary },
+  { key: "delivery", label: "Delivery", Comp: Step6Delivery },
+  { key: "excl-makes", label: "Exclusions & Makes", Comp: Step7ExclusionsMakes },
+  { key: "pricing", label: "Pricing", Comp: StepPricing },
+  { key: "payment", label: "Payment", Comp: Step8Payment },
+  { key: "review", label: "Review", Comp: Step9Review },
+] as const;
+
+function Wizard() {
+  const { id } = Route.useParams();
+  const project = useProposalStore(s => s.projects.find(p => p.id === id));
+  const updateProjectData = useProposalStore(s => s.updateProjectData);
+  const updateProject = useProposalStore(s => s.updateProject);
+  const reviseProject = useProposalStore(s => s.reviseProject);
+  const navigate = useNavigate();
+  const [step, setStep] = useState(0);
+  const canQuote = useCan("quotation");
+
+  // Only the wizard steps this project was created with (customized proposals
+  // can drop steps); order follows the saved layout.
+  const chosen = resolveLayout(project?.data.layout).steps;
+  const picked = chosen
+    .map(k => ALL_STEPS.find(s => s.key === k))
+    .filter((s): s is (typeof ALL_STEPS)[number] => Boolean(s));
+  const STEPS = picked.length ? picked : ALL_STEPS;
+  const stepIndex = Math.min(step, STEPS.length - 1);
+
+  if (!project) return (
+    <div className="p-8 text-center">
+      <p>Project not found.</p>
+      <Link to="/" className="text-blue-700 underline">Back to dashboard</Link>
+    </div>
+  );
+
+  if (!canQuote) return (
+    <div className="grid min-h-[60vh] place-items-center p-6">
+      <div className="neo-surface max-w-sm rounded-3xl p-10 text-center">
+        <Lock className="mx-auto h-10 w-10 text-slate-400" />
+        <h1 className="mt-4 text-lg font-bold text-slate-800">Quotations are view only for you</h1>
+        <p className="mt-1 text-sm text-slate-500">Your account can see this quotation but can't edit it.</p>
+        <Button asChild className="mt-6">
+          <Link to="/projects/$id/preview" params={{ id: project.id }}><Eye className="h-4 w-4 mr-1" />Open preview</Link>
+        </Button>
+      </div>
+    </div>
+  );
+
+  const Current = STEPS[stepIndex].Comp;
+  const update = (patch: Parameters<typeof updateProjectData>[1]) => updateProjectData(project.id, patch);
+
+  const markCompletedAndGenerate = () => {
+    updateProject(project.id, { status: "Completed" });
+    toast.success("Marked as Completed");
+    window.open(`/print/${project.id}`, "_blank");
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto p-6">
+      <div className="flex items-center justify-between mb-4 gap-3 pl-4">
+        <div className="flex-1 min-w-0">
+          <div className="text-xl font-bold font-mono text-slate-800 truncate">
+            {project.data.meta.offerNumber || project.name}
+          </div>
+          <Input
+            value={project.name}
+            onChange={e => updateProject(project.id, { name: e.target.value })}
+            placeholder="Project label (optional)"
+            className="text-xs border-0 px-0 h-auto focus-visible:ring-0 shadow-none text-slate-500 mt-0.5"
+          />
+          <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+            <span>Autosaved · {new Date(project.updatedAt).toLocaleTimeString()}</span>
+            {project.status === "Completed" && <span className="text-emerald-600 font-semibold">· Completed</span>}
+          </div>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          {project.status === "Completed" && (
+            <Button size="sm" variant="outline" onClick={() => {
+              const p = reviseProject(project.id);
+              if (p) { toast.success(`Created R${p.revision}`); navigate({ to: "/projects/$id/wizard", params: { id: p.id } }); }
+            }}><RefreshCw className="h-3 w-3 mr-1" />Revise Offer</Button>
+          )}
+          <Button size="sm" variant="outline" onClick={() => { updateProject(project.id, { status: "Completed" }); toast.success("Marked completed"); }}><Save className="h-3 w-3 mr-1" />Save Draft</Button>
+          <Button size="sm" variant="outline" onClick={() => navigate({ to: "/projects/$id/preview", params: { id: project.id } })}><Eye className="h-3 w-3 mr-1" />Preview</Button>
+          <Button size="sm" onClick={markCompletedAndGenerate}><Printer className="h-3 w-3 mr-1" />Generate</Button>
+        </div>
+      </div>
+
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
+        <Progress value={((stepIndex + 1) / STEPS.length) * 100} className="mb-3" />
+      </motion.div>
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        {STEPS.map((s, i) => (
+          <button
+            key={s.key}
+            onClick={() => setStep(i)}
+            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all duration-150
+              ${i === stepIndex
+                ? "neo-inset text-blue-700 ring-2 ring-blue-400/50"
+                : i < stepIndex
+                ? "neo-inset text-blue-500 opacity-70"
+                : "neo-pop text-slate-500 hover:text-blue-600"
+              }`}
+          >
+            {i + 1}. {s.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-lg border p-6 min-h-[400px] overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={STEPS[stepIndex].key}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            <Current project={project} update={update} />
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      <div className="flex justify-between mt-4">
+        <Button variant="outline" disabled={stepIndex === 0} onClick={() => setStep(stepIndex - 1)}><ChevronLeft className="h-4 w-4 mr-1" />Back</Button>
+        {stepIndex < STEPS.length - 1 ? (
+          <Button onClick={() => setStep(stepIndex + 1)}>Next<ChevronRight className="h-4 w-4 ml-1" /></Button>
+        ) : (
+          <Button onClick={markCompletedAndGenerate}><Printer className="h-4 w-4 mr-1" />Generate PDF</Button>
+        )}
+      </div>
+    </div>
+  );
+}

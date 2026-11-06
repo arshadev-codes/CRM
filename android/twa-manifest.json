@@ -1,0 +1,52 @@
+{
+  "packageId": "com.electrosoft.work",
+  "host": "electrosoft-crm.electrosoft-crm.workers.dev",
+  "name": "Electrosoft Work",
+  "launcherName": "Electrosoft",
+  "display": "standalone",
+  "themeColor": "#4F46E5",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#4F46E5",
+  "enableNotifications": true,
+  "startUrl": "/my",
+  "iconUrl": "https://electrosoft-crm.electrosoft-crm.workers.dev/icons/icon-512.png",
+  "maskableIconUrl": "https://electrosoft-crm.electrosoft-crm.workers.dev/icons/maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "C:/Users/lenovo/electrosoft-android-key/electrosoft.keystore",
+    "alias": "electrosoft"
+  },
+  "appVersionName": "1.2.0",
+  "appVersionCode": 3,
+  "shortcuts": [],
+  "generatorApp": "unknown",
+  "webManifestUrl": "https://electrosoft-crm.electrosoft-crm.workers.dev/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://electrosoft-crm.electrosoft-crm.workers.dev/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [
+    {
+      "name": "release",
+      "value": "DC:ED:71:F2:ED:D9:6B:EB:DC:74:26:83:56:36:E2:44:39:AA:5F:4F:82:35:04:F4:BA:6D:C7:A4:34:D8:BF:6A"
+    }
+  ],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [],
+  "appVersion": "1.2.0"
+}
