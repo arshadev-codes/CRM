@@ -15,6 +15,8 @@ import { getOnSiteServiceRows } from "@/data/scopeOfServiceRows";
 import { defaultLayoutImages } from "@/lib/defaultLayoutImages";
 import { lineTotal } from "@/data/pricingHelpers";
 import { CompanyAutocomplete } from "@/components/wizard/CompanyAutocomplete";
+import { CatalogPickerDialog } from "@/components/wizard/CatalogPickerDialog";
+import type { CatalogKind } from "@/data/catalogFamilies";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -436,10 +438,15 @@ export function Step4InstrumentsEquipment({ project, update }: { project: Projec
   const { instruments, equipment } = project.data;
   const instrumentsData = useLibrary("instruments");
   const equipmentData = useLibrary("equipment");
+  // Only the equipment in the quotation is listed. Older quotations also hold
+  // every unticked library row; those are left out here and dropped on the
+  // first edit (they never reached the PDF or pricing anyway).
+  const includedEquipment = equipment.filter(e => e.included);
   return (
     <div className="space-y-6">
       <Section title="Instruments">
         <SpecTable
+          kind="instruments"
           rows={instruments as unknown as AnyRow[]}
           onChange={rows => update({ instruments: rows as unknown as typeof instruments })}
           firstCol={{ key: "instrument", label: "Instrument" }}
@@ -449,10 +456,11 @@ export function Step4InstrumentsEquipment({ project, update }: { project: Projec
       </Section>
       <Section title="Equipment">
         <SpecTable
-          rows={equipment as unknown as AnyRow[]}
+          kind="equipment"
+          rows={includedEquipment as unknown as AnyRow[]}
           onChange={rows => update({ equipment: rows as unknown as typeof equipment })}
           firstCol={{ key: "equipment", label: "Equipment" }}
-          includedCol
+          markIncluded
           library={equipmentData as unknown as AnyRow[]}
         />
       </Section>
@@ -463,34 +471,42 @@ export function Step4InstrumentsEquipment({ project, update }: { project: Projec
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRow = Record<string, any> & { id: string };
 
-function SpecTable({ rows, onChange, firstCol, extraCols = [], includedCol = false, library }: {
+function SpecTable({ kind, rows, onChange, firstCol, extraCols = [], markIncluded = false, library }: {
+  kind: CatalogKind;
   rows: AnyRow[];
   onChange: (rows: AnyRow[]) => void;
   firstCol: { key: string; label: string };
   extraCols?: { key: string; label: string }[];
-  includedCol?: boolean;
+  /** Equipment rows carry `included: true` (the PDF and pricing list only those). */
+  markIncluded?: boolean;
   library: AnyRow[];
 }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
   const update = (i: number, patch: Partial<AnyRow>) => onChange(rows.map((r, idx) => idx === i ? { ...r, ...patch } : r));
   const remove = (i: number) => onChange(rows.filter((_, idx) => idx !== i));
   const addBlank = () => {
     const blank: AnyRow = { id: crypto.randomUUID(), spec1: "", spec2: "", spec3: "", spec4: "", spec5: "" };
     blank[firstCol.key] = "";
     extraCols.forEach(c => (blank[c.key] = ""));
-    if (includedCol) blank.included = true;
+    if (markIncluded) blank.included = true;
     onChange([...rows, blank]);
   };
-  const addFromLib = (id: string) => {
-    const item = library.find(l => l.id === id);
-    if (item) onChange([...rows, { ...item, id: crypto.randomUUID() }]);
+  // Each added row gets its own id (pricing is keyed by row id, and the same
+  // variant may be added twice); sourceId remembers which library item it was.
+  const addFromLib = (items: AnyRow[]) => {
+    if (!items.length) return;
+    onChange([
+      ...rows,
+      ...items.map(item => ({ ...item, id: crypto.randomUUID(), sourceId: item.id, ...(markIncluded ? { included: true } : {}) })),
+    ]);
   };
+  const addedIds = new Set(rows.map(r => String(r.sourceId ?? r.id)));
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs border">
         <thead className="bg-slate-100">
           <tr>
             <th className="border p-1.5 text-left">{firstCol.label}</th>
-            {includedCol && <th className="border p-1.5 w-16">Yes/No</th>}
             {extraCols.map(c => <th key={c.key} className="border p-1.5 text-left">{c.label}</th>)}
             {[1, 2, 3, 4, 5].map(n => <th key={n} className="border p-1.5 text-left">Spec-{n}</th>)}
             <th className="border p-1.5 w-10"></th>
@@ -500,11 +516,6 @@ function SpecTable({ rows, onChange, firstCol, extraCols = [], includedCol = fal
           {rows.map((r, i) => (
             <tr key={r.id}>
               <td className="border p-0.5"><Input className="h-7 text-xs" value={String(r[firstCol.key] ?? "")} onChange={e => update(i, { [firstCol.key]: e.target.value })} /></td>
-              {includedCol && (
-                <td className="border p-0.5 text-center">
-                  <Checkbox checked={!!r.included} onCheckedChange={v => update(i, { included: !!v })} />
-                </td>
-              )}
               {extraCols.map(c => (
                 <td key={c.key} className="border p-0.5">
                   <Input className="h-7 text-xs" value={String(r[c.key] ?? "")} onChange={e => update(i, { [c.key]: e.target.value })} />
@@ -519,15 +530,28 @@ function SpecTable({ rows, onChange, firstCol, extraCols = [], includedCol = fal
               </td>
             </tr>
           ))}
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan={1 + extraCols.length + 6} className="border p-3 text-center text-muted-foreground">
+                Nothing added yet — use “Add from list”.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
       <div className="flex items-center gap-2 mt-2">
-        <Button size="sm" variant="outline" onClick={addBlank}><Plus className="h-3 w-3 mr-1" />Add row</Button>
-        <Select onValueChange={addFromLib}>
-          <SelectTrigger className="w-64 h-8 text-xs"><SelectValue placeholder="Add from library…" /></SelectTrigger>
-          <SelectContent>{library.map(l => <SelectItem key={l.id} value={l.id}>{String(l[firstCol.key])}</SelectItem>)}</SelectContent>
-        </Select>
+        <Button size="sm" onClick={() => setPickerOpen(true)}><Plus className="h-3 w-3 mr-1" />Add from list</Button>
+        <Button size="sm" variant="outline" onClick={addBlank}><Plus className="h-3 w-3 mr-1" />Add custom {firstCol.label.toLowerCase()}</Button>
       </div>
+      <CatalogPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        kind={kind}
+        library={library}
+        addedIds={addedIds}
+        onAdd={addFromLib}
+        onAddCustom={addBlank}
+      />
     </div>
   );
 }

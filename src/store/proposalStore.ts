@@ -8,7 +8,7 @@ import type { DeliveryRow } from "@/data/deliveryData";
 import { paymentTemplatesData, type PaymentMilestone, type PaymentTemplate } from "@/data/paymentTermsData";
 import { getLibrary } from "@/data/libraries";
 import type { QuoteCurrency } from "@/data/currency";
-import { getMajorSubsystems } from "@/data/proposalContent";
+import { getMajorSubsystems, fixSubsystemIdsInData } from "@/data/proposalContent";
 import { employeesData, type Employee, type EmployeeRating, type RatingRule } from "@/data/employeesData";
 import { companiesData, type Company } from "@/data/companiesData";
 import { supabase } from "@/lib/supabaseClient";
@@ -207,7 +207,8 @@ function defaultsForSystem(systemType: SystemType, src: DefaultsSource = {}): Pr
     subsystemVariants: {},
     systemLayout: {},
     instruments: getLibrary("instruments", cmsOverrides).filter(i => cfg.defaultInstruments.includes(i.id)).map(i => ({ ...i })),
-    equipment: getLibrary("equipment", cmsOverrides).map(e => ({ ...e, included: cfg.defaultEquipment.includes(e.id) })),
+    // Only the defaults; the rest is added from the wizard's "Add from list".
+    equipment: getLibrary("equipment", cmsOverrides).filter(e => cfg.defaultEquipment.includes(e.id)).map(e => ({ ...e, included: true })),
     proprietary: [...cfg.defaultProprietary],
     proprietaryCustom: [],
     installationType: null,
@@ -654,7 +655,12 @@ export const useProposalStore = create<ProposalStore>()(
             const existing = map.get(p.id);
             if (!existing || p.updatedAt >= existing.updatedAt) map.set(p.id, p);
           }
-          set({ projects: Array.from(map.values()).sort((a, b) => b.updatedAt - a.updatedAt) });
+          // Saved quotations may still hold renamed subsystem ids; map them to the current ones.
+          const fixed = Array.from(map.values()).map(p => {
+            const data = fixSubsystemIdsInData(p.data);
+            return data === p.data ? p : { ...p, data };
+          });
+          set({ projects: fixed.sort((a, b) => b.updatedAt - a.updatedAt) });
         } catch (e) { console.warn("[supabase] hydrate error:", e); }
       },
       serialize: (id) => {

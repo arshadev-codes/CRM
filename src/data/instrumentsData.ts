@@ -2,6 +2,7 @@ export interface InstrumentRow {
   id: string; instrument: string; make: string; model: string;
   spec1: string; spec2: string; spec3: string; spec4: string; spec5: string;
   aliases?: string[];
+  family?: string; // optional: groups variants in the wizard's picker (see catalogFamilies.ts)
 }
 
 const i = (

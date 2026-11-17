@@ -2,6 +2,7 @@ export interface EquipmentRow {
   id: string; equipment: string; included: boolean;
   spec1: string; spec2: string; spec3: string; spec4: string; spec5: string;
   aliases?: string[]; // optional: other names found in old quotations
+  family?: string; // optional: groups variants in the wizard's picker (see catalogFamilies.ts)
 }
 
 const e = (
