@@ -14,14 +14,14 @@ const e = (
 export const equipmentData: EquipmentRow[] = [
   // ---------- YOUR REFERENCE ROWS (unchanged) ----------
   { id: "ht-cap", equipment: "HT Capacitor Bank", included: true, spec1: "33 kV", spec2: "30 MVAR", spec3: "Outdoor", spec4: "Single bank", spec5: "Auto switching" },
-  { id: "mg-set", equipment: "MG Set", included: true, spec1: "5 MVA", spec2: "50–200 Hz", spec3: "Variable freq.", spec4: "Brushless", spec5: "Local + remote" },
+  { id: "mg-set", equipment: "Main MG Set", included: true, spec1: "5 MVA", spec2: "50–200 Hz", spec3: "Variable freq.", spec4: "Brushless", spec5: "Local + remote" },
   { id: "ct-1", equipment: "CT-1", included: true, spec1: "2000/1A", spec2: "Cl. 0.2S", spec3: "Cast resin", spec4: "Indoor", spec5: "Burden 30VA" },
   { id: "ct-2", equipment: "CT-2", included: false, spec1: "1000/1A", spec2: "Cl. 0.2S", spec3: "Cast resin", spec4: "Indoor", spec5: "Burden 30VA" },
   { id: "ct-3", equipment: "CT-3", included: false, spec1: "500/1A", spec2: "Cl. 0.2S", spec3: "Cast resin", spec4: "Indoor", spec5: "Burden 30VA" },
   { id: "pt-1", equipment: "PT-1", included: true, spec1: "33 kV/110V", spec2: "Cl. 0.2", spec3: "Cast resin", spec4: "Indoor", spec5: "Burden 50VA" },
   { id: "pt-2", equipment: "PT-2", included: false, spec1: "11 kV/110V", spec2: "Cl. 0.2", spec3: "Cast resin", spec4: "Indoor", spec5: "Burden 50VA" },
   { id: "pt-3", equipment: "PT-3", included: false, spec1: "11 kV/110V", spec2: "Cl. 0.2", spec3: "Cast resin", spec4: "Indoor", spec5: "Burden 50VA" },
-  { id: "mg-iovt", equipment: "MG Set for IOVT", included: false, spec1: "2 MVA", spec2: "100–400 Hz", spec3: "Variable freq.", spec4: "Brushless", spec5: "Remote ctrl" },
+  { id: "mg-iovt", equipment: "Main MG Set for IOVT", included: false, spec1: "2 MVA", spec2: "100–400 Hz", spec3: "Variable freq.", spec4: "Brushless", spec5: "Remote ctrl" },
   { id: "hv-trans", equipment: "HV Transformer", included: true, spec1: "1000 kV", spec2: "300 kVA", spec3: "Oil-filled", spec4: "IEC 60076-3", spec5: "Single phase" },
   { id: "ind-dimmer", equipment: "Independent Dimmer", included: false, spec1: "415 V", spec2: "1000 A", spec3: "Motorized", spec4: "0–110%", spec5: "Remote" },
   { id: "dimmer", equipment: "Dimmer", included: false, spec1: "415 V", spec2: "1000 A", spec3: "Motorized", spec4: "0–110%", spec5: "Remote" },
@@ -39,7 +39,7 @@ export const equipmentData: EquipmentRow[] = [
   // ---------- MG SETS / TRANSFORMERS ----------
   e("mg-500kva", "Motor Generator 500 kVA", "500 kVA", "0–900 V", "3 Phase", "", "", ["MG Set 500KVA"]),
   e("mg-100kva-200hz", "Motor Generator 100 kVA, 200 Hz", "100 kVA", "3 Phase", "200 Hz", "", "", ["MG Set 100KVA"]),
-  e("mg-20kva-150hz", "MG Set 20 kVA, 150 Hz", "20 kVA", "150 Hz", "", "", ""),
+  e("mg-20kva-150hz", "Main MG Set 20 kVA, 150 Hz", "20 kVA", "150 Hz", "", "", ""),
   e("intermediate-trafo-100kva", "Intermediate Transformer 100 kVA", "100 kVA"),
   e("hv-300kv-1000ma", "HV Transformer 300 kV, 1000 mA", "300 kV", "1000 mA"),
   e("hv-150kv-300ma", "HV Transformer 150 kV, 300 mA", "150 kV", "300 mA", "37.5 kVA", "", "", ["150kv, 300mAmps, 37.5 KVA HV Transformer"]),
@@ -189,9 +189,9 @@ export const equipmentData: EquipmentRow[] = [
   // ---------- MG SETS / GENERATORS ----------
   e("mg-150kva", "Motor Generator 150 kVA", "150 kVA", "3 Phase"),
   e("mg-800kva", "Motor Generator 800 kVA", "800 kVA", "0–900 V", "3 Phase"),
-  e("mg-30kva", "MG Set 30 kVA", "30 kVA"),
+  e("mg-30kva", "Main MG Set 30 kVA", "30 kVA"),
   e("mg-main-2mva", "Main Generator 2 MVA with 1200 kW Motor", "Generator 2 MVA, 11 kV, 3Ph, 50/60 Hz", "Motor 1200 kW, 11 kV, 3Ph, 50/60 Hz", "", "", "", ["Main MG Set"]),
-  e("mg-iovt-1mva", "IOVT MG Set 1 MVA, 11 kV, 200 Hz", "1 MVA", "11 kV", "200 Hz", "", "", ["IOVT MG Set"]),
+  e("mg-iovt-1mva", "Main MG Set for IOVT 1 MVA, 11 kV, 200 Hz", "1 MVA", "11 kV", "200 Hz", "", "", ["IOVT MG Set"]),
  
   // ---------- TRANSFORMERS ----------
   e("intermediate-trafo-2-4mva", "Intermediate Transformer 2.4 MVA, 11 kV", "2.4 MVA", "11 kV"),

@@ -45,7 +45,8 @@ export function ScopeOfSupplyPdf({
   const all = getMajorSubsystems(project.data.systemType, cmsOverrides);
   const selectedIds = new Set(project.data.selectedSubsystems);
   const subs = all.filter((s) => selectedIds.has(s.id) || selectedIds.has(s.title));
-  const list = subs.length ? subs : all;
+  // Only what was ticked in the wizard.
+  const list = subs;
 
   const subsystemRows: Row[] = list.map((s, i) => {
     const entry = getEntry(scopePricing, s.id);

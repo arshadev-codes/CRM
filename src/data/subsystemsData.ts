@@ -12,7 +12,7 @@ export const subsystemsData: Subsystem[] = [
   { id: "control-desk", title: "Control Desk", preview: "Operator console with HMI and emergency controls",
     description: "Ergonomic operator control desk with dual 24\" HMI displays, mimic panel, emergency stop, mode selector, and integrated voice communication. Houses primary control PC and SCADA workstation.", systemTypes: allTypes },
   { id: "power-panel", title: "Power Panel", preview: "MV/LV distribution with VFDs and protection",
-    description: "Floor-mounted power distribution panel with incomer, outgoing feeders, VFD bank for MG set control, capacitor switching contactors, microprocessor relays, and full protection suite per IEC 61439.", systemTypes: allTypes },
+    description: "Floor-mounted power distribution panel with incomer, outgoing feeders, VFD bank for Main MG Set control, capacitor switching contactors, microprocessor relays, and full protection suite per IEC 61439.", systemTypes: allTypes },
   { id: "scada", title: "SCADA System", preview: "Real-time supervision and data logging",
     description: "Industrial SCADA platform with real-time data acquisition, alarm management, historical trending, and OPC-UA integration. Stores all test data in time-series DB with role-based access.", systemTypes: ["Advanced","FullyAutomatic"] },
   { id: "plc", title: "PLC System", preview: "Redundant PLC controller with safety I/O",

@@ -44,6 +44,7 @@ import {
   incotermsOptions,
   transitInsuranceOptions,
   freightLogisticsDefaults,
+  resolveDestination,
 } from "@/data/freightLogisticsData";
 
 
@@ -51,6 +52,17 @@ type Update = (patch: Partial<ProposalData>) => void;
 
 export function Step1ProjectSetup({ project, update }: { project: Project; update: Update }) {
   const setSystemType = useProposalStore(s => s.setSystemType);
+  // The type picked on a card, waiting for "Switch" in the confirmation.
+  const [pendingType, setPendingType] = useState<SystemType | null>(null);
+  const switchType = (next: SystemType) => {
+    const before = project.data;
+    setSystemType(project.id, next);
+    const label = systemTypesData.find(t => t.id === next)?.label ?? next;
+    toast.success(`Switched to ${label}`, {
+      duration: 15000,
+      action: { label: "Undo", onClick: () => update(before) },
+    });
+  };
   const allEmployees = useProposalStore(s => s.employees);
   const { customer, meta, transformer, systemType, freightLogistics } = project.data;
   // Quotation people only, plus whoever an older proposal already names.
@@ -186,7 +198,7 @@ export function Step1ProjectSetup({ project, update }: { project: Project; updat
             const active = systemType === st.id;
             return (
               <button key={st.id} type="button"
-                onClick={() => { setSystemType(project.id, st.id as SystemType); toast.success(`Switched to ${st.label}`); }}
+                onClick={() => { if (!active) setPendingType(st.id as SystemType); }}
                 className={`text-left p-4 rounded-2xl transition ${active ? "neo-inset ring-2 ring-blue-400/60" : "neo-pop"}`}>
                 <Badge variant="outline" className="mb-2">{st.badge}</Badge>
                 <div className="font-semibold text-slate-800">{st.label}</div>
@@ -196,8 +208,27 @@ export function Step1ProjectSetup({ project, update }: { project: Project; updat
             );
           })}
         </div>
-        <p className="text-xs text-muted-foreground mt-3">⚠ Changing system type resets test/instrument/equipment/subsystem defaults (customer info preserved).</p>
+        <p className="text-xs text-muted-foreground mt-3">⚠ Changing system type resets tests, major subsystems, instruments, equipment and proprietary items to that type's defaults. Everything else is kept.</p>
       </NeoSection>
+
+      <Dialog open={pendingType !== null} onOpenChange={open => { if (!open) setPendingType(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Switch to {systemTypesData.find(t => t.id === pendingType)?.label ?? pendingType}?
+            </DialogTitle>
+            <DialogDescription>
+              Tests, major subsystems, instruments, equipment and proprietary items go back to that system's
+              defaults. Customer details, prices, delivery, exclusions, makes and payment terms are kept.
+              You can undo it right after.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPendingType(null)}>Cancel</Button>
+            <Button onClick={() => { if (pendingType) switchType(pendingType); setPendingType(null); }}>Switch</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1051,7 +1082,8 @@ export function Step6Delivery({ project, update }: { project: Project; update: U
   const setFl = (patch: Partial<FreightLogisticsData>) =>
     update({ freightLogistics: { ...fl, ...patch } });
 
-  const destinationValue = fl.destination || project.data.customer.city || "";
+  // Empty = the customer's address (Project Setup), filled in until something else is typed.
+  const destinationValue = resolveDestination(fl, project.data.customer);
 
   return (
     <div className="space-y-8">
@@ -1112,7 +1144,7 @@ export function Step6Delivery({ project, update }: { project: Project; update: U
             <NeoInput
               value={destinationValue}
               onChange={e => setFl({ destination: e.target.value })}
-              placeholder="e.g. Customer site city"
+              placeholder="Customer address (fill it in on Project Setup)"
             />
           </Field>
 
@@ -1200,6 +1232,8 @@ export function Step6Delivery({ project, update }: { project: Project; update: U
 
 export function Step7ExclusionsMakes({ project, update }: { project: Project; update: Update }) {
   const { exclusions, makes, installationType } = project.data;
+  const customExclusions = project.data.exclusionsCustom ?? [];
+  const setCustomExclusions = (list: string[]) => update({ exclusionsCustom: list });
   const exclusionsData = useLibrary("exclusions");
   const makesOfSupplyData = useLibrary("makes");
   const toggleEx = (id: string) =>
@@ -1214,6 +1248,10 @@ export function Step7ExclusionsMakes({ project, update }: { project: Project; up
     const row = makesOfSupplyData.find(r => r.id === id);
     update({ makes: [...makes, { id, enabled: false, make: row?.defaultMake ?? "", ...patch }] });
   };
+  // Rows added with "Add custom item" (not in the Settings list).
+  const customMakes = makes.filter(m => m.item !== undefined && !makesOfSupplyData.some(r => r.id === m.id));
+  const updCustomMake = (id: string, patch: Partial<typeof makes[number]>) =>
+    update({ makes: makes.map(m => (m.id === id ? { ...m, ...patch } : m)) });
   return (
     <div className="space-y-6">
       {installationType === "full" && (
@@ -1234,6 +1272,25 @@ export function Step7ExclusionsMakes({ project, update }: { project: Project; up
             </label>
           ))}
         </div>
+        <div className="mt-4 space-y-2">
+          <div className="text-xs font-semibold text-slate-600">Your own exclusions (this quotation only)</div>
+          {customExclusions.map((text, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input
+                value={text}
+                placeholder="Type the exclusion"
+                onChange={ev => setCustomExclusions(customExclusions.map((t, j) => (j === i ? ev.target.value : t)))}
+              />
+              <Button size="icon" variant="ghost" title="Remove"
+                onClick={() => setCustomExclusions(customExclusions.filter((_, j) => j !== i))}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <Button size="sm" variant="outline" onClick={() => setCustomExclusions([...customExclusions, ""])}>
+            <Plus className="h-3 w-3 mr-1" />Add custom exclusion
+          </Button>
+        </div>
       </Section>
       <Section title="Makes of Supply">
         <table className="w-full text-sm border">
@@ -1247,7 +1304,7 @@ export function Step7ExclusionsMakes({ project, update }: { project: Project; up
           <tbody>
             {makesOfSupplyData.map(row => {
               const sel = makes.find(m => m.id === row.id) ?? { id: row.id, enabled: false, make: row.defaultMake };
-              const makeOptions = sel.make && !row.options.includes(sel.make) ? [sel.make, ...row.options] : row.options;
+
               return (
                 <tr key={row.id}>
                   <td className="border p-1 text-center">
@@ -1255,16 +1312,45 @@ export function Step7ExclusionsMakes({ project, update }: { project: Project; up
                   </td>
                   <td className="border p-1">{row.item}</td>
                   <td className="border p-1">
-                    <Select value={sel.make} onValueChange={v => updMake(row.id, { make: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{makeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
-                    </Select>
+                    {/* Pick from the list or type any manufacturer. */}
+                    <Input
+                      list={`make-options-${row.id}`}
+                      value={sel.custom || sel.make}
+                      placeholder="Type or pick a manufacturer"
+                      onChange={e => updMake(row.id, { make: e.target.value, custom: undefined })}
+                    />
+                    <datalist id={`make-options-${row.id}`}>
+                      {row.options.map(o => <option key={o} value={o} />)}
+                    </datalist>
                   </td>
                 </tr>
               );
             })}
+            {customMakes.map(m => (
+              <tr key={m.id}>
+                <td className="border p-1 text-center">
+                  <Checkbox checked={m.enabled} onCheckedChange={v => updCustomMake(m.id, { enabled: !!v })} />
+                </td>
+                <td className="border p-1">
+                  <Input value={m.item ?? ""} placeholder="Item" onChange={e => updCustomMake(m.id, { item: e.target.value })} />
+                </td>
+                <td className="border p-1">
+                  <div className="flex items-center gap-1">
+                    <Input value={m.make} placeholder="Manufacturer" onChange={e => updCustomMake(m.id, { make: e.target.value })} />
+                    <Button size="icon" variant="ghost" title="Remove"
+                      onClick={() => update({ makes: makes.filter(x => x.id !== m.id) })}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
+        <Button size="sm" variant="outline" className="mt-2"
+          onClick={() => update({ makes: [...makes, { id: `custom-${crypto.randomUUID()}`, enabled: true, item: "", make: "" }] })}>
+          <Plus className="h-3 w-3 mr-1" />Add custom item
+        </Button>
       </Section>
     </div>
   );

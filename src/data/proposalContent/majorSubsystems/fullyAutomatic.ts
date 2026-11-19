@@ -208,10 +208,10 @@ export const fullyAutomaticMajorSubsystems: SubsystemContent[] = [
   },
   {
     id: "iovt-mg-set",
-    title: "IOVT MG Set (200 Hz)",
+    title: "Main MG Set for IOVT (200 Hz)",
     preview: "High-frequency 200 Hz motor-generator for Induced Over Voltage Tests.",
     description:
-      "The IOVT MG Set is a high-frequency motor-generator system that supplies stable, isolated and clean 200 Hz AC power for Induced Over Voltage Tests (IOVT) on transformers and other sensitive electrical equipment. A robust motor is coupled to a high-frequency alternator, delivering precise voltage and frequency control with low harmonic distortion. The system provides full electrical isolation and effective suppression of transients and noise, and is built for continuous operation with efficient cooling, overcurrent and overvoltage protection, RTD-based temperature monitoring, high-class insulation and vibration-controlled couplings. Typical ratings range from 100 kVA to 1 MVA (11 kV), and the output is regulated through its dedicated excitation panel.",
+      "The Main MG Set for IOVT is a high-frequency motor-generator system that supplies stable, isolated and clean 200 Hz AC power for Induced Over Voltage Tests (IOVT) on transformers and other sensitive electrical equipment. A robust motor is coupled to a high-frequency alternator, delivering precise voltage and frequency control with low harmonic distortion. The system provides full electrical isolation and effective suppression of transients and noise, and is built for continuous operation with efficient cooling, overcurrent and overvoltage protection, RTD-based temperature monitoring, high-class insulation and vibration-controlled couplings. Typical ratings range from 100 kVA to 1 MVA (11 kV), and the output is regulated through its dedicated excitation panel.",
     images: [iovtMgSetImg, iovtMgSetPhotoImg],
   },
   {
@@ -243,7 +243,7 @@ export const fullyAutomaticMajorSubsystems: SubsystemContent[] = [
     title: "Booster Transformer",
     preview: "3-phase booster transformers with multiple taps for the test supply.",
     description:
-      "Booster transformers step the controlled output of the MG set and dimmer up to the voltage level needed by the test circuit, with multiple selectable taps to match different transformer voltage classes. They are supplied as 3-phase units, for example 500 kVA, 440 V / 800-2200-3300-6600-11000 V and 100 kVA, 440 V / 400-800-1200 V, so that the right range can be chosen for the transformers being tested.",
+      "Booster transformers step the controlled output of the Main MG Set and dimmer up to the voltage level needed by the test circuit, with multiple selectable taps to match different transformer voltage classes. They are supplied as 3-phase units, for example 500 kVA, 440 V / 800-2200-3300-6600-11000 V and 100 kVA, 440 V / 400-800-1200 V, so that the right range can be chosen for the transformers being tested.",
   },
   {
     id: "current-injection-transformer",
@@ -257,7 +257,7 @@ export const fullyAutomaticMajorSubsystems: SubsystemContent[] = [
     title: "LT Capacitor Bank",
     preview: "440 V reactive power compensation for the LV side of the test supply.",
     description:
-      "The LT Capacitor Bank provides reactive power compensation on the 440 V side of the test supply, reducing the load on the MG set and improving the stability of the test voltage during no-load and load-loss measurements. It is built from capacitor units arranged on a rack and offered in ratings from 600 kVAR to 4000 kVAR (for example 600, 700, 1500 and 4000 kVAR), so it can be sized to the test floor capacity. A panel-only version is also available where the capacitors of an existing system are reused. The capacitor steps are switched by contactors in the power panel.",
+      "The LT Capacitor Bank provides reactive power compensation on the 440 V side of the test supply, reducing the load on the Main MG Set and improving the stability of the test voltage during no-load and load-loss measurements. It is built from capacitor units arranged on a rack and offered in ratings from 600 kVAR to 4000 kVAR (for example 600, 700, 1500 and 4000 kVAR), so it can be sized to the test floor capacity. A panel-only version is also available where the capacitors of an existing system are reused. The capacitor steps are switched by contactors in the power panel.",
     images: [ltCapacitorCansImg],
   },
   {

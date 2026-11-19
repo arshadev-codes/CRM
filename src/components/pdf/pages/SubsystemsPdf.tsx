@@ -54,7 +54,8 @@ export function SubsystemsPdf({
   const blocks: SubsystemContent[] = all.filter(
     (s) => selectedIds.has(s.id) || selectedIds.has(s.title),
   );
-  const subsystemList = blocks.length ? blocks : all;
+  // Only what was ticked in the wizard. Nothing ticked = no subsystem pages.
+  const subsystemList = blocks;
   // Per-subsystem selected variant key (e.g. "manual", "pneumatic"). Falls
   // back to each subsystem's own variants.default inside SubsystemBlockBody
   // when a given id isn't present here — same fallback rule used in the wizard.
@@ -94,11 +95,11 @@ export function SubsystemsPdf({
   const pages = measuredPages ?? fallbackPages;
 
   useEffect(() => {
-    if (!measuring && onPageCountKnown) {
-      onPageCountKnown(Math.max(1, pages.length));
-    }
+    if (!onPageCountKnown) return;
+    if (flow.length === 0) onPageCountKnown(0); // section left out of the PDF
+    else if (!measuring) onPageCountKnown(Math.max(1, pages.length));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [measuring, pages.length]);
+  }, [measuring, pages.length, flow.length]);
 
   if (flow.length === 0) return null;
 

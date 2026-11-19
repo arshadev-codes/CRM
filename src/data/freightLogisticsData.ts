@@ -54,6 +54,19 @@ export const transitInsuranceOptions = [
   "Custom",
 ];
 
+/** The customer's address on one line: the default Destination. */
+export function customerAddressLine(c: { address?: string; city?: string; state?: string; country?: string }): string {
+  return [c.address, c.city, c.state, c.country].map(v => (v ?? "").trim()).filter(Boolean).join(", ");
+}
+
+/** Destination as printed: what was typed, else the customer's address. */
+export function resolveDestination(
+  fl: Pick<FreightLogisticsData, "destination"> | undefined,
+  c: { address?: string; city?: string; state?: string; country?: string },
+): string {
+  return fl?.destination?.trim() || customerAddressLine(c);
+}
+
 export const freightLogisticsDefaults: FreightLogisticsData = {
   freightCharges: "Inclusive",
   destination: "",

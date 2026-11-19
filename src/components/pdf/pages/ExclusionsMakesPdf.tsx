@@ -13,10 +13,15 @@ export function ExclusionsMakesPdf({
   const exclusionsData = useLibrary("exclusions");
   const makesOfSupplyData = useLibrary("makes");
   const selectedExclusionIds = new Set(project.data.exclusions);
-  const excl = exclusionsData.filter((e) => selectedExclusionIds.has(e.id));
+  const excl = [
+    ...exclusionsData.filter((e) => selectedExclusionIds.has(e.id)).map((e) => ({ id: e.id, title: e.title })),
+    ...(project.data.exclusionsCustom ?? [])
+      .map((t, i) => ({ id: `custom-${i}`, title: t.trim() }))
+      .filter((e) => e.title),
+  ];
   const makes = project.data.makes.filter((m) => m.enabled).map((m) => {
     const ref = makesOfSupplyData.find((d) => d.id === m.id);
-    return { item: ref?.item ?? m.id, make: m.custom || m.make || ref?.defaultMake || "—" };
+    return { item: ref?.item ?? (m.item?.trim() || m.id), make: m.custom || m.make || ref?.defaultMake || "—" };
   });
 
   return (

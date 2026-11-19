@@ -50,7 +50,8 @@ export function AllPages({
   const pagesFor = (id: string): number => {
     const def = SECTION_BY_ID[id];
     if (!def) return 0;
-    if (def.dynamic) return Math.max(1, getCount(def.dynamic, def.fallbackPages ?? 1));
+    // 0 when the section has nothing to show (e.g. no major subsystems ticked).
+    if (def.dynamic) return Math.max(0, getCount(def.dynamic, def.fallbackPages ?? 1));
     return 1;
   };
 

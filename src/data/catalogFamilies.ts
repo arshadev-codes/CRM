@@ -30,7 +30,7 @@ export const EQUIPMENT_FAMILIES: Record<string, string[]> = {
   ],
   "LT Capacitor Panel": ["lt-cap-panel", "lt-cap-panel-625kvar", "lt-cap-panel-6000kvar"],
   "Capacitor Unit / Rack": ["cap-unit-170kvar", "cap-rack"],
-  "MG Set": [
+  "Main MG Set": [
     "mg-set",
     "mg-500kva",
     "mg-100kva-200hz",
@@ -40,7 +40,7 @@ export const EQUIPMENT_FAMILIES: Record<string, string[]> = {
     "mg-30kva",
     "mg-main-2mva",
   ],
-  "IOVT MG Set": ["mg-iovt", "mg-iovt-1mva"],
+  "Main MG Set for IOVT": ["mg-iovt", "mg-iovt-1mva"],
   CT: [
     "ct-1",
     "ct-2",
