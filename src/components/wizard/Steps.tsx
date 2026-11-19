@@ -7,7 +7,10 @@ import type {
 } from "@/store/proposalStore";
 import { useProposalStore } from "@/store/proposalStore";
 import { systemTypesData, type SystemType } from "@/data/systemTypesData";
-import { getMajorSubsystems, resolveSubsystemTitle } from "@/data/proposalContent";
+import {
+  CUSTOMER_SCOPE_ID, COMPANION_SUBSYSTEMS, getMajorSubsystems, isCompanionSubsystem,
+  quotationSubsystems, resolveSubsystemTitle,
+} from "@/data/proposalContent";
 import { useLibrary, useDeliveryDurations } from "@/hooks/useLibrary";
 import { autoSubject } from "@/data/proposalSubject";
 import { CurrencyPanel } from "@/components/wizard/CurrencyPanel";
@@ -294,7 +297,10 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
   const subsystemVariants = project.data.subsystemVariants ?? {};
   const proposalCustomizations = project.data.proposalCustomizations ?? [];
   const cmsOverrides = useProposalStore(s => s.cmsOverrides);
-  const items = getMajorSubsystems(systemType, cmsOverrides);
+  // RIO Panel isn't ticked on its own: it comes with Machine Room Control Desk.
+  const allItems = getMajorSubsystems(systemType, cmsOverrides);
+  const items = allItems.filter(s => !isCompanionSubsystem(s.id));
+  const customerScope = project.data.customerScopeHardware ?? "";
   const toggle = (id: string) =>
     update({ selectedSubsystems: selectedSubsystems.includes(id) ? selectedSubsystems.filter(x => x !== id) : [...selectedSubsystems, id] });
 
@@ -339,8 +345,31 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
                 <div>
                   <div className="font-semibold text-sm">{resolveTitle(s)}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">{s.preview}</div>
+                  {COMPANION_SUBSYSTEMS[s.id] && (
+                    <div className="text-xs text-blue-700 mt-1">
+                      + {allItems.find(x => x.id === COMPANION_SUBSYSTEMS[s.id])?.title ?? "RIO Panel"} is added
+                      automatically, as item 2 in the PDF.
+                    </div>
+                  )}
                 </div>
               </button>
+              {sel && s.id === CUSTOMER_SCOPE_ID && (
+                <div className="px-3 pb-3 pt-2 border-t border-blue-100 space-y-1">
+                  <Label className="text-xs text-slate-600">
+                    Which customer instruments and equipment are integrated? (printed as this item's description)
+                  </Label>
+                  <Textarea
+                    rows={4}
+                    value={customerScope}
+                    onChange={e => update({ customerScopeHardware: e.target.value })}
+                    placeholder="e.g. Customer's impulse generator (make, rating), PD detector, power analyzer…"
+                    className={customerScope.trim() ? "" : "border-red-400"}
+                  />
+                  {!customerScope.trim() && (
+                    <p className="text-xs text-red-600">Please describe the customer's instruments and equipment.</p>
+                  )}
+                </div>
+              )}
               {sel && s.variants && (
                 <div
                   className="px-3 pb-3 pt-2 border-t border-blue-100 flex items-center gap-2"
@@ -1403,8 +1432,7 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
   // sections below, not mixed into this one.
   const cmsOverrides = useProposalStore(s => s.cmsOverrides);
   const allSubs = getMajorSubsystems(project.data.systemType, cmsOverrides);
-  const selectedSubIds = new Set(project.data.selectedSubsystems);
-  const subsystemRows = allSubs.filter(s => selectedSubIds.has(s.id) || selectedSubIds.has(s.title));
+  const subsystemRows = quotationSubsystems(allSubs, project.data);
   const subsystemVariants = project.data.subsystemVariants ?? {};
 
   const proprietaryItemsData = useLibrary("proprietary");

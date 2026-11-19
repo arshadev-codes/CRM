@@ -1,7 +1,7 @@
 import type React from "react";
 import { PdfPage } from "../PdfPage";
 import { useProposalStore, type Project, type CustomizationItem } from "@/store/proposalStore";
-import { getMajorSubsystems, type SubsystemContent, type SubsystemImageSize } from "@/data/proposalContent";
+import { getMajorSubsystems, quotationSubsystems, type SubsystemContent, type SubsystemImageSize } from "@/data/proposalContent";
 import { paginateByHeights, paginateBlocks, weightSubsystem } from "@/data/paginationHelpers";
 import { useBlockHeights } from "@/hooks/useBlockHeights";
 import { useEffect } from "react";
@@ -50,10 +50,8 @@ export function SubsystemsPdf({
 }): React.ReactElement | null {
   const cmsOverrides = useProposalStore((s) => s.cmsOverrides);
   const all = getMajorSubsystems(project.data.systemType, cmsOverrides);
-  const selectedIds = new Set(project.data.selectedSubsystems);
-  const blocks: SubsystemContent[] = all.filter(
-    (s) => selectedIds.has(s.id) || selectedIds.has(s.title),
-  );
+  // Ticked items in order, RIO Panel added with Machine Room (see quotationSubsystems).
+  const blocks: SubsystemContent[] = quotationSubsystems(all, project.data);
   // Only what was ticked in the wizard. Nothing ticked = no subsystem pages.
   const subsystemList = blocks;
   // Per-subsystem selected variant key (e.g. "manual", "pneumatic"). Falls

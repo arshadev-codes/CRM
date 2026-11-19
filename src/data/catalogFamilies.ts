@@ -40,7 +40,7 @@ export const EQUIPMENT_FAMILIES: Record<string, string[]> = {
     "mg-30kva",
     "mg-main-2mva",
   ],
-  "Main MG Set for IOVT": ["mg-iovt", "mg-iovt-1mva"],
+  "MG Set for IOVT": ["mg-iovt", "mg-iovt-1mva"],
   CT: [
     "ct-1",
     "ct-2",

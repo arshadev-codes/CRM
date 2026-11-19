@@ -21,7 +21,7 @@ export const equipmentData: EquipmentRow[] = [
   { id: "pt-1", equipment: "PT-1", included: true, spec1: "33 kV/110V", spec2: "Cl. 0.2", spec3: "Cast resin", spec4: "Indoor", spec5: "Burden 50VA" },
   { id: "pt-2", equipment: "PT-2", included: false, spec1: "11 kV/110V", spec2: "Cl. 0.2", spec3: "Cast resin", spec4: "Indoor", spec5: "Burden 50VA" },
   { id: "pt-3", equipment: "PT-3", included: false, spec1: "11 kV/110V", spec2: "Cl. 0.2", spec3: "Cast resin", spec4: "Indoor", spec5: "Burden 50VA" },
-  { id: "mg-iovt", equipment: "Main MG Set for IOVT", included: false, spec1: "2 MVA", spec2: "100–400 Hz", spec3: "Variable freq.", spec4: "Brushless", spec5: "Remote ctrl" },
+  { id: "mg-iovt", equipment: "MG Set for IOVT", included: false, spec1: "2 MVA", spec2: "100–400 Hz", spec3: "Variable freq.", spec4: "Brushless", spec5: "Remote ctrl" },
   { id: "hv-trans", equipment: "HV Transformer", included: true, spec1: "1000 kV", spec2: "300 kVA", spec3: "Oil-filled", spec4: "IEC 60076-3", spec5: "Single phase" },
   { id: "ind-dimmer", equipment: "Independent Dimmer", included: false, spec1: "415 V", spec2: "1000 A", spec3: "Motorized", spec4: "0–110%", spec5: "Remote" },
   { id: "dimmer", equipment: "Dimmer", included: false, spec1: "415 V", spec2: "1000 A", spec3: "Motorized", spec4: "0–110%", spec5: "Remote" },
@@ -191,7 +191,7 @@ export const equipmentData: EquipmentRow[] = [
   e("mg-800kva", "Motor Generator 800 kVA", "800 kVA", "0–900 V", "3 Phase"),
   e("mg-30kva", "Main MG Set 30 kVA", "30 kVA"),
   e("mg-main-2mva", "Main Generator 2 MVA with 1200 kW Motor", "Generator 2 MVA, 11 kV, 3Ph, 50/60 Hz", "Motor 1200 kW, 11 kV, 3Ph, 50/60 Hz", "", "", "", ["Main MG Set"]),
-  e("mg-iovt-1mva", "Main MG Set for IOVT 1 MVA, 11 kV, 200 Hz", "1 MVA", "11 kV", "200 Hz", "", "", ["IOVT MG Set"]),
+  e("mg-iovt-1mva", "MG Set for IOVT 1 MVA, 11 kV, 200 Hz", "1 MVA", "11 kV", "200 Hz", "", "", ["IOVT MG Set"]),
  
   // ---------- TRANSFORMERS ----------
   e("intermediate-trafo-2-4mva", "Intermediate Transformer 2.4 MVA, 11 kV", "2.4 MVA", "11 kV"),

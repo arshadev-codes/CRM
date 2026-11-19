@@ -8,7 +8,7 @@ import type { DeliveryRow } from "@/data/deliveryData";
 import { paymentTemplatesData, type PaymentMilestone, type PaymentTemplate } from "@/data/paymentTermsData";
 import { getLibrary } from "@/data/libraries";
 import type { QuoteCurrency } from "@/data/currency";
-import { getMajorSubsystems, fixSubsystemIdsInData } from "@/data/proposalContent";
+import { getMajorSubsystems, fixSubsystemIdsInData, isOffByDefault } from "@/data/proposalContent";
 import { employeesData, type Employee, type EmployeeRating, type RatingRule } from "@/data/employeesData";
 import { companiesData, type Company } from "@/data/companiesData";
 import { supabase } from "@/lib/supabaseClient";
@@ -115,6 +115,8 @@ export interface ProposalData {
   /** Optional free-text notes shown under the tests section in the PDF when non-empty */
   testsNotes?: string;
   selectedSubsystems: string[];
+  /** "Integration of Customer Scope Hardware": which customer instruments / equipment, as printed. */
+  customerScopeHardware?: string;
   proposalCustomizations: CustomizationItem[];
   subsystemVariants: Record<string, string>;
   systemLayout: SystemLayoutAssets;
@@ -219,7 +221,7 @@ function defaultsForSystem(systemType: SystemType, src: DefaultsSource = {}): Pr
     meta: emptyMeta(),
     transformer: emptyTransformer(),
     selectedTests: [...cfg.defaultTests],
-    selectedSubsystems: getMajorSubsystems(systemType, cmsOverrides).map(s => s.id),
+    selectedSubsystems: getMajorSubsystems(systemType, cmsOverrides).filter(s => !isOffByDefault(s.id)).map(s => s.id),
     proposalCustomizations: [],
     subsystemVariants: {},
     systemLayout: {},
