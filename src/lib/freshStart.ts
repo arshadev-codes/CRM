@@ -11,7 +11,7 @@ import { useProposalStore } from "@/store/proposalStore";
  */
 const EPOCH_KEY = "es_data_epoch";
 // Change the date part whenever the database is emptied again.
-const EPOCH = `${import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "own-supabase"}:live-2026-10-17`;
+const EPOCH = `${import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "own-supabase"}:live-2026-11-19`;
 
 export function freshStart() {
   if (typeof window === "undefined") return;

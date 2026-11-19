@@ -28,7 +28,12 @@ export const freightChargesOptions = [
   "Custom",
 ];
 
+/** Electrosoft's works, where the material is dispatched from: the default Source. */
+export const ELECTROSOFT_ADDRESS =
+  "Electrosoft Automation Pvt. Ltd., S7-1&2, Jai Matadi Compound, Thane-Bhiwandi Road, Kalher, Thane District, Maharashtra, India – 421302";
+
 export const sourceOptions = [
+  ELECTROSOFT_ADDRESS,
   "Vadodara, Gujarat",
   "Custom",
 ];
@@ -70,7 +75,7 @@ export function resolveDestination(
 export const freightLogisticsDefaults: FreightLogisticsData = {
   freightCharges: "Inclusive",
   destination: "",
-  source: "Vadodara, Gujarat",
+  source: ELECTROSOFT_ADDRESS,
   sourceCustom: "",
   modeOfTransport: "By Road",
   modeOfTransportCustom: "",

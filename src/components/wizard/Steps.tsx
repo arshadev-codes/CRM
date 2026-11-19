@@ -1230,6 +1230,9 @@ export function Step6Delivery({ project, update }: { project: Project; update: U
   );
 }
 
+/** Dropdown value for "Custom entry…" in Makes of Supply. */
+const CUSTOM_MAKE = "__custom__";
+
 export function Step7ExclusionsMakes({ project, update }: { project: Project; update: Update }) {
   const { exclusions, makes, installationType } = project.data;
   const customExclusions = project.data.exclusionsCustom ?? [];
@@ -1305,23 +1308,34 @@ export function Step7ExclusionsMakes({ project, update }: { project: Project; up
             {makesOfSupplyData.map(row => {
               const sel = makes.find(m => m.id === row.id) ?? { id: row.id, enabled: false, make: row.defaultMake };
 
+              const makeOptions = sel.make && !row.options.includes(sel.make) ? [sel.make, ...row.options] : row.options;
+              // "Custom entry" picked: the typed text (sel.custom) is printed instead of the list value.
+              const isCustom = sel.custom !== undefined;
               return (
                 <tr key={row.id}>
                   <td className="border p-1 text-center">
                     <Checkbox checked={sel.enabled} onCheckedChange={v => updMake(row.id, { enabled: !!v })} />
                   </td>
                   <td className="border p-1">{row.item}</td>
-                  <td className="border p-1">
-                    {/* Pick from the list or type any manufacturer. */}
-                    <Input
-                      list={`make-options-${row.id}`}
-                      value={sel.custom || sel.make}
-                      placeholder="Type or pick a manufacturer"
-                      onChange={e => updMake(row.id, { make: e.target.value, custom: undefined })}
-                    />
-                    <datalist id={`make-options-${row.id}`}>
-                      {row.options.map(o => <option key={o} value={o} />)}
-                    </datalist>
+                  <td className="border p-1 space-y-1">
+                    <Select
+                      value={isCustom ? CUSTOM_MAKE : sel.make}
+                      onValueChange={v => updMake(row.id, v === CUSTOM_MAKE ? { custom: sel.custom ?? "" } : { make: v, custom: undefined })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {makeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        <SelectItem value={CUSTOM_MAKE}>Custom entry…</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {isCustom && (
+                      <Input
+                        autoFocus
+                        value={sel.custom ?? ""}
+                        placeholder="Type the manufacturer"
+                        onChange={e => updMake(row.id, { custom: e.target.value })}
+                      />
+                    )}
                   </td>
                 </tr>
               );

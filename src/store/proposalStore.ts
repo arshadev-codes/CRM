@@ -302,7 +302,7 @@ interface ProposalStore {
 
 // ---------- Supabase sync helpers ----------
 // When the test data was cleared and the app went live (see src/lib/freshStart.ts).
-const GO_LIVE_AT = Date.parse("2026-10-17T10:10:00Z");
+const GO_LIVE_AT = Date.parse("2026-11-19T00:00:00Z");
 
 function projectToRow(p: Project) {
   return {
