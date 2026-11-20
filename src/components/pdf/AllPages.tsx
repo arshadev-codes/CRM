@@ -9,9 +9,9 @@ import { RequirementPdf } from "./pages/RequirementPdf";
 import { SystemIntroPdf } from "./pages/SystemIntroPdf";
 import { SubsystemsPdf } from "./pages/SubsystemsPdf";
 import { ConnectionsTestsPdf } from "./pages/ConnectionsTestsPdf";
-import { SystemLayoutPdf } from "./pages/SystemLayoutPdf";
+import { SystemLayoutPdf, hasSystemLayout } from "./pages/SystemLayoutPdf";
 import { ScopeOfSupplyPdf } from "./pages/ScopeOfSupplyPdf";
-import { EquipmentInstrumentsPdf } from "./pages/EquipmentInstrumentsPdf";
+import { EquipmentInstrumentsPdf, hasEquipmentOrInstruments } from "./pages/EquipmentInstrumentsPdf";
 import { ScopeOfServicesPdf } from "./pages/ScopeOfServicesPdf";
 import { ExclusionsMakesPdf } from "./pages/ExclusionsMakesPdf";
 import { CommercialTermsPdf } from "./pages/CommercialTermsPdf";
@@ -52,6 +52,10 @@ export function AllPages({
     if (!def) return 0;
     // 0 when the section has nothing to show (e.g. no major subsystems ticked).
     if (def.dynamic) return Math.max(0, getCount(def.dynamic, def.fallbackPages ?? 1));
+    // Nothing uploaded in the System Layout step: leave the Schematic page out.
+    if (id === "systemLayout" && !hasSystemLayout(project)) return 0;
+    if (id === "equipmentInstruments" && !hasEquipmentOrInstruments(project)) return 0;
+    if (id === "commercial") return 2; // Pricing + Freight, then the other commercial terms
     return 1;
   };
 
@@ -72,7 +76,8 @@ export function AllPages({
   // ── Pass 2: render with the resolved page numbers ─────────────────────
   const rendered: ReactNode[] = [];
 
-  for (const { id, start } of plan) {
+  for (const { id, start, count } of plan) {
+    if ((id === "systemLayout" || id === "equipmentInstruments") && count === 0) continue;
     let node: ReactNode = null;
 
     switch (id) {

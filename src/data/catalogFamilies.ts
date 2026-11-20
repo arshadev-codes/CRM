@@ -86,8 +86,9 @@ export const EQUIPMENT_FAMILIES: Record<string, string[]> = {
     "hv-80kv-300ma",
   ],
   "HV Tester": ["hv-tester-75kv", "hv-tester-3-5kv"],
-  "Booster Transformer": ["booster", "booster-500kva", "booster-100kva"],
-  "Intermediate Transformer": ["intermediate-trafo-100kva", "intermediate-trafo-2-4mva"],
+  "Intermediate Transformer": [
+    "intermediate-trafo-100kva", "intermediate-trafo-2-4mva", "booster", "booster-500kva", "booster-100kva",
+  ],
   "3-Phase Transformer": ["trafo-150kva-3ph"],
   "Current Injection Transformer": ["current-injection-3000a"],
   "Dimmer / Voltage Regulator": [

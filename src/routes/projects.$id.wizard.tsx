@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { projectSaves, useProposalStore } from "@/store/proposalStore";
 import { useSaveStatus } from "@/lib/projectSave";
@@ -16,6 +16,10 @@ import { toast } from "sonner";
 import { resolveLayout } from "@/data/proposalLayout";
 
 export const Route = createFileRoute("/projects/$id/wizard")({
+  // The open step is kept in the address (?step=pricing), so going to Settings
+  // and pressing Back returns to the same step.
+  validateSearch: (search: Record<string, unknown>): { step?: string } =>
+    typeof search.step === "string" ? { step: search.step } : {},
   component: Wizard,
 });
 
@@ -40,7 +44,7 @@ function Wizard() {
   const updateProject = useProposalStore(s => s.updateProject);
   const reviseProject = useProposalStore(s => s.reviseProject);
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
+  const { step: stepKey } = Route.useSearch();
   const canQuote = useCan("quotation");
   const saveStatus = useSaveStatus(s => s.byId[id]);
 
@@ -62,7 +66,11 @@ function Wizard() {
     .map(k => ALL_STEPS.find(s => s.key === k))
     .filter((s): s is (typeof ALL_STEPS)[number] => Boolean(s));
   const STEPS = picked.length ? picked : ALL_STEPS;
-  const stepIndex = Math.min(step, STEPS.length - 1);
+  const stepIndex = Math.max(0, STEPS.findIndex(s => s.key === stepKey));
+  const setStep = (i: number) => {
+    const next = STEPS[Math.min(Math.max(i, 0), STEPS.length - 1)];
+    void navigate({ to: "/projects/$id/wizard", params: { id }, search: { step: next.key }, replace: true });
+  };
 
   if (!project) return (
     <div className="p-8 text-center">

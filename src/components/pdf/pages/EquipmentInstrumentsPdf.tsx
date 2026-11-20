@@ -7,6 +7,10 @@ import { makeMoney, type Money } from "@/data/currency";
 
 // Pages dedicated to OTHER EQUIPMENT and TESTING INSTRUMENTS — formatted as
 // in the reference proposal (Sr. No / Description / Quantity / Price).
+/** The page is printed only when the quotation has equipment or instruments. */
+export const hasEquipmentOrInstruments = (project: Project) =>
+  (project.data.equipment ?? []).some((e) => e.included) || (project.data.instruments ?? []).length > 0;
+
 export function EquipmentInstrumentsPdf({
   project,
   pageNumber,
@@ -20,13 +24,13 @@ export function EquipmentInstrumentsPdf({
   const insPricing = project.data.pricing?.instruments;
   const money = makeMoney(project.data.currency);
 
+  // Empty boxes are skipped, so there are never two commas in a row.
+  const joinFilled = (parts: (string | undefined)[]) =>
+    parts.map((v) => String(v ?? "").trim()).filter(Boolean).join(", ");
   const describeEq = (e: typeof equipmentData[number]) =>
-    [e.equipment, e.spec1, e.spec2, e.spec3, e.spec4, e.spec5]
-      .filter(Boolean)
-      .join(", ");
+    joinFilled([e.equipment, e.spec1, e.spec2, e.spec3, e.spec4, e.spec5]);
 
-  const describeIns = (i: typeof instrumentsData[number]) =>
-    [i.instrument, i.make, i.model].filter(Boolean).join(", ");
+  const describeIns = (i: typeof instrumentsData[number]) => joinFilled([i.instrument, i.make, i.model]);
 
   const eqRows = eq.map((e, i) => {
     const entry = getEntry(eqPricing, e.id);
@@ -44,11 +48,14 @@ export function EquipmentInstrumentsPdf({
         Electrosoft's Scope of Supply
       </h2>
 
-      <SectionTable title="OTHER EQUIPMENT" rows={eqRows} money={money} />
+      {/* A table with nothing in it is left out. */}
+      {eqRows.length > 0 && <SectionTable title="OTHER EQUIPMENT" rows={eqRows} money={money} />}
 
-      <div className="mt-5">
-        <SectionTable title="TESTING INSTRUMENTS" rows={insRows} money={money} />
-      </div>
+      {insRows.length > 0 && (
+        <div className="mt-5">
+          <SectionTable title="TESTING INSTRUMENTS" rows={insRows} money={money} />
+        </div>
+      )}
     </PdfPage>
   );
 }

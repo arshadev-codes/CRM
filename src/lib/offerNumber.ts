@@ -1,6 +1,6 @@
 /**
- * Offer number format:  Q{seq3}/{FY}/{CompanyShort}/TTS/R{rev}
- * Example: Q001/2025-26/Neo/TTS/R0
+ * Offer number format:  SQ{seq3}/{FY}/{CompanyShort}/TTS/R{rev}
+ * Example: SQ001/2025-26/Neo/TTS/R0
  */
 
 export function getFY(dateISO: string): string {
@@ -32,7 +32,7 @@ export function buildOfferNumber(opts: {
   companyShort: string;
   revision: number;
 }): string {
-  return `Q${pad3(opts.seq)}/${opts.fy}/${slugCompany(opts.companyShort)}/TTS/R${opts.revision}`;
+  return `SQ${pad3(opts.seq)}/${opts.fy}/${slugCompany(opts.companyShort)}/TTS/R${opts.revision}`;
 }
 
 export function buildOfferBase(opts: {
@@ -40,5 +40,5 @@ export function buildOfferBase(opts: {
   fy: string;
   companyShort: string;
 }): string {
-  return `Q${pad3(opts.seq)}/${opts.fy}/${slugCompany(opts.companyShort)}/TTS`;
+  return `SQ${pad3(opts.seq)}/${opts.fy}/${slugCompany(opts.companyShort)}/TTS`;
 }

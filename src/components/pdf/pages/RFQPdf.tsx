@@ -5,8 +5,9 @@ import { useProposalStore } from "@/store/proposalStore";
 import { proposalSubject } from "@/data/proposalSubject";
 
 // Names come from the live list (people added in Settings), falling back to the seed.
-const personName = (id: string) =>
-  [...useProposalStore.getState().employees, ...employeesData].find(e => e.id === id)?.name ?? id;
+const findPerson = (id: string) =>
+  [...useProposalStore.getState().employees, ...employeesData].find(e => e.id === id);
+const personName = (id: string) => findPerson(id)?.name ?? id;
 
 // Formats "2025-11-24" -> "24th November 2025"
 function formatOrdinalDate(iso: string): string {
@@ -35,6 +36,10 @@ function formatDottedDate(iso: string): string {
 export function RFQPdf({ project, pageNumber = 1 }: { project: Project; pageNumber?: number }) {
   const { customer, meta, transformer, systemType } = project.data;
   const prep = personName(meta.preparedBy);
+  // Signed by the "Prepared by" person: their designation and mobile number from Settings → Quotation people.
+  const signer = findPerson(meta.preparedBy);
+  const signerDesignation = signer?.designation?.trim();
+  const signerPhone = signer?.phone?.trim();
   const chk = personName(meta.checkedBy);
   const subject = proposalSubject(project.data);
   const revisionNum = meta.revision.replace(/^R/i, "");
@@ -90,9 +95,9 @@ export function RFQPdf({ project, pageNumber = 1 }: { project: Project; pageNumb
         <div>
           <div>Sincerely,</div>
           <div className="mt-4 italic font-bold">{prep}</div>
-          <div>General Manager</div>
+          {signerDesignation && <div>{signerDesignation}</div>}
           <div>Electrosoft Automation Pvt. Ltd.</div>
-          <div className="mt-1">m: +91 9089 888 444</div>
+          {signerPhone && <div className="mt-1">m: {signerPhone}</div>}
         </div>
         <div className="border-2 border-red-600 p-2 text-[10px] font-bold text-red-600 self-start">
           This techno-commercial proposal, including all pages, literature, photographs, and linked documents, is the

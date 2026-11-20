@@ -97,6 +97,8 @@ export interface PricingData {
   instruments: Record<string, PriceEntry>;
   equipment: Record<string, PriceEntry>;
   scopeOfServices: Record<string, string>;
+  /** Freight charges, printed under the total in Commercial Terms (not added to it). */
+  freight?: string;
 }
 
 export interface InstallationPricing {
@@ -117,6 +119,8 @@ export interface ProposalData {
   selectedSubsystems: string[];
   /** "Integration of Customer Scope Hardware": which customer instruments / equipment, as printed. */
   customerScopeHardware?: string;
+  /** Ratings typed in the wizard, by subsystem id (LT Capacitor Bank), printed after the title. */
+  subsystemRatings?: Record<string, string>;
   proposalCustomizations: CustomizationItem[];
   subsystemVariants: Record<string, string>;
   systemLayout: SystemLayoutAssets;
@@ -757,8 +761,11 @@ export const useProposalStore = create<ProposalStore>()(
             if (!c || p.updatedAt > c.updatedAt) projectSaves.queue(p, 0);
           }
           // Saved quotations may still hold renamed subsystem ids; map them to the current ones.
+          // Offer numbers made before the switch to "SQ" (Q001/…) get the new prefix.
           const fixed = Array.from(map.values()).map(p => {
-            const data = fixSubsystemIdsInData(p.data);
+            let data = fixSubsystemIdsInData(p.data);
+            const offer = data.meta?.offerNumber ?? "";
+            if (/^Q\d{3}\//.test(offer)) data = { ...data, meta: { ...data.meta, offerNumber: `S${offer}` } };
             return data === p.data ? p : { ...p, data };
           });
           set({ projects: fixed.sort((a, b) => b.updatedAt - a.updatedAt) });

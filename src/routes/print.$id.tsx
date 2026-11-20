@@ -19,7 +19,7 @@ function Print() {
   }, []);
 
   // "Save as PDF" names the file after the page title: use the offer number,
-  // e.g. Q001/2026-27/Neo/TTS-R0 -> Q001-2026-27-Neo-TTS-R0.pdf ("/" can't be in a file name).
+  // e.g. SQ001/2026-27/Neo/TTS/R0 -> SQ001-2026-27-Neo-TTS-R0.pdf ("/" can't be in a file name).
   const fileName = (project?.data.meta.offerNumber || project?.name || "Quotation")
     .replace(/[\\/:*?"<>|]+/g, "-")
     .trim();

@@ -1,6 +1,9 @@
 import { PdfPage } from "../PdfPage";
 import { makeMoney } from "@/data/currency";
 import type { Project } from "@/store/proposalStore";
+import { scopeOfSupplyPriced } from "@/data/proposalContent";
+import { countedServicePrices, getOnSiteServiceRows } from "@/data/scopeOfServiceRows";
+import { useLibrary } from "@/hooks/useLibrary";
 import {
   freightLogisticsDefaults,
   resolveDestination,
@@ -69,15 +72,21 @@ export function CommercialTermsPdf({
   const sumServices = (services?: Record<string, string>) =>
     Object.values(services ?? {}).reduce((sum, v) => sum + (Number(v) || 0), 0);
 
-  const priceA = sumEntries(pricing?.scopeOfSupply);
+  const priceA = sumEntries(scopeOfSupplyPriced(pricing?.scopeOfSupply));
   const priceB = sumEntries(pricing?.instruments);
   const priceC = sumEntries(pricing?.equipment);
-  const priceD = sumServices(pricing?.scopeOfServices);
-  const grandTotal = priceA + priceB + priceC + priceD;
+  const priceD = sumServices(countedServicePrices(project, pricing?.scopeOfServices));
 
   const { rating, ratingUnit, voltage, voltageUnit } = project.data.transformer;
 
-  const priceBidRows = [
+  // B, C and D are printed only when the quotation has instruments, equipment or
+  // on-site services; the rows that are left are lettered A, B, C… in order.
+  const proprietaryItems = useLibrary("proprietary");
+  const hasInstruments = (project.data.instruments ?? []).length > 0;
+  const hasEquipment = (project.data.equipment ?? []).some((e) => e.included);
+  const hasServices = getOnSiteServiceRows(project, proprietaryItems).length > 0;
+
+  const allBidRows = [
     {
       key: "A",
       description: `Supply of Advanced Transformer Testing System for ${rating || "—"} ${ratingUnit}, ${voltage || "—"} ${voltageUnit} Transformers, comprising all instruments, equipment and scope of supply items as detailed in this proposal.`,
@@ -103,8 +112,17 @@ export function CommercialTermsPdf({
       price: priceD,
     },
   ];
+  const shown = { A: true, B: hasInstruments, C: hasEquipment, D: hasServices } as const;
+  const priceBidRows = allBidRows
+    .filter((r) => shown[r.key as keyof typeof shown])
+    .map((r, i) => ({ ...r, key: String.fromCharCode(65 + i) }));
+  const grandTotal = priceBidRows.reduce((sum, r) => sum + r.price, 0);
+  const freight = Number(pricing?.freight) || 0;
+  const totalLabel = `Total (${priceBidRows.map((r) => r.key).join(" + ")})`;
 
+  // Two pages: Pricing and Freight & Logistics on the first, the other terms on the second.
   return (
+    <>
     <PdfPage pageNumber={pageNumber}>
       {/* Scoped print-color fix — ships with this page, no global CSS dependency.
           These are real stylesheet rules with !important, not inline style props,
@@ -160,12 +178,22 @@ export function CommercialTermsPdf({
               ))}
               <tr>
                 <td className="ct-bold ct-black" style={{ ...cellBase, textAlign: "center", background: THEME.totalBg }} colSpan={3}>
-                  Total (A + B + C + D)
+                  {totalLabel}
                 </td>
                 <td className="ct-bold ct-black" style={{ ...cellBase, textAlign: "center", background: THEME.totalBg }}>
                   {inr(grandTotal)}
                 </td>
               </tr>
+              {freight > 0 && (
+                <tr>
+                  <td className="ct-bold ct-black" style={{ ...cellBase, textAlign: "center" }} colSpan={3}>
+                    Freight Charges
+                  </td>
+                  <td className="ct-black" style={{ ...cellBase, textAlign: "center" }}>
+                    {inr(freight)}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </Section>
@@ -184,6 +212,11 @@ export function CommercialTermsPdf({
           <p style={{ fontSize: 13, marginTop: 8, color: THEME.black }}>{fl.liabilityNote}</p>
         </Section>
 
+      </div>
+    </PdfPage>
+
+    <PdfPage pageNumber={pageNumber + 1}>
+      <div className="commercial-terms-page">
         <Section title="Offer Validity">
           <p style={{ color: THEME.black }}>30 days from the date of this offer.</p>
         </Section>
@@ -209,6 +242,7 @@ export function CommercialTermsPdf({
         </Section>
       </div>
     </PdfPage>
+    </>
   );
 }
 

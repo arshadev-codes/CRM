@@ -147,7 +147,7 @@ export const conventionalMajorSubsystems: SubsystemContent[] = [
   },
   {
     id: "dimmer",
-    title: "Motorized Oil-Cooled Dimmer (Voltage Regulator)",
+    title: "Motorized Dimmer (Voltage Regulator)",
     preview: "Smooth, stepless control of test voltage – 100 A to 2000 A ratings.",
     description:
       "The Dimmer is a 3-phase, motorized, oil-cooled variable voltage regulator for smooth and precise adjustment of the voltage applied to the test circuit, typically over a 0–470 V, 50 Hz range. The motorized mechanism is driven by raise/lower joystick switches on the control desk, while panel meters show the output voltage and current. The oil-cooled design ensures efficient heat dissipation, extended duty cycles and reliable operation under high-current conditions, with stable output, long service life and good protection against thermal stress and contact wear. Ratings are available from 100 A up to 2000 A (for example 100 A, 250 A, 600 A, 800 A, 900 A, 1200 A and 2000 A), so the right size can be selected for the transformer rating and test type. An independent dimmer (for example 800 A, 0–460 V, 2 phase) can also be supplied dedicated to HV testing.",
@@ -194,11 +194,30 @@ export const conventionalMajorSubsystems: SubsystemContent[] = [
   },
   {
     id: "ct-pt-selection",
-    title: "CT / PT Selection Switches & Rack",
+    title: "CT / PT Rack with Manually Operated Knife Switches",
     preview: "Hand-operated knife switches to select the correct CT and PT ratios.",
     description:
       "The CT/PT rack houses the current and potential transformers used for measurement, together with hand-operated knife switches that let the operator select the required CT or PT ratio for each test. This conventional arrangement is simple, transparent and easy to maintain: the selected ratio is visible at a glance, and the selection is wired to the control desk meters and the power analyzer. Multi-ratio CTs (for example 5-10-25-50-100/5 A or 75-150-225-300/5 A, class 0.1 or 0.2) and multi-ratio PTs (for example 0.55-1.1-2.2-3.3 kV/110 V or 6.6-11 kV/110 V) are supplied to cover a wide range of transformer ratings. Pneumatically operated switches are available in the automated version of the system.",
     images: [ctPtRackImg, ctPtRackFrontViewImg, ctPtRackKnifeSwitchesImg],
+    variants: {
+      default: "manual",
+      options: [
+        {
+          key: "manual",
+          label: "Manually Operated",
+          title: "CT / PT Rack with Manually Operated Knife Switches",
+          description:
+            "The CT/PT rack houses the current and potential transformers used for measurement, together with manually operated knife switches that let the operator select the required CT or PT ratio for each test. The selected ratio is wired to the test bench metering and the power analyzer. Multi-ratio CTs (for example 5-10-25-50-100/5 A or 75-150-225-300/5 A, class 0.1 or 0.2) and multi-ratio PTs (for example 0.55-1.1-2.2-3.3 kV/110 V or 6.6-11 kV/110 V) are supplied to cover a wide range of transformer ratings.",
+        },
+        {
+          key: "pneumatic",
+          label: "Pneumatically Operated",
+          title: "CT / PT Rack with Pneumatically Operated Knife Switches",
+          description:
+            "The CT/PT rack houses the current and potential transformers used for measurement, together with pneumatically operated knife switches that select the required CT or PT ratio for each test under system control, without manual intervention. The selected ratio is wired to the test bench metering and the power analyzer. Multi-ratio CTs (for example 5-10-25-50-100/5 A or 75-150-225-300/5 A, class 0.1 or 0.2) and multi-ratio PTs (for example 0.55-1.1-2.2-3.3 kV/110 V or 6.6-11 kV/110 V) are supplied to cover a wide range of transformer ratings.",
+        },
+      ],
+    },
   },
   {
     id: "rtd-temperature",

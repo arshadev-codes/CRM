@@ -9,13 +9,13 @@ import { useProposalStore } from "@/store/proposalStore";
 import { systemTypesData, type SystemType } from "@/data/systemTypesData";
 import {
   CUSTOMER_SCOPE_ID, COMPANION_SUBSYSTEMS, getMajorSubsystems, isCompanionSubsystem,
-  quotationSubsystems, resolveSubsystemTitle,
+  quotationSubsystems, resolveSubsystemTitle, hasRating, withRating,
+  isPricedInScopeOfSupply, scopeOfSupplyPriced,
 } from "@/data/proposalContent";
 import { useLibrary, useDeliveryDurations } from "@/hooks/useLibrary";
 import { autoSubject } from "@/data/proposalSubject";
 import { CurrencyPanel } from "@/components/wizard/CurrencyPanel";
-import { getOnSiteServiceRows } from "@/data/scopeOfServiceRows";
-import { defaultLayoutImages } from "@/lib/defaultLayoutImages";
+import { countedServicePrices, getOnSiteServiceRows } from "@/data/scopeOfServiceRows";
 import { lineTotal } from "@/data/pricingHelpers";
 import { CompanyAutocomplete } from "@/components/wizard/CompanyAutocomplete";
 import { CatalogPickerDialog } from "@/components/wizard/CatalogPickerDialog";
@@ -301,6 +301,8 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
   const allItems = getMajorSubsystems(systemType, cmsOverrides);
   const items = allItems.filter(s => !isCompanionSubsystem(s.id));
   const customerScope = project.data.customerScopeHardware ?? "";
+  const ratings = project.data.subsystemRatings ?? {};
+  const setRating = (id: string, value: string) => update({ subsystemRatings: { ...ratings, [id]: value } });
   const toggle = (id: string) =>
     update({ selectedSubsystems: selectedSubsystems.includes(id) ? selectedSubsystems.filter(x => x !== id) : [...selectedSubsystems, id] });
 
@@ -343,7 +345,7 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
               <button type="button" onClick={() => toggle(s.id)} className="w-full text-left p-3 flex items-start gap-3">
                 <Checkbox checked={sel} onCheckedChange={() => toggle(s.id)} className="mt-1" />
                 <div>
-                  <div className="font-semibold text-sm">{resolveTitle(s)}</div>
+                  <div className="font-semibold text-sm">{hasRating(s.id) ? withRating(resolveTitle(s), ratings[s.id]) : resolveTitle(s)}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">{s.preview}</div>
                   {COMPANION_SUBSYSTEMS[s.id] && (
                     <div className="text-xs text-blue-700 mt-1">
@@ -353,6 +355,21 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
                   )}
                 </div>
               </button>
+              {sel && hasRating(s.id) && (
+                <div
+                  className="px-3 pb-3 pt-2 border-t border-blue-100 flex items-center gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Label className="text-xs text-slate-600 shrink-0">Rating:</Label>
+                  <Input
+                    value={ratings[s.id] ?? ""}
+                    onChange={e => setRating(s.id, e.target.value)}
+                    placeholder="e.g. 1500 kVAR, 440 V"
+                    className="h-8 text-xs w-64"
+                  />
+                  <span className="text-xs text-muted-foreground">Printed in brackets after the title.</span>
+                </div>
+              )}
               {sel && s.id === CUSTOMER_SCOPE_ID && (
                 <div className="px-3 pb-3 pt-2 border-t border-blue-100 space-y-1">
                   <Label className="text-xs text-slate-600">
@@ -421,10 +438,8 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
 
 export function Step3bSystemLayout({ project, update }: { project: Project; update: Update }) {
   const layout = project.data.systemLayout ?? {};
-  // defaultLayoutImages imported at top of file
-  const defaultImage = defaultLayoutImages[project.data.systemType];
-  const displayedImage = layout.imageUrl || defaultImage;
-  const isUsingDefault = !layout.imageUrl;
+  const displayedImage = layout.imageUrl;
+  const nothingUploaded = !layout.imageUrl && !layout.designPdfUrl;
   const onFile = (file: File | null, key: "imageUrl" | "designPdfUrl") => {
     if (!file) return;
     const reader = new FileReader();
@@ -440,30 +455,34 @@ export function Step3bSystemLayout({ project, update }: { project: Project; upda
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        The <strong>Schematic of Offered System</strong> page text is fixed and not editable. A default schematic
-        image is pre-loaded for each system type — use <strong>Change Image</strong> to swap it out with your own
-        drawing for this specific project.
+        The <strong>Schematic of Offered System</strong> page text is fixed and not editable. Upload this project's
+        layout image and/or design PDF here.
       </p>
+      {nothingUploaded && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+          Nothing uploaded: the Schematic of Offered System page is left out of the PDF.
+        </p>
+      )}
       <Section title="Layout Image">
         <div className="flex items-start gap-4">
           <div className="w-64 h-48 border rounded grid place-items-center overflow-hidden bg-slate-50 shrink-0">
-            <img src={displayedImage} alt="Layout" className="max-w-full max-h-full object-contain" />
+            {displayedImage
+              ? <img src={displayedImage} alt="Layout" className="max-w-full max-h-full object-contain" />
+              : <span className="text-xs text-muted-foreground">No image</span>}
           </div>
           <div className="space-y-2">
             <div className="text-xs text-slate-600">
-              {isUsingDefault
-                ? <>Using default image for <strong>{project.data.systemType}</strong>.</>
-                : <>Custom image uploaded for this project.</>}
+              {displayedImage ? <>Image uploaded for this project.</> : <>No layout image uploaded.</>}
             </div>
             <label className="inline-flex items-center gap-2 px-3 py-2 rounded border cursor-pointer bg-white hover:bg-slate-50 text-sm">
               <Plus className="h-3 w-3" />
-              Change Image
+              {displayedImage ? "Change Image" : "Upload Image"}
               <input type="file" accept="image/*" className="hidden"
                 onChange={e => onFile(e.target.files?.[0] ?? null, "imageUrl")} />
             </label>
-            {!isUsingDefault && (
+            {displayedImage && (
               <Button size="sm" variant="ghost" onClick={() => update({ systemLayout: { ...layout, imageUrl: undefined } })}>
-                <Trash2 className="h-3 w-3 mr-1" />Revert to default
+                <Trash2 className="h-3 w-3 mr-1" />Remove image
               </Button>
             )}
           </div>
@@ -544,6 +563,14 @@ function SpecTable({ kind, rows, onChange, firstCol, extraCols = [], markInclude
   const [pickerOpen, setPickerOpen] = useState(false);
   const update = (i: number, patch: Partial<AnyRow>) => onChange(rows.map((r, idx) => idx === i ? { ...r, ...patch } : r));
   const remove = (i: number) => onChange(rows.filter((_, idx) => idx !== i));
+  // Row order here is the order in the PDF and the pricing table.
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= rows.length) return;
+    const next = [...rows];
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next);
+  };
   const addBlank = () => {
     const blank: AnyRow = { id: crypto.randomUUID(), spec1: "", spec2: "", spec3: "", spec4: "", spec5: "" };
     blank[firstCol.key] = "";
@@ -569,7 +596,7 @@ function SpecTable({ kind, rows, onChange, firstCol, extraCols = [], markInclude
             <th className="border p-1.5 text-left">{firstCol.label}</th>
             {extraCols.map(c => <th key={c.key} className="border p-1.5 text-left">{c.label}</th>)}
             {[1, 2, 3, 4, 5].map(n => <th key={n} className="border p-1.5 text-left">Spec-{n}</th>)}
-            <th className="border p-1.5 w-10"></th>
+            <th className="border p-1.5 w-24"></th>
           </tr>
         </thead>
         <tbody>
@@ -585,8 +612,10 @@ function SpecTable({ kind, rows, onChange, firstCol, extraCols = [], markInclude
                 const key = `spec${n}`;
                 return <td key={n} className="border p-0.5"><Input className="h-7 text-xs" value={String(r[key] ?? "")} onChange={e => update(i, { [key]: e.target.value })} /></td>;
               })}
-              <td className="border p-0.5 text-center">
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => remove(i)}><Trash2 className="h-3 w-3" /></Button>
+              <td className="border p-0.5 text-center whitespace-nowrap">
+                <Button size="icon" variant="ghost" className="h-7 w-7" title="Move up" disabled={i === 0} onClick={() => move(i, -1)}>↑</Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" title="Move down" disabled={i === rows.length - 1} onClick={() => move(i, 1)}>↓</Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" title="Remove" onClick={() => remove(i)}><Trash2 className="h-3 w-3" /></Button>
               </td>
             </tr>
           ))}
@@ -1405,6 +1434,7 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
     instruments: project.data.pricing?.instruments ?? {},
     equipment: project.data.pricing?.equipment ?? {},
     scopeOfServices: project.data.pricing?.scopeOfServices ?? {},
+    freight: project.data.pricing?.freight ?? "",
   };
 
   const setEntry = (section: "scopeOfSupply" | "instruments" | "equipment", key: string, patch: Partial<PriceEntry>) => {
@@ -1432,7 +1462,8 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
   // sections below, not mixed into this one.
   const cmsOverrides = useProposalStore(s => s.cmsOverrides);
   const allSubs = getMajorSubsystems(project.data.systemType, cmsOverrides);
-  const subsystemRows = quotationSubsystems(allSubs, project.data);
+  // HV Test Transformer, MG Set for IOVT, Dimmer, etc. are priced in the Equipment section instead.
+  const subsystemRows = quotationSubsystems(allSubs, project.data).filter(s => isPricedInScopeOfSupply(s.id));
   const subsystemVariants = project.data.subsystemVariants ?? {};
 
   const proprietaryItemsData = useLibrary("proprietary");
@@ -1469,8 +1500,8 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
   const sumEntries = (entries: Record<string, PriceEntry>) =>
     Object.values(entries).reduce((sum, e) => sum + (Number(e.unitPrice) || 0) * (Number(e.qty) || 0), 0);
   const totalInr =
-    sumEntries(pricing.scopeOfSupply) + sumEntries(pricing.instruments) + sumEntries(pricing.equipment) +
-    Object.values(pricing.scopeOfServices).reduce((sum, v) => sum + (Number(v) || 0), 0);
+    sumEntries(scopeOfSupplyPriced(pricing.scopeOfSupply)) + sumEntries(pricing.instruments) + sumEntries(pricing.equipment) +
+    Object.values(countedServicePrices(project, pricing.scopeOfServices)).reduce((sum, v) => sum + (Number(v) || 0), 0);
 
   return (
     <div className="space-y-8">
@@ -1550,6 +1581,22 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
             </tbody>
           </table>
         )}
+      </PricingSection>
+
+      <PricingSection title="Freight Charges">
+        <div className="flex items-center gap-3">
+          <Input
+            type="number"
+            min="0"
+            className="h-8 text-sm text-right w-40"
+            value={pricing.freight ?? ""}
+            onChange={e => update({ pricing: { ...pricing, freight: e.target.value } })}
+            placeholder="0"
+          />
+          <span className="text-xs text-muted-foreground">
+            Printed under the total in Commercial Terms. Leave empty to leave it out.
+          </span>
+        </div>
       </PricingSection>
     </div>
   );

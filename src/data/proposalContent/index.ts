@@ -89,7 +89,7 @@ export const isOffByDefault = (id: string) => isCompanionSubsystem(id) || id ===
  */
 export function quotationSubsystems(
   all: SubsystemContent[],
-  data: { selectedSubsystems: string[]; customerScopeHardware?: string },
+  data: { selectedSubsystems: string[]; customerScopeHardware?: string; subsystemRatings?: Record<string, string> },
 ): SubsystemContent[] {
   const ids = new Set(data.selectedSubsystems);
   const list = all.filter(s => (ids.has(s.id) || ids.has(s.title)) && !isCompanionSubsystem(s.id));
@@ -98,9 +98,45 @@ export function quotationSubsystems(
     const companion = all.find(s => s.id === companionId);
     if (companion) list.splice(Math.min(COMPANION_POSITION, list.length), 0, companion);
   }
-  return list.map(s =>
-    s.id === CUSTOMER_SCOPE_ID ? { ...s, description: data.customerScopeHardware?.trim() || s.description } : s,
-  );
+  return list.map(s => {
+    if (s.id === CUSTOMER_SCOPE_ID) return { ...s, description: data.customerScopeHardware?.trim() || s.description };
+    const rating = hasRating(s.id) ? data.subsystemRatings?.[s.id] : undefined;
+    if (!rating?.trim()) return s;
+    return {
+      ...s,
+      title: withRating(s.title, rating),
+      ...(s.variants
+        ? { variants: { ...s.variants, options: s.variants.options.map(o => (o.title ? { ...o, title: withRating(o.title, rating) } : o)) } }
+        : {}),
+    };
+  });
+}
+
+/**
+ * Shown in the Major Sub Systems pages (title, description, images) but not
+ * priced in Scope of Supply: these are added and priced in the Equipment step.
+ */
+const PRICED_AS_EQUIPMENT = new Set([
+  "hv-transformer",
+  "iovt-mg-set",
+  "dimmer",
+  "intermediate-transformer",
+  "current-injection-transformer",
+  "instruments", // "Equipment and Instruments": the equipment and instruments are priced in their own rows
+  "ht-cap",
+  "xmer-edge-control", // Control & Monitoring Software: part of the test bench, not priced on its own
+]);
+export const isPricedInScopeOfSupply = (id: string) => !PRICED_AS_EQUIPMENT.has(id);
+/** Scope of Supply price entries without items priced as equipment (old prices typed before the change). */
+export const scopeOfSupplyPriced = <V,>(entries?: Record<string, V>): Record<string, V> =>
+  Object.fromEntries(Object.entries(entries ?? {}).filter(([id]) => isPricedInScopeOfSupply(id)));
+
+/** Subsystems with a rating typed per quotation, printed after the title: "LT Capacitor Bank (1500 kVAR)". */
+const RATED_SUBSYSTEMS = new Set(["lt-cap"]);
+export const hasRating = (id: string) => RATED_SUBSYSTEMS.has(id);
+export function withRating(title: string, rating?: string) {
+  const r = rating?.trim();
+  return r ? `${title} (${r})` : title;
 }
 
 // Settings → Major Sub Systems stores its edits in cmsOverrides under this key.

@@ -2,7 +2,7 @@ import type React from "react";
 import { useEffect } from "react";
 import { PdfPage } from "../PdfPage";
 import { useProposalStore, type Project } from "@/store/proposalStore";
-import { getMajorSubsystems, quotationSubsystems, resolveSubsystemTitle } from "@/data/proposalContent";
+import { getMajorSubsystems, isPricedInScopeOfSupply, quotationSubsystems, resolveSubsystemTitle } from "@/data/proposalContent";
 import { paginateByHeights } from "@/data/paginationHelpers";
 import { useBlockHeights } from "@/hooks/useBlockHeights";
 import { getLibrary } from "@/data/libraries";
@@ -43,7 +43,8 @@ export function ScopeOfSupplyPdf({
   // ── Subsystem rows ──────────────────────────────────────────────────────────
   const cmsOverrides = useProposalStore((s) => s.cmsOverrides);
   const all = getMajorSubsystems(project.data.systemType, cmsOverrides);
-  const subs = quotationSubsystems(all, project.data);
+  // Items priced as equipment (HV Test Transformer, MG Set for IOVT, Dimmer…) are left out here.
+  const subs = quotationSubsystems(all, project.data).filter(s => isPricedInScopeOfSupply(s.id));
   // Only what was ticked in the wizard.
   const list = subs;
 

@@ -1,11 +1,14 @@
 import { PdfPage } from "../PdfPage";
 import type { Project } from "@/store/proposalStore";
-import { defaultLayoutImages } from "@/lib/defaultLayoutImages";
+
+/** The Schematic page is printed only when a layout image or a design PDF was uploaded. */
+export const hasSystemLayout = (project: Project) =>
+  !!(project.data.systemLayout?.imageUrl || project.data.systemLayout?.designPdfUrl);
 
 // SCHEMATIC OF OFFERED SYSTEM — static text; only the layout image & design PDF link change.
 export function SystemLayoutPdf({ project, pageNumber }: { project: Project; pageNumber: number }) {
   const layout = project.data.systemLayout ?? {};
-  const imageSrc = layout.imageUrl || defaultLayoutImages[project.data.systemType];
+  const imageSrc = layout.imageUrl;
   return (
     <PdfPage pageNumber={pageNumber}>
       <div style={{ breakInside: "avoid" }}>
@@ -20,9 +23,11 @@ export function SystemLayoutPdf({ project, pageNumber }: { project: Project; pag
         </p>
       </div>
 
-      <div className="mt-4 border border-slate-300 rounded overflow-hidden" style={{ breakInside: "avoid" }}>
-        <img src={imageSrc} alt="System Layout" className="w-full" style={{ maxHeight: "180mm", objectFit: "contain" }} />
-      </div>
+      {imageSrc && (
+        <div className="mt-4 border border-slate-300 rounded overflow-hidden" style={{ breakInside: "avoid" }}>
+          <img src={imageSrc} alt="System Layout" className="w-full" style={{ maxHeight: "180mm", objectFit: "contain" }} />
+        </div>
+      )}
 
       {/* Only when a design PDF was uploaded in the wizard. */}
       {layout.designPdfUrl && (
