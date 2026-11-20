@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash2, ArrowUp, ArrowDown, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { requireAdminPassword } from "@/lib/passwordGate";
@@ -75,6 +75,7 @@ function SubsystemsEditor({ systemType }: { systemType: SystemType }) {
   };
 
   const removeItem = (id: string) => {
+    const before = override;
     const isBase = base.some(b => b.id === id);
     if (isBase) {
       setOverride({
@@ -84,7 +85,14 @@ function SubsystemsEditor({ systemType }: { systemType: SystemType }) {
     } else {
       setOverride({ ...override, items: override.items.filter(i => i.id !== id) });
     }
-    toast.success("Deleted");
+    toast.success("Deleted", { duration: 15000, action: { label: "Undo", onClick: () => setOverride(before) } });
+  };
+
+  // Built-in items that were deleted (an edited item is also in `deleted`, but has its copy in `items`).
+  const deletedItems = base.filter(b => override.deleted.includes(b.id) && !override.items.some(i => i.id === b.id));
+  const restore = (id: string) => {
+    setOverride({ ...override, deleted: override.deleted.filter(d => d !== id) });
+    toast.success("Restored");
   };
 
   const add = () => {
@@ -98,7 +106,7 @@ function SubsystemsEditor({ systemType }: { systemType: SystemType }) {
     <div className="space-y-3 mt-4">
       <div className="flex justify-between items-center">
         <div className="text-sm text-muted-foreground">
-          {allItems.length} item(s) · {override.items.length} customised / added · {override.deleted.length} deleted
+          {allItems.length} item(s) · {override.items.length} customised / added · {deletedItems.length} deleted
         </div>
         <Button size="sm" onClick={add}><Plus className="h-3 w-3 mr-1" />Add subsystem</Button>
       </div>
@@ -128,6 +136,21 @@ function SubsystemsEditor({ systemType }: { systemType: SystemType }) {
           </div>
         );
       })}
+
+      {deletedItems.length > 0 && (
+        <div className="border border-dashed rounded p-3 space-y-2 bg-slate-50">
+          <div className="text-sm font-semibold text-slate-700">Deleted items ({deletedItems.length})</div>
+          <p className="text-xs text-muted-foreground">Removed from this list. Restore puts an item back in its place.</p>
+          {deletedItems.map(item => (
+            <div key={item.id} className="flex items-center justify-between gap-3 border-t pt-2">
+              <div className="text-sm text-slate-600">{item.title}</div>
+              <Button size="sm" variant="outline" onClick={() => restore(item.id)}>
+                <RotateCcw className="h-3 w-3 mr-1" />Restore
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

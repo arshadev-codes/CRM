@@ -7,7 +7,10 @@ import type {
 } from "@/store/proposalStore";
 import { useProposalStore } from "@/store/proposalStore";
 import { systemTypesData, type SystemType } from "@/data/systemTypesData";
-import { getMajorSubsystems, resolveSubsystemTitle } from "@/data/proposalContent";
+import {
+  CUSTOMER_SCOPE_ID, COMPANION_SUBSYSTEMS, getMajorSubsystems, isCompanionSubsystem,
+  quotationSubsystems, resolveSubsystemTitle,
+} from "@/data/proposalContent";
 import { useLibrary, useDeliveryDurations } from "@/hooks/useLibrary";
 import { autoSubject } from "@/data/proposalSubject";
 import { CurrencyPanel } from "@/components/wizard/CurrencyPanel";
@@ -44,6 +47,7 @@ import {
   incotermsOptions,
   transitInsuranceOptions,
   freightLogisticsDefaults,
+  resolveDestination,
 } from "@/data/freightLogisticsData";
 
 
@@ -51,6 +55,17 @@ type Update = (patch: Partial<ProposalData>) => void;
 
 export function Step1ProjectSetup({ project, update }: { project: Project; update: Update }) {
   const setSystemType = useProposalStore(s => s.setSystemType);
+  // The type picked on a card, waiting for "Switch" in the confirmation.
+  const [pendingType, setPendingType] = useState<SystemType | null>(null);
+  const switchType = (next: SystemType) => {
+    const before = project.data;
+    setSystemType(project.id, next);
+    const label = systemTypesData.find(t => t.id === next)?.label ?? next;
+    toast.success(`Switched to ${label}`, {
+      duration: 15000,
+      action: { label: "Undo", onClick: () => update(before) },
+    });
+  };
   const allEmployees = useProposalStore(s => s.employees);
   const { customer, meta, transformer, systemType, freightLogistics } = project.data;
   // Quotation people only, plus whoever an older proposal already names.
@@ -186,7 +201,7 @@ export function Step1ProjectSetup({ project, update }: { project: Project; updat
             const active = systemType === st.id;
             return (
               <button key={st.id} type="button"
-                onClick={() => { setSystemType(project.id, st.id as SystemType); toast.success(`Switched to ${st.label}`); }}
+                onClick={() => { if (!active) setPendingType(st.id as SystemType); }}
                 className={`text-left p-4 rounded-2xl transition ${active ? "neo-inset ring-2 ring-blue-400/60" : "neo-pop"}`}>
                 <Badge variant="outline" className="mb-2">{st.badge}</Badge>
                 <div className="font-semibold text-slate-800">{st.label}</div>
@@ -196,8 +211,27 @@ export function Step1ProjectSetup({ project, update }: { project: Project; updat
             );
           })}
         </div>
-        <p className="text-xs text-muted-foreground mt-3">⚠ Changing system type resets test/instrument/equipment/subsystem defaults (customer info preserved).</p>
+        <p className="text-xs text-muted-foreground mt-3">⚠ Changing system type resets tests, major subsystems, instruments, equipment and proprietary items to that type's defaults. Everything else is kept.</p>
       </NeoSection>
+
+      <Dialog open={pendingType !== null} onOpenChange={open => { if (!open) setPendingType(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Switch to {systemTypesData.find(t => t.id === pendingType)?.label ?? pendingType}?
+            </DialogTitle>
+            <DialogDescription>
+              Tests, major subsystems, instruments, equipment and proprietary items go back to that system's
+              defaults. Customer details, prices, delivery, exclusions, makes and payment terms are kept.
+              You can undo it right after.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPendingType(null)}>Cancel</Button>
+            <Button onClick={() => { if (pendingType) switchType(pendingType); setPendingType(null); }}>Switch</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -263,7 +297,10 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
   const subsystemVariants = project.data.subsystemVariants ?? {};
   const proposalCustomizations = project.data.proposalCustomizations ?? [];
   const cmsOverrides = useProposalStore(s => s.cmsOverrides);
-  const items = getMajorSubsystems(systemType, cmsOverrides);
+  // RIO Panel isn't ticked on its own: it comes with Machine Room Control Desk.
+  const allItems = getMajorSubsystems(systemType, cmsOverrides);
+  const items = allItems.filter(s => !isCompanionSubsystem(s.id));
+  const customerScope = project.data.customerScopeHardware ?? "";
   const toggle = (id: string) =>
     update({ selectedSubsystems: selectedSubsystems.includes(id) ? selectedSubsystems.filter(x => x !== id) : [...selectedSubsystems, id] });
 
@@ -308,8 +345,31 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
                 <div>
                   <div className="font-semibold text-sm">{resolveTitle(s)}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">{s.preview}</div>
+                  {COMPANION_SUBSYSTEMS[s.id] && (
+                    <div className="text-xs text-blue-700 mt-1">
+                      + {allItems.find(x => x.id === COMPANION_SUBSYSTEMS[s.id])?.title ?? "RIO Panel"} is added
+                      automatically, as item 2 in the PDF.
+                    </div>
+                  )}
                 </div>
               </button>
+              {sel && s.id === CUSTOMER_SCOPE_ID && (
+                <div className="px-3 pb-3 pt-2 border-t border-blue-100 space-y-1">
+                  <Label className="text-xs text-slate-600">
+                    Which customer instruments and equipment are integrated? (printed as this item's description)
+                  </Label>
+                  <Textarea
+                    rows={4}
+                    value={customerScope}
+                    onChange={e => update({ customerScopeHardware: e.target.value })}
+                    placeholder="e.g. Customer's impulse generator (make, rating), PD detector, power analyzer…"
+                    className={customerScope.trim() ? "" : "border-red-400"}
+                  />
+                  {!customerScope.trim() && (
+                    <p className="text-xs text-red-600">Please describe the customer's instruments and equipment.</p>
+                  )}
+                </div>
+              )}
               {sel && s.variants && (
                 <div
                   className="px-3 pb-3 pt-2 border-t border-blue-100 flex items-center gap-2"
@@ -1051,7 +1111,8 @@ export function Step6Delivery({ project, update }: { project: Project; update: U
   const setFl = (patch: Partial<FreightLogisticsData>) =>
     update({ freightLogistics: { ...fl, ...patch } });
 
-  const destinationValue = fl.destination || project.data.customer.city || "";
+  // Empty = the customer's address (Project Setup), filled in until something else is typed.
+  const destinationValue = resolveDestination(fl, project.data.customer);
 
   return (
     <div className="space-y-8">
@@ -1112,7 +1173,7 @@ export function Step6Delivery({ project, update }: { project: Project; update: U
             <NeoInput
               value={destinationValue}
               onChange={e => setFl({ destination: e.target.value })}
-              placeholder="e.g. Customer site city"
+              placeholder="Customer address (fill it in on Project Setup)"
             />
           </Field>
 
@@ -1198,8 +1259,13 @@ export function Step6Delivery({ project, update }: { project: Project; update: U
   );
 }
 
+/** Dropdown value for "Custom entry…" in Makes of Supply. */
+const CUSTOM_MAKE = "__custom__";
+
 export function Step7ExclusionsMakes({ project, update }: { project: Project; update: Update }) {
   const { exclusions, makes, installationType } = project.data;
+  const customExclusions = project.data.exclusionsCustom ?? [];
+  const setCustomExclusions = (list: string[]) => update({ exclusionsCustom: list });
   const exclusionsData = useLibrary("exclusions");
   const makesOfSupplyData = useLibrary("makes");
   const toggleEx = (id: string) =>
@@ -1214,6 +1280,10 @@ export function Step7ExclusionsMakes({ project, update }: { project: Project; up
     const row = makesOfSupplyData.find(r => r.id === id);
     update({ makes: [...makes, { id, enabled: false, make: row?.defaultMake ?? "", ...patch }] });
   };
+  // Rows added with "Add custom item" (not in the Settings list).
+  const customMakes = makes.filter(m => m.item !== undefined && !makesOfSupplyData.some(r => r.id === m.id));
+  const updCustomMake = (id: string, patch: Partial<typeof makes[number]>) =>
+    update({ makes: makes.map(m => (m.id === id ? { ...m, ...patch } : m)) });
   return (
     <div className="space-y-6">
       {installationType === "full" && (
@@ -1234,6 +1304,25 @@ export function Step7ExclusionsMakes({ project, update }: { project: Project; up
             </label>
           ))}
         </div>
+        <div className="mt-4 space-y-2">
+          <div className="text-xs font-semibold text-slate-600">Your own exclusions (this quotation only)</div>
+          {customExclusions.map((text, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input
+                value={text}
+                placeholder="Type the exclusion"
+                onChange={ev => setCustomExclusions(customExclusions.map((t, j) => (j === i ? ev.target.value : t)))}
+              />
+              <Button size="icon" variant="ghost" title="Remove"
+                onClick={() => setCustomExclusions(customExclusions.filter((_, j) => j !== i))}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+          <Button size="sm" variant="outline" onClick={() => setCustomExclusions([...customExclusions, ""])}>
+            <Plus className="h-3 w-3 mr-1" />Add custom exclusion
+          </Button>
+        </div>
       </Section>
       <Section title="Makes of Supply">
         <table className="w-full text-sm border">
@@ -1247,24 +1336,64 @@ export function Step7ExclusionsMakes({ project, update }: { project: Project; up
           <tbody>
             {makesOfSupplyData.map(row => {
               const sel = makes.find(m => m.id === row.id) ?? { id: row.id, enabled: false, make: row.defaultMake };
+
               const makeOptions = sel.make && !row.options.includes(sel.make) ? [sel.make, ...row.options] : row.options;
+              // "Custom entry" picked: the typed text (sel.custom) is printed instead of the list value.
+              const isCustom = sel.custom !== undefined;
               return (
                 <tr key={row.id}>
                   <td className="border p-1 text-center">
                     <Checkbox checked={sel.enabled} onCheckedChange={v => updMake(row.id, { enabled: !!v })} />
                   </td>
                   <td className="border p-1">{row.item}</td>
-                  <td className="border p-1">
-                    <Select value={sel.make} onValueChange={v => updMake(row.id, { make: v })}>
+                  <td className="border p-1 space-y-1">
+                    <Select
+                      value={isCustom ? CUSTOM_MAKE : sel.make}
+                      onValueChange={v => updMake(row.id, v === CUSTOM_MAKE ? { custom: sel.custom ?? "" } : { make: v, custom: undefined })}
+                    >
                       <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{makeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+                      <SelectContent>
+                        {makeOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        <SelectItem value={CUSTOM_MAKE}>Custom entry…</SelectItem>
+                      </SelectContent>
                     </Select>
+                    {isCustom && (
+                      <Input
+                        autoFocus
+                        value={sel.custom ?? ""}
+                        placeholder="Type the manufacturer"
+                        onChange={e => updMake(row.id, { custom: e.target.value })}
+                      />
+                    )}
                   </td>
                 </tr>
               );
             })}
+            {customMakes.map(m => (
+              <tr key={m.id}>
+                <td className="border p-1 text-center">
+                  <Checkbox checked={m.enabled} onCheckedChange={v => updCustomMake(m.id, { enabled: !!v })} />
+                </td>
+                <td className="border p-1">
+                  <Input value={m.item ?? ""} placeholder="Item" onChange={e => updCustomMake(m.id, { item: e.target.value })} />
+                </td>
+                <td className="border p-1">
+                  <div className="flex items-center gap-1">
+                    <Input value={m.make} placeholder="Manufacturer" onChange={e => updCustomMake(m.id, { make: e.target.value })} />
+                    <Button size="icon" variant="ghost" title="Remove"
+                      onClick={() => update({ makes: makes.filter(x => x.id !== m.id) })}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
+        <Button size="sm" variant="outline" className="mt-2"
+          onClick={() => update({ makes: [...makes, { id: `custom-${crypto.randomUUID()}`, enabled: true, item: "", make: "" }] })}>
+          <Plus className="h-3 w-3 mr-1" />Add custom item
+        </Button>
       </Section>
     </div>
   );
@@ -1303,8 +1432,7 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
   // sections below, not mixed into this one.
   const cmsOverrides = useProposalStore(s => s.cmsOverrides);
   const allSubs = getMajorSubsystems(project.data.systemType, cmsOverrides);
-  const selectedSubIds = new Set(project.data.selectedSubsystems);
-  const subsystemRows = allSubs.filter(s => selectedSubIds.has(s.id) || selectedSubIds.has(s.title));
+  const subsystemRows = quotationSubsystems(allSubs, project.data);
   const subsystemVariants = project.data.subsystemVariants ?? {};
 
   const proprietaryItemsData = useLibrary("proprietary");

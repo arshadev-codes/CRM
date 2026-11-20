@@ -1,7 +1,7 @@
 import type React from "react";
 import { PdfPage } from "../PdfPage";
 import { useProposalStore, type Project, type CustomizationItem } from "@/store/proposalStore";
-import { getMajorSubsystems, type SubsystemContent, type SubsystemImageSize } from "@/data/proposalContent";
+import { getMajorSubsystems, quotationSubsystems, type SubsystemContent, type SubsystemImageSize } from "@/data/proposalContent";
 import { paginateByHeights, paginateBlocks, weightSubsystem } from "@/data/paginationHelpers";
 import { useBlockHeights } from "@/hooks/useBlockHeights";
 import { useEffect } from "react";
@@ -50,11 +50,10 @@ export function SubsystemsPdf({
 }): React.ReactElement | null {
   const cmsOverrides = useProposalStore((s) => s.cmsOverrides);
   const all = getMajorSubsystems(project.data.systemType, cmsOverrides);
-  const selectedIds = new Set(project.data.selectedSubsystems);
-  const blocks: SubsystemContent[] = all.filter(
-    (s) => selectedIds.has(s.id) || selectedIds.has(s.title),
-  );
-  const subsystemList = blocks.length ? blocks : all;
+  // Ticked items in order, RIO Panel added with Machine Room (see quotationSubsystems).
+  const blocks: SubsystemContent[] = quotationSubsystems(all, project.data);
+  // Only what was ticked in the wizard. Nothing ticked = no subsystem pages.
+  const subsystemList = blocks;
   // Per-subsystem selected variant key (e.g. "manual", "pneumatic"). Falls
   // back to each subsystem's own variants.default inside SubsystemBlockBody
   // when a given id isn't present here — same fallback rule used in the wizard.
@@ -94,11 +93,11 @@ export function SubsystemsPdf({
   const pages = measuredPages ?? fallbackPages;
 
   useEffect(() => {
-    if (!measuring && onPageCountKnown) {
-      onPageCountKnown(Math.max(1, pages.length));
-    }
+    if (!onPageCountKnown) return;
+    if (flow.length === 0) onPageCountKnown(0); // section left out of the PDF
+    else if (!measuring) onPageCountKnown(Math.max(1, pages.length));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [measuring, pages.length]);
+  }, [measuring, pages.length, flow.length]);
 
   if (flow.length === 0) return null;
 

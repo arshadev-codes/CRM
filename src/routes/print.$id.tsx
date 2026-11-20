@@ -18,6 +18,19 @@ function Print() {
     return () => document.body.classList.remove("print-mode");
   }, []);
 
+  // "Save as PDF" names the file after the page title: use the offer number,
+  // e.g. Q001/2026-27/Neo/TTS-R0 -> Q001-2026-27-Neo-TTS-R0.pdf ("/" can't be in a file name).
+  const fileName = (project?.data.meta.offerNumber || project?.name || "Quotation")
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .trim();
+  useEffect(() => {
+    const before = document.title;
+    document.title = fileName;
+    return () => {
+      document.title = before;
+    };
+  }, [fileName]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       const el = document.querySelector('[data-pdf-settled]');
@@ -57,7 +70,10 @@ function Print() {
           </button>
           <button
             disabled={!settled}
-            onClick={() => window.print()}
+            onClick={() => {
+              document.title = fileName; // set again right before printing, in case the page title was reset
+              window.print();
+            }}
             className={`flex items-center gap-2 px-5 py-2 rounded-full shadow-lg text-sm font-medium transition
               ${settled
                 ? "bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"

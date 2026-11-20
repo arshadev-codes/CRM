@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useProposalStore } from "@/store/proposalStore";
+import { projectSaves, useProposalStore } from "@/store/proposalStore";
+import { useSaveStatus } from "@/lib/projectSave";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { ChevronLeft, ChevronRight, Save, Eye, Printer, RefreshCw, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Eye, Printer, RefreshCw, Lock, CloudOff, Loader2, Check } from "lucide-react";
 import { useCan } from "@/store/authStore";
 import {
   Step1ProjectSetup, Step2Tests, Step3Subsystems, Step3bSystemLayout, Step4InstrumentsEquipment,
@@ -41,6 +42,18 @@ function Wizard() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const canQuote = useCan("quotation");
+  const saveStatus = useSaveStatus(s => s.byId[id]);
+
+  // Warn before closing the tab while changes are still on their way to the cloud.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!projectSaves.hasUnsaved()) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
 
   // Only the wizard steps this project was created with (customized proposals
   // can drop steps); order follows the saved layout.
@@ -80,6 +93,13 @@ function Wizard() {
     window.open(`/print/${project.id}`, "_blank");
   };
 
+  // Sends any change still waiting straight away. Does not change the status.
+  const saveNow = async () => {
+    const ok = await projectSaves.flush(project.id);
+    if (ok) toast.success("Saved");
+    else toast.error("Not saved to the cloud yet — check the internet connection. It keeps retrying.");
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="flex items-center justify-between mb-4 gap-3 pl-4">
@@ -94,7 +114,7 @@ function Wizard() {
             className="text-xs border-0 px-0 h-auto focus-visible:ring-0 shadow-none text-slate-500 mt-0.5"
           />
           <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-            <span>Autosaved · {new Date(project.updatedAt).toLocaleTimeString()}</span>
+            <SaveIndicator state={saveStatus?.state} at={saveStatus?.at ?? project.updatedAt} error={saveStatus?.error} />
             {project.status === "Completed" && <span className="text-emerald-600 font-semibold">· Completed</span>}
           </div>
         </div>
@@ -105,7 +125,7 @@ function Wizard() {
               if (p) { toast.success(`Created R${p.revision}`); navigate({ to: "/projects/$id/wizard", params: { id: p.id } }); }
             }}><RefreshCw className="h-3 w-3 mr-1" />Revise Offer</Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => { updateProject(project.id, { status: "Completed" }); toast.success("Marked completed"); }}><Save className="h-3 w-3 mr-1" />Save Draft</Button>
+          <Button size="sm" variant="outline" onClick={() => void saveNow()}><Save className="h-3 w-3 mr-1" />Save Draft</Button>
           <Button size="sm" variant="outline" onClick={() => navigate({ to: "/projects/$id/preview", params: { id: project.id } })}><Eye className="h-3 w-3 mr-1" />Preview</Button>
           <Button size="sm" onClick={markCompletedAndGenerate}><Printer className="h-3 w-3 mr-1" />Generate</Button>
         </div>
@@ -157,4 +177,16 @@ function Wizard() {
       </div>
     </div>
   );
+}
+/** "Saving…" / "Saved · 10:42" / "Not saved" next to the offer number. */
+function SaveIndicator({ state, at, error }: { state?: string; at: number; error?: string }) {
+  if (state === "pending" || state === "saving")
+    return <span className="inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" />Saving…</span>;
+  if (state === "error")
+    return (
+      <span className="inline-flex items-center gap-1 font-semibold text-red-600" title={error}>
+        <CloudOff className="h-3 w-3" />Not saved to the cloud — retrying
+      </span>
+    );
+  return <span className="inline-flex items-center gap-1"><Check className="h-3 w-3" />Saved · {new Date(at).toLocaleTimeString()}</span>;
 }

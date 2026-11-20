@@ -24,9 +24,10 @@ export function SystemLayoutPdf({ project, pageNumber }: { project: Project; pag
         <img src={imageSrc} alt="System Layout" className="w-full" style={{ maxHeight: "180mm", objectFit: "contain" }} />
       </div>
 
+      {/* Only when a design PDF was uploaded in the wizard. */}
+      {layout.designPdfUrl && (
       <div className="mt-3 text-[13px]" style={{ breakInside: "avoid" }}>
         <span className="font-semibold">Detailed design drawing: </span>
-        {layout.designPdfUrl ? (
           <a
             href={layout.designPdfUrl}
             download={layout.designPdfName || `${project.data.meta.offerNumber || "system"}-design.pdf`}
@@ -36,10 +37,8 @@ export function SystemLayoutPdf({ project, pageNumber }: { project: Project; pag
           >
             Download {layout.designPdfName || "design drawing (PDF)"}
           </a>
-        ) : (
-          <span className="text-slate-500 italic">Not uploaded</span>
-        )}
       </div>
+      )}
     </PdfPage>
   );
 }

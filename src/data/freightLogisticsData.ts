@@ -28,7 +28,12 @@ export const freightChargesOptions = [
   "Custom",
 ];
 
+/** Electrosoft's works, where the material is dispatched from: the default Source. */
+export const ELECTROSOFT_ADDRESS =
+  "Electrosoft Automation Pvt. Ltd., S7-1&2, Jai Matadi Compound, Thane-Bhiwandi Road, Kalher, Thane District, Maharashtra, India – 421302";
+
 export const sourceOptions = [
+  ELECTROSOFT_ADDRESS,
   "Vadodara, Gujarat",
   "Custom",
 ];
@@ -54,10 +59,23 @@ export const transitInsuranceOptions = [
   "Custom",
 ];
 
+/** The customer's address on one line: the default Destination. */
+export function customerAddressLine(c: { address?: string; city?: string; state?: string; country?: string }): string {
+  return [c.address, c.city, c.state, c.country].map(v => (v ?? "").trim()).filter(Boolean).join(", ");
+}
+
+/** Destination as printed: what was typed, else the customer's address. */
+export function resolveDestination(
+  fl: Pick<FreightLogisticsData, "destination"> | undefined,
+  c: { address?: string; city?: string; state?: string; country?: string },
+): string {
+  return fl?.destination?.trim() || customerAddressLine(c);
+}
+
 export const freightLogisticsDefaults: FreightLogisticsData = {
   freightCharges: "Inclusive",
   destination: "",
-  source: "Vadodara, Gujarat",
+  source: ELECTROSOFT_ADDRESS,
   sourceCustom: "",
   modeOfTransport: "By Road",
   modeOfTransportCustom: "",

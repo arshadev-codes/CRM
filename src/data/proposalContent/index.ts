@@ -66,6 +66,43 @@ export function fixSubsystemIdsInData<
   };
 }
 
+/** Ticked per quotation; the wizard asks which customer hardware is integrated. */
+export const CUSTOMER_SCOPE_ID = "customer-scope-hardware";
+
+/**
+ * Subsystems that are never ticked on their own: they come with another one.
+ * Ticking Machine Room Control Desk brings in the RIO Panel, at position 2.
+ */
+export const COMPANION_SUBSYSTEMS: Record<string, string> = { "machine-room": "rio-panel" };
+const COMPANION_IDS = new Set(Object.values(COMPANION_SUBSYSTEMS));
+export const isCompanionSubsystem = (id: string) => COMPANION_IDS.has(id);
+/** Position a companion is put at in the list (0-based: 1 = second). */
+const COMPANION_POSITION = 1;
+
+/** Not ticked in a new quotation: companions, and items filled in per quotation. */
+export const isOffByDefault = (id: string) => isCompanionSubsystem(id) || id === CUSTOMER_SCOPE_ID;
+
+/**
+ * The subsystems a quotation shows, in PDF order: the ticked ones, plus each
+ * ticked item's companion (RIO Panel) at position 2. The customer-scope item
+ * gets the text typed for it in the wizard as its description.
+ */
+export function quotationSubsystems(
+  all: SubsystemContent[],
+  data: { selectedSubsystems: string[]; customerScopeHardware?: string },
+): SubsystemContent[] {
+  const ids = new Set(data.selectedSubsystems);
+  const list = all.filter(s => (ids.has(s.id) || ids.has(s.title)) && !isCompanionSubsystem(s.id));
+  for (const [owner, companionId] of Object.entries(COMPANION_SUBSYSTEMS)) {
+    if (!list.some(s => s.id === owner)) continue;
+    const companion = all.find(s => s.id === companionId);
+    if (companion) list.splice(Math.min(COMPANION_POSITION, list.length), 0, companion);
+  }
+  return list.map(s =>
+    s.id === CUSTOMER_SCOPE_ID ? { ...s, description: data.customerScopeHardware?.trim() || s.description } : s,
+  );
+}
+
 // Settings → Major Sub Systems stores its edits in cmsOverrides under this key.
 // `deleted` holds base ids that were removed OR replaced by an edited copy in `items`.
 export type SubsystemOverride = LibraryOverride<SubsystemContent>;

@@ -20,9 +20,6 @@ export function RequirementPdf({ project, pageNumber = 2 }: { project: Project; 
       <ol className="mt-3 text-[13px] space-y-1 list-decimal pl-5 ml-8 text-black-900">
         {selected.map(t => <li key={t.id}>{t.title}</li>)}
       </ol>
-      <p className="mt-5 text-[13px] font-bold pl-4">
-        Note: Impulse generator shall be capable of conducting LI test on the rated insulation level of the transformer.
-      </p>
       <div className="bg-green-100 px-3 py-1.5 font-bold text-[14px] italic text-black-800 mt-10">
         Proposed solution:
       </div>

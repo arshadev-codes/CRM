@@ -11,5 +11,5 @@ export const makesOfSupplyData: MakeRow[] = [
   { id: "ct-pt", item: "CT/PT", defaultMake: "Electrosoft", options: standardMakes, defaultEnabled: true },
   { id: "dimmer", item: "Dimmer", defaultMake: "Moonlight", options: standardMakes, defaultEnabled: true },
   { id: "transformer", item: "Transformer", defaultMake: "Customer Specified", options: standardMakes, defaultEnabled: true },
-  { id: "mg-set", item: "MG Set", defaultMake: "Electrosoft", options: standardMakes, defaultEnabled: true },
+  { id: "mg-set", item: "Main MG Set", defaultMake: "Electrosoft", options: standardMakes, defaultEnabled: true },
 ];

@@ -2,7 +2,7 @@ import type React from "react";
 import { useEffect } from "react";
 import { PdfPage } from "../PdfPage";
 import { useProposalStore, type Project } from "@/store/proposalStore";
-import { getMajorSubsystems, resolveSubsystemTitle } from "@/data/proposalContent";
+import { getMajorSubsystems, quotationSubsystems, resolveSubsystemTitle } from "@/data/proposalContent";
 import { paginateByHeights } from "@/data/paginationHelpers";
 import { useBlockHeights } from "@/hooks/useBlockHeights";
 import { getLibrary } from "@/data/libraries";
@@ -43,9 +43,9 @@ export function ScopeOfSupplyPdf({
   // ── Subsystem rows ──────────────────────────────────────────────────────────
   const cmsOverrides = useProposalStore((s) => s.cmsOverrides);
   const all = getMajorSubsystems(project.data.systemType, cmsOverrides);
-  const selectedIds = new Set(project.data.selectedSubsystems);
-  const subs = all.filter((s) => selectedIds.has(s.id) || selectedIds.has(s.title));
-  const list = subs.length ? subs : all;
+  const subs = quotationSubsystems(all, project.data);
+  // Only what was ticked in the wizard.
+  const list = subs;
 
   const subsystemRows: Row[] = list.map((s, i) => {
     const entry = getEntry(scopePricing, s.id);

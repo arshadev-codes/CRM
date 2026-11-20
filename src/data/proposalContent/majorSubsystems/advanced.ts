@@ -193,27 +193,28 @@ export const advancedMajorSubsystems: SubsystemContent[] = [
   },
   {
     id: "ht-isolator-trh",
-    title: "Motorized HT Isolator Switch with Earthing Mechanism (for Temperature Rise Test)",
+    title: "Motorized HT Isolator Switch (for Temperature Rise Test)",
     preview: "Dedicated isolator for the temperature-rise test loading circuit.",
     description:
       "This motorized isolator switch is dedicated to safely isolating the high-voltage loading circuit used during temperature-rise testing. Motorized actuation allows the isolator to be operated remotely through software logic, preventing manual intervention in high-risk zones. Mechanical and electrical interlocks work in coordination with the control system to prevent incorrect operation and guarantee compliance with safe test procedures.",
     // images: [htIsolatorTrhImg],
   },
   {
-    id: "impulse-pd",
-    title: "Integration of Impulse Test System & PD Measurement System (Customer-Scope Hardware)",
-    preview: "PLC/SCADA integration with customer-supplied LI and PD hardware.",
-    description:
-      "Although the impulse generator, impulse analyzer, PD detector, coupling capacitor, and associated hardware remain in the customer's scope, the proposed system provides full integration capability through PLC/SCADA interfacing. The test bench acquires data from the impulse analyzer, synchronizes it with test parameters, and logs partial discharge values where applicable. The LI and PD test results are automatically included in the final transformer test reports, allowing the operator to conduct, monitor, and document all core transformer tests from a single unified software platform. For this integration to function as offered, the customer-scope impulse and PD equipment must support communication through an appropriate interface.",
-    //images: [impulsePdImg],
-  },
-  {
     id: "machine-room",
-    title: "Machine Room Control Desk & RIO Panel (Redundant / Conventional Test Bench)",
+    title: "Redundant / Conventional Test Bench",
     preview: "Standalone manual control desk that runs the system without the SCADA console.",
     description:
-      "The Machine room control desk is a dedicated manual-control test bench that houses all essential meters, selector switches, push buttons, and indication lamps required for conventional transformer testing. It is designed to provide a complete alternative method of conducting tests in situations where the PLC/SCADA-based automated system is unavailable or if the operator prefers manual control for specific tests. Every function managed through the Advanced 43\" Interface will also be accessible through this Machine room control desk via RIO Panel, ensuring complete manual control of the system whenever needed. The operator can seamlessly switch to manual mode at any time, allowing flexibility during testing or maintenance. The Machine room control desk is designed to operate as a fully independent test bench. Even if the Advanced Desk is completely disconnected or unavailable, all tests and operations can still be carried out without interruption using the standalone manual panel. This ensures maximum reliability, redundancy, and operational continuity for your test setup.",
+      "The Machine room control desk is a dedicated manual-control test bench that houses all essential meters, selector switches, push buttons, and indication lamps required for conventional transformer testing. It is designed to provide a complete alternative method of conducting tests in situations where the PLC/SCADA-based automated system is unavailable or if the operator prefers manual control for specific tests. The operator can seamlessly switch to manual mode at any time, allowing flexibility during testing or maintenance. The Machine room control desk is designed to operate as a fully independent test bench. Even if the Advanced Desk is completely disconnected or unavailable, all tests and operations can still be carried out without interruption using the standalone manual panel. This ensures maximum reliability, redundancy, and operational continuity for your test setup.",
    // images: [machineRoomImg],
+  },
+  {
+    // Not ticked on its own: added automatically, at position 2, whenever the
+    // Machine Room Control Desk is ticked (see COMPANION_SUBSYSTEMS in ../index.ts).
+    id: "rio-panel",
+    title: "RIO Panel",
+    preview: "Connects the Machine room control desk to the system for full manual control.",
+    description:
+      "Every function managed through the Advanced 43\" Interface will also be accessible through the Machine room control desk via the RIO Panel, ensuring complete manual control of the system whenever needed.",
   },
   {
     id: "instruments",
@@ -251,10 +252,10 @@ export const advancedMajorSubsystems: SubsystemContent[] = [
   },
   {
     id: "iovt-mg-set",
-    title: "IOVT MG Set (200 Hz)",
+    title: "MG Set for IOVT (200 Hz)",
     preview: "High-frequency 200 Hz motor-generator for Induced Over Voltage Tests.",
     description:
-      "The IOVT MG Set is a high-frequency motor-generator system that supplies stable, isolated and clean 200 Hz AC power for Induced Over Voltage Tests (IOVT) on transformers and other sensitive electrical equipment. A robust motor is coupled to a high-frequency alternator, delivering precise voltage and frequency control with low harmonic distortion. The system provides full electrical isolation and effective suppression of transients and noise, and is built for continuous operation with efficient cooling, overcurrent and overvoltage protection, RTD-based temperature monitoring, high-class insulation and vibration-controlled couplings. Typical ratings range from 100 kVA to 1 MVA (11 kV), and the output is regulated through its dedicated excitation panel.",
+      "The MG Set for IOVT is a high-frequency motor-generator system that supplies stable, isolated and clean 200 Hz AC power for Induced Over Voltage Tests (IOVT) on transformers and other sensitive electrical equipment. A robust motor is coupled to a high-frequency alternator, delivering precise voltage and frequency control with low harmonic distortion. The system provides full electrical isolation and effective suppression of transients and noise, and is built for continuous operation with efficient cooling, overcurrent and overvoltage protection, RTD-based temperature monitoring, high-class insulation and vibration-controlled couplings. Typical ratings range from 100 kVA to 1 MVA (11 kV), and the output is regulated through its dedicated excitation panel.",
     images: [iovtMgSetImg, iovtMgSetPhotoImg],
   },
   {
@@ -282,13 +283,6 @@ export const advancedMajorSubsystems: SubsystemContent[] = [
     images: [intermediateTransformerImg],
   },
   {
-    id: "booster-transformer",
-    title: "Booster Transformer",
-    preview: "3-phase booster transformers with multiple taps for the test supply.",
-    description:
-      "Booster transformers step the controlled output of the MG set and dimmer up to the voltage level needed by the test circuit, with multiple selectable taps to match different transformer voltage classes. They are supplied as 3-phase units, for example 500 kVA, 440 V / 800-2200-3300-6600-11000 V and 100 kVA, 440 V / 400-800-1200 V, so that the right range can be chosen for the transformers being tested.",
-  },
-  {
     id: "current-injection-transformer",
     title: "Current Injection Transformer",
     preview: "3000 A, 10 V high-current source with dimmer and control panel.",
@@ -300,7 +294,7 @@ export const advancedMajorSubsystems: SubsystemContent[] = [
     title: "LT Capacitor Bank",
     preview: "440 V reactive power compensation for the LV side of the test supply.",
     description:
-      "The LT Capacitor Bank provides reactive power compensation on the 440 V side of the test supply, reducing the load on the MG set and improving the stability of the test voltage during no-load and load-loss measurements. It is built from capacitor units arranged on a rack and offered in ratings from 600 kVAR to 4000 kVAR (for example 600, 700, 1500 and 4000 kVAR), so it can be sized to the test floor capacity. A panel-only version is also available where the capacitors of an existing system are reused. The capacitor steps are switched by contactors in the power panel.",
+      "The LT Capacitor Bank provides reactive power compensation on the 440 V side of the test supply, reducing the load on the Main MG Set and improving the stability of the test voltage during no-load and load-loss measurements. It is built from capacitor units arranged on a rack and offered in ratings from 600 kVAR to 4000 kVAR (for example 600, 700, 1500 and 4000 kVAR), so it can be sized to the test floor capacity. A panel-only version is also available where the capacitors of an existing system are reused. The capacitor steps are switched by contactors in the power panel.",
     images: [ltCapacitorCansImg],
   },
   {
@@ -328,13 +322,6 @@ export const advancedMajorSubsystems: SubsystemContent[] = [
     images: [ngrPanelImg],
   },
   {
-    id: "busbar",
-    title: "Common Bus Bar System",
-    preview: "Tinned copper common bus bar sections in 600 A and 1600 A ratings.",
-    description:
-      "The Common Bus Bar System connects the generator, transformer and HT panels into one switchgear line-up. Sections are built from tinned copper for low resistance, long-term corrosion resistance and reliable joints, and are supplied in 600 A and 1600 A ratings to suit the panel line-up. Sections can be arranged to allow flexible feeding of the test circuits from different generators.",
-  },
-  {
     id: "ups",
     title: "UPS for Control Supply",
     preview: "2 kVA / 5 kVA UPS with 30 minutes battery backup for control and protection circuits.",
@@ -343,16 +330,19 @@ export const advancedMajorSubsystems: SubsystemContent[] = [
   },
   {
     id: "two-winding-changeover-panel",
-    title: "Two Winding Changeover Panels (3-Phase & 1-Phase Testing)",
+    title: "Winding Changeover Panels (3-Phase & 1-Phase Testing)",
     preview: "Changeover panels to connect the test supply to the transformer windings.",
     description:
       "The Two Winding Changeover Panels connect the test supply to the windings of the transformer under test and allow the circuit to be changed over between the required connections. They are supplied as a pair, one panel for 3-phase testing and one for 1-phase testing, so that both types of transformer can be tested from the same facility. The panels are interlocked with the rest of the test circuit to prevent incorrect connections.",
   },
+
+  // ---------- Filled in per quotation ----------
   {
-    id: "hv-instrument-transformers",
-    title: "HV-Class Measuring CTs & PTs (up to 132 kV)",
-    preview: "Class 0.1 current and potential transformers for high-voltage measurement.",
-    description:
-      "For tests on high-voltage transformers, high-class measuring transformers are supplied with ratio change-over from the secondary side. Potential transformers are available as epoxy-cast 11 kV units (for example 1.1-2.2-3.3-6.6 kV/√3 to 110 V/√3, class 0.1, 2.5 VA) and as porcelain-insulated 132 kV units (for example 11-22-33 kV/√3 and 66-132 kV/√3 to 110/√3 V, class 0.1, 5 VA, BIL 650 kV, conforming to IS 16227). Live-tank 132 kV current transformers with MS tank (for example 5-10-25-50/5 A, 100-200-400-600-1000/5 A and 1500-2000-2500/5 A, class 0.1, 15 VA, STC 40 kA for 1 s, extended current rating up to 120%) are offered for the current side. Each is wired to the CT/PT rack and the test bench metering.",
+    // Off by default. When ticked, the wizard asks which customer instruments and
+    // equipment are integrated; that text is printed as this item's description.
+    id: "customer-scope-hardware",
+    title: "Integration of Customer Scope Hardware",
+    preview: "Customer-supplied instruments and equipment integrated into the test system.",
+    description: "",
   },
 ];

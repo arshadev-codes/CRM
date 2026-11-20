@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import type { SystemType } from "@/data/systemTypesData";
 import { systemConfiguration } from "@/data/systemConfiguration";
 import type { InstrumentRow } from "@/data/instrumentsData";
@@ -8,7 +8,7 @@ import type { DeliveryRow } from "@/data/deliveryData";
 import { paymentTemplatesData, type PaymentMilestone, type PaymentTemplate } from "@/data/paymentTermsData";
 import { getLibrary } from "@/data/libraries";
 import type { QuoteCurrency } from "@/data/currency";
-import { getMajorSubsystems, fixSubsystemIdsInData } from "@/data/proposalContent";
+import { getMajorSubsystems, fixSubsystemIdsInData, isOffByDefault } from "@/data/proposalContent";
 import { employeesData, type Employee, type EmployeeRating, type RatingRule } from "@/data/employeesData";
 import { companiesData, type Company } from "@/data/companiesData";
 import { supabase } from "@/lib/supabaseClient";
@@ -27,6 +27,8 @@ import {
 } from "@/lib/employeesCloud";
 import { buildOfferBase, buildOfferNumber, getFY, slugCompany } from "@/lib/offerNumber";
 import { freightLogisticsDefaults, type FreightLogisticsData } from "@/data/freightLogisticsData";
+import { createSaveQueue } from "@/lib/projectSave";
+import { toast } from "sonner";
 import { defaultLayout, type ProposalLayout, type SavedProposalTemplate } from "@/data/proposalLayout";
 
 export type { FreightLogisticsData };
@@ -45,10 +47,23 @@ export interface Meta {
   subject?: string;
 }
 export interface Transformer { rating: string; ratingUnit: "MVA"|"KVA"; voltage: string; voltageUnit: string; }
-export interface MakeSelection { id: string; enabled: boolean; make: string; custom?: string; }
+export interface MakeSelection {
+  id: string; enabled: boolean; make: string; custom?: string;
+  /** Item name of a row added in the wizard (not from the Settings list). */
+  item?: string;
+}
 
 export interface CustomizationItem { id: string; title: string; description: string; }
-export interface SystemLayoutAssets { imageUrl?: string; designPdfUrl?: string; designPdfName?: string; }
+export interface SystemLayoutAssets {
+  imageUrl?: string; designPdfUrl?: string; designPdfName?: string;
+  /**
+   * Uploaded files left out of this computer's copy (they stay in the cloud
+   * copy). Set only in the saved local copy; filled back in from the cloud.
+   */
+  strippedLocally?: SystemLayoutFile[];
+}
+export type SystemLayoutFile = "imageUrl" | "designPdfUrl";
+const SYSTEM_LAYOUT_FILES: SystemLayoutFile[] = ["imageUrl", "designPdfUrl"];
 
 /** A user-added proprietary item (free-text, not from the library) */
 export interface ProprietaryCustomItem { id: string; title: string; }
@@ -100,6 +115,8 @@ export interface ProposalData {
   /** Optional free-text notes shown under the tests section in the PDF when non-empty */
   testsNotes?: string;
   selectedSubsystems: string[];
+  /** "Integration of Customer Scope Hardware": which customer instruments / equipment, as printed. */
+  customerScopeHardware?: string;
   proposalCustomizations: CustomizationItem[];
   subsystemVariants: Record<string, string>;
   systemLayout: SystemLayoutAssets;
@@ -124,6 +141,8 @@ export interface ProposalData {
   currency?: QuoteCurrency;
   delivery: DeliveryRow[];
   exclusions: string[];
+  /** Exclusions typed in the wizard, on top of the ticked ones from the list. */
+  exclusionsCustom?: string[];
   makes: MakeSelection[];
   payment: PaymentMilestone[];
   /** Freight/logistics details for the Commercial Terms PDF page */
@@ -202,7 +221,7 @@ function defaultsForSystem(systemType: SystemType, src: DefaultsSource = {}): Pr
     meta: emptyMeta(),
     transformer: emptyTransformer(),
     selectedTests: [...cfg.defaultTests],
-    selectedSubsystems: getMajorSubsystems(systemType, cmsOverrides).map(s => s.id),
+    selectedSubsystems: getMajorSubsystems(systemType, cmsOverrides).filter(s => !isOffByDefault(s.id)).map(s => s.id),
     proposalCustomizations: [],
     subsystemVariants: {},
     systemLayout: {},
@@ -285,7 +304,7 @@ interface ProposalStore {
 
 // ---------- Supabase sync helpers ----------
 // When the test data was cleared and the app went live (see src/lib/freshStart.ts).
-const GO_LIVE_AT = Date.parse("2026-10-17T10:10:00Z");
+const GO_LIVE_AT = Date.parse("2026-11-19T00:00:00Z");
 
 function projectToRow(p: Project) {
   return {
@@ -305,12 +324,75 @@ function projectToRow(p: Project) {
     created_at: new Date(p.createdAt).toISOString(),
   };
 }
+/** Uploads one quotation. Throws when it fails, so the save queue retries it. */
 async function pushProject(p: Project) {
-  try {
-    const { error } = await supabase.from("projects").upsert(projectToRow(p), { onConflict: "id" });
-    if (error) console.warn("[supabase] upsert failed:", error.message);
-  } catch (e) { console.warn("[supabase] push error:", e); }
+  let row = projectToRow(p);
+  // This copy came from the computer's own storage, which leaves out uploaded
+  // files: take them from the cloud copy so the upload doesn't erase them.
+  const stripped = p.data.systemLayout?.strippedLocally;
+  if (stripped?.length) {
+    const { data, error } = await supabase.from("projects").select("data").eq("id", p.id).maybeSingle();
+    if (error) throw new Error(error.message);
+    const cloudLayout = (data?.data as ProposalData | undefined)?.systemLayout ?? {};
+    const layout: SystemLayoutAssets = { ...p.data.systemLayout };
+    for (const k of stripped) if (layout[k] === undefined) layout[k] = cloudLayout[k];
+    if (stripped.includes("designPdfUrl") && !layout.designPdfName) layout.designPdfName = cloudLayout.designPdfName;
+    delete layout.strippedLocally;
+    row = projectToRow({ ...p, data: { ...p.data, systemLayout: layout } });
+  }
+  const { error } = await supabase.from("projects").upsert(row, { onConflict: "id" });
+  if (error) throw new Error(error.message);
 }
+
+/** One save queue for all quotations: newest copy only, one upload at a time, retried. */
+export const projectSaves = createSaveQueue<Project>(pushProject);
+
+/**
+ * The copy kept in this browser leaves out uploaded files (layout image, design
+ * PDF). They can be several MB each, and the browser keeps only about 5 MB for
+ * the whole app: once that is full, nothing more is saved on this computer.
+ * The files stay in the cloud copy and are filled back in when the app loads.
+ */
+function withoutFiles(p: Project): Project {
+  const layout = p.data.systemLayout;
+  if (!layout) return p;
+  const files = SYSTEM_LAYOUT_FILES.filter(k => layout[k]?.startsWith("data:"));
+  if (!files.length) return p;
+  const kept: SystemLayoutAssets = { ...layout };
+  for (const k of files) delete kept[k];
+  kept.strippedLocally = Array.from(new Set([...(layout.strippedLocally ?? []), ...files]));
+  return { ...p, data: { ...p.data, systemLayout: kept } };
+}
+
+/** Fills files left out of the local copy back in from the cloud copy. */
+function withFilesFrom(local: Project, cloudCopy: Project | undefined): Project {
+  const layout = local.data.systemLayout;
+  if (!layout?.strippedLocally?.length || !cloudCopy) return local;
+  const cloudLayout = cloudCopy.data.systemLayout ?? {};
+  const filled: SystemLayoutAssets = { ...layout };
+  for (const k of layout.strippedLocally) if (filled[k] === undefined) filled[k] = cloudLayout[k];
+  if (!filled.designPdfName) filled.designPdfName = cloudLayout.designPdfName;
+  delete filled.strippedLocally;
+  return { ...local, data: { ...local.data, systemLayout: filled } };
+}
+
+/** localStorage that never throws: a full storage must not break typing in the app. */
+let warnedStorageFull = false;
+const safeLocalStorage = {
+  getItem: (name: string) => localStorage.getItem(name),
+  setItem: (name: string, value: string) => {
+    try {
+      localStorage.setItem(name, value);
+    } catch (e) {
+      console.warn("[store] could not save on this computer:", e);
+      if (!warnedStorageFull) {
+        warnedStorageFull = true;
+        toast.warning("This computer's storage is full. Quotations are still saved to the cloud.");
+      }
+    }
+  },
+  removeItem: (name: string) => localStorage.removeItem(name),
+};
 async function pushInwardOrder(o: InwardOrder) {
   try {
     const { error } = await cloud.from("inward_orders").upsert({
@@ -428,7 +510,7 @@ export const useProposalStore = create<ProposalStore>()(
         set(s => ({ projects: s.projects.map(p => {
           if (p.id !== id) return p;
           const merged: Project = { ...p, updatedAt: Date.now(), data: { ...p.data, layout } };
-          void pushProject(merged);
+          projectSaves.queue(merged);
           return merged;
         }) })),
       createProject: (name, layout) => {
@@ -448,14 +530,14 @@ export const useProposalStore = create<ProposalStore>()(
         };
         p = recomputeOfferNumber(p);
         set(s => ({ projects: [p, ...s.projects] }));
-        void pushProject(p);
+        projectSaves.queue(p, 0);
         return p;
       },
       updateProject: (id, patch) =>
         set(s => ({ projects: s.projects.map(p => {
           if (p.id !== id) return p;
           const merged = { ...p, ...patch, updatedAt: Date.now() };
-          void pushProject(merged);
+          projectSaves.queue(merged);
           return merged;
         }) })),
       updateProjectData: (id, patch) =>
@@ -467,21 +549,30 @@ export const useProposalStore = create<ProposalStore>()(
           if (newShort !== (merged.companyShort ?? "")) {
             merged = recomputeOfferNumber({ ...merged, companyShort: newShort });
           }
-          void pushProject(merged);
+          projectSaves.queue(merged);
           return merged;
         }) })),
       setSystemType: (id, systemType) =>
         set(s => ({ projects: s.projects.map(p => {
-          if (p.id !== id) return p;
+          // Same type again (e.g. a click on the already selected card): change nothing.
+          if (p.id !== id || p.data.systemType === systemType) return p;
           const fresh = defaultsForSystem(systemType, s);
+          // Only what depends on the system type goes back to that type's defaults
+          // (tests, subsystems, instruments, equipment, proprietary items).
+          // Everything else typed in so far is kept, prices included: they are
+          // stored per item id, and most items exist in every system type.
           const merged: Project = { ...p, updatedAt: Date.now(), data: {
-            ...fresh,
-            customer: p.data.customer,
-            meta: p.data.meta,
-            transformer: p.data.transformer,
+            ...p.data,
+            systemType,
+            selectedTests: fresh.selectedTests,
+            selectedSubsystems: fresh.selectedSubsystems,
+            subsystemVariants: fresh.subsystemVariants,
+            instruments: fresh.instruments,
+            equipment: fresh.equipment,
+            proprietary: fresh.proprietary,
             layout: p.data.layout ?? fresh.layout,
           }};
-          void pushProject(merged);
+          projectSaves.queue(merged);
           return merged;
         })})),
       duplicateProject: (id) => {
@@ -498,7 +589,7 @@ export const useProposalStore = create<ProposalStore>()(
         };
         copy = recomputeOfferNumber(copy);
         set(s => ({ projects: [copy, ...s.projects] }));
-        void pushProject(copy);
+        projectSaves.queue(copy);
         return copy;
       },
       reviseProject: (id) => {
@@ -533,17 +624,18 @@ export const useProposalStore = create<ProposalStore>()(
         };
         copy = recomputeOfferNumber(copy);
         set(s => ({ projects: [copy, ...s.projects] }));
-        void pushProject(copy);
+        projectSaves.queue(copy);
         return copy;
       },
       deleteProject: (id) => {
         set(s => ({ projects: s.projects.filter(p => p.id !== id) }));
+        projectSaves.cancel(id);
         void removeProject(id);
       },
       archiveProject: (id) => set(s => ({ projects: s.projects.map(p => {
         if (p.id !== id) return p;
         const merged = { ...p, status: "Archived" as const, updatedAt: Date.now() };
-        void pushProject(merged);
+        projectSaves.queue(merged);
         return merged;
       }) })),
       getProject: (id) => get().projects.find(p => p.id === id),
@@ -625,7 +717,9 @@ export const useProposalStore = create<ProposalStore>()(
         set(s => ({ companies: s.companies.filter(c => c.id !== id) })),
       syncProject: async (id) => {
         const p = get().projects.find(x => x.id === id);
-        if (p) await pushProject(p);
+        if (!p) return;
+        projectSaves.queue(p, 0);
+        await projectSaves.flush(id);
       },
       hydrateFromCloud: async () => {
         try {
@@ -649,11 +743,18 @@ export const useProposalStore = create<ProposalStore>()(
           // Local-only copies made before going live are old test data: drop them,
           // so they don't show up or get saved back to the database.
           const local = get().projects.filter(p => p.createdAt >= GO_LIVE_AT || cloud.some(c => c.id === p.id));
+          const cloudById = new Map(cloud.map(p => [p.id, p]));
           const map = new Map<string, Project>();
-          for (const p of local) map.set(p.id, p);
+          for (const p of local) map.set(p.id, withFilesFrom(p, cloudById.get(p.id)));
           for (const p of cloud) {
             const existing = map.get(p.id);
             if (!existing || p.updatedAt >= existing.updatedAt) map.set(p.id, p);
+          }
+          // Work that never reached the cloud (no internet, a failed save, the tab
+          // closed too soon) is sent up now instead of staying on this computer only.
+          for (const p of map.values()) {
+            const c = cloudById.get(p.id);
+            if (!c || p.updatedAt > c.updatedAt) projectSaves.queue(p, 0);
           }
           // Saved quotations may still hold renamed subsystem ids; map them to the current ones.
           const fixed = Array.from(map.values()).map(p => {
@@ -672,6 +773,8 @@ export const useProposalStore = create<ProposalStore>()(
     {
       name: "electrosoft-proposal-store-v1",
       version: 2,
+      storage: createJSONStorage(() => safeLocalStorage),
+      partialize: (s) => ({ ...s, projects: s.projects.map(withoutFiles) }) as ProposalStore,
       migrate: (persisted, version) => {
         const state = (persisted ?? {}) as Partial<ProposalStore>;
         // v0 -> v1: bring in the seed employees added since this browser first saved.

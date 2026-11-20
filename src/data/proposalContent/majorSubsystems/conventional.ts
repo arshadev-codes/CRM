@@ -104,20 +104,12 @@ export const conventionalMajorSubsystems: SubsystemContent[] = [
   },
   {
     id: "ht-isolator-trh",
-    title: "Manually Operated HT Isolator Switch with Earthing Mechanism (for Temperature Rise Test)",
+    title: "Manually Operated HT Isolator Switch (for Temperature Rise Test)",
     preview: "Dedicated isolator for the temperature-rise test loading circuit.",
     description:
       "This manually operated isolator switch is dedicated to safely isolating the high-voltage loading circuit used during temperature-rise testing. Operation is carried out directly by the operator at the switch location, with mechanical and electrical interlocks preventing incorrect operation and guaranteeing compliance with safe test procedures.",
     // images: [htIsolatorTrhImg],
     images: [motorizedHtIsolator1Img, motorizedHtIsolator2Img],
-  },
-  {
-    id: "impulse-pd",
-    title: "Integration of Impulse Test System & PD Measurement System (Customer-Scope Hardware)",
-    preview: "Manual coordination with customer-supplied LI and PD hardware.",
-    description:
-      "Although the impulse generator, impulse analyzer, PD detector, coupling capacitor, and associated hardware remain in the customer's scope, the conventional test bench provides the necessary terminal connections and circuit segregation to support these tests. Data acquired from the impulse analyzer and PD detector is recorded manually by the operator and compiled into the final transformer test reports alongside the core test results, allowing all tests to be conducted, monitored, and documented from the conventional control desk.",
-    images: [impulseTestSetupImg, pdMeasurementSystemImg, pdDetectorUnitImg],
   },
   {
     id: "instruments",
@@ -147,10 +139,10 @@ export const conventionalMajorSubsystems: SubsystemContent[] = [
   },
   {
     id: "iovt-mg-set",
-    title: "IOVT MG Set (200 Hz)",
+    title: "MG Set for IOVT (200 Hz)",
     preview: "High-frequency 200 Hz motor-generator for Induced Over Voltage Tests.",
     description:
-      "The IOVT MG Set is a high-frequency motor-generator system that supplies stable, isolated and clean 200 Hz AC power for Induced Over Voltage Tests (IOVT) on transformers and other sensitive electrical equipment. A robust motor is coupled to a high-frequency alternator, delivering precise voltage and frequency control with low harmonic distortion. The system provides full electrical isolation and effective suppression of transients and noise, and is built for continuous operation with efficient cooling, overcurrent and overvoltage protection, RTD-based temperature monitoring, high-class insulation and vibration-controlled couplings. Typical ratings range from 100 kVA to 1 MVA (11 kV), and the set is operated manually from the control desk through its excitation panel.",
+      "The MG Set for IOVT is a high-frequency motor-generator system that supplies stable, isolated and clean 200 Hz AC power for Induced Over Voltage Tests (IOVT) on transformers and other sensitive electrical equipment. A robust motor is coupled to a high-frequency alternator, delivering precise voltage and frequency control with low harmonic distortion. The system provides full electrical isolation and effective suppression of transients and noise, and is built for continuous operation with efficient cooling, overcurrent and overvoltage protection, RTD-based temperature monitoring, high-class insulation and vibration-controlled couplings. Typical ratings range from 100 kVA to 1 MVA (11 kV), and the set is operated manually from the control desk through its excitation panel.",
     images: [iovtMgSetImg, iovtMgSetPhotoImg],
   },
   {
@@ -178,13 +170,6 @@ export const conventionalMajorSubsystems: SubsystemContent[] = [
     images: [intermediateTransformerImg],
   },
   {
-    id: "booster-transformer",
-    title: "Booster Transformer",
-    preview: "3-phase booster transformers with multiple taps for the test supply.",
-    description:
-      "Booster transformers step the controlled output of the MG set and dimmer up to the voltage level needed by the test circuit, with multiple selectable taps to match different transformer voltage classes. They are supplied as 3-phase units, for example 500 kVA, 440 V / 800-2200-3300-6600-11000 V and 100 kVA, 440 V / 400-800-1200 V, so that the right range can be chosen for the transformers being tested.",
-  },
-  {
     id: "current-injection-transformer",
     title: "Current Injection Transformer",
     preview: "3000 A, 10 V high-current source with dimmer and control panel.",
@@ -196,7 +181,7 @@ export const conventionalMajorSubsystems: SubsystemContent[] = [
     title: "LT Capacitor Bank",
     preview: "440 V reactive power compensation for the LV side of the test supply.",
     description:
-      "The LT Capacitor Bank provides reactive power compensation on the 440 V side of the test supply, reducing the load on the MG set and improving the stability of the test voltage during no-load and load-loss measurements. It is built from capacitor units arranged on a rack and offered in ratings from 600 kVAR to 4000 kVAR (for example 600, 700, 1500 and 4000 kVAR), so it can be sized to the test floor capacity. A panel-only version is also available where the capacitors of an existing system are reused. Switching is performed by contactors in the power panel, selected manually from the control desk.",
+      "The LT Capacitor Bank provides reactive power compensation on the 440 V side of the test supply, reducing the load on the Main MG Set and improving the stability of the test voltage during no-load and load-loss measurements. It is built from capacitor units arranged on a rack and offered in ratings from 600 kVAR to 4000 kVAR (for example 600, 700, 1500 and 4000 kVAR), so it can be sized to the test floor capacity. A panel-only version is also available where the capacitors of an existing system are reused. Switching is performed by contactors in the power panel, selected manually from the control desk.",
     images: [ltCapacitorCansImg],
   },
   {
@@ -232,13 +217,6 @@ export const conventionalMajorSubsystems: SubsystemContent[] = [
     images: [ngrPanelImg],
   },
   {
-    id: "busbar",
-    title: "Common Bus Bar System",
-    preview: "Tinned copper common bus bar sections in 600 A and 1600 A ratings.",
-    description:
-      "The Common Bus Bar System connects the generator, transformer and HT panels into one switchgear line-up. Sections are built from tinned copper for low resistance, long-term corrosion resistance and reliable joints, and are supplied in 600 A and 1600 A ratings to suit the panel line-up. Sections can be arranged to allow flexible feeding of the test circuits from different generators.",
-  },
-  {
     id: "ups",
     title: "UPS for Control Supply",
     preview: "2 kVA / 5 kVA UPS with 30 minutes battery backup for control and protection circuits.",
@@ -247,7 +225,7 @@ export const conventionalMajorSubsystems: SubsystemContent[] = [
   },
     {
     id: "two-winding-changeover-panel",
-    title: "Two Winding Changeover Panels (3-Phase & 1-Phase Testing)",
+    title: "Winding Changeover Panels (3-Phase & 1-Phase Testing)",
     preview: "Changeover panels to connect the test supply to the transformer windings.",
     description:
       "The Two Winding Changeover Panels connect the test supply to the windings of the transformer under test and allow the circuit to be changed over between the required connections. They are supplied as a pair, one panel for 3-phase testing and one for 1-phase testing, so that both types of transformer can be tested from the same facility. Changeover is performed manually under the operator's control from the control desk, and the panels are interlocked with the rest of the test circuit to prevent incorrect connections.",
@@ -259,11 +237,14 @@ export const conventionalMajorSubsystems: SubsystemContent[] = [
     description:
       "The Control cum Power Panel combines the power-switching and control functions of a compact testing system in one powder-coated sheet-steel enclosure. It houses an MCCB incomer, a multi-function meter with CT and face indication, a transformer overcurrent trip relay, the dimmer input contactor, the dimmer output CT, and the main CT/PT selector switches, together with all accessories required for testing. It forms the core of a complete core-loss testing system, which also includes a 3-phase 150 kVA transformer, a 3-phase 150 A motorized dimmer, a Yokogawa WT500 power analyzer and the matching CTs and PTs.",
   },
+
+  // ---------- Filled in per quotation ----------
   {
-    id: "hv-instrument-transformers",
-    title: "HV-Class Measuring CTs & PTs (up to 132 kV)",
-    preview: "Class 0.1 current and potential transformers for high-voltage measurement.",
-    description:
-      "For tests on high-voltage transformers, high-class measuring transformers are supplied with ratio change-over from the secondary side. Potential transformers are available as epoxy-cast 11 kV units (for example 1.1-2.2-3.3-6.6 kV/√3 to 110 V/√3, class 0.1, 2.5 VA) and as porcelain-insulated 132 kV units (for example 11-22-33 kV/√3 and 66-132 kV/√3 to 110/√3 V, class 0.1, 5 VA, BIL 650 kV, conforming to IS 16227). Live-tank 132 kV current transformers with MS tank (for example 5-10-25-50/5 A, 100-200-400-600-1000/5 A and 1500-2000-2500/5 A, class 0.1, 15 VA, STC 40 kA for 1 s, extended current rating up to 120%) are offered for the current side. Each is wired to the CT/PT rack and the control desk metering.",
+    // Off by default. When ticked, the wizard asks which customer instruments and
+    // equipment are integrated; that text is printed as this item's description.
+    id: "customer-scope-hardware",
+    title: "Integration of Customer Scope Hardware",
+    preview: "Customer-supplied instruments and equipment integrated into the test system.",
+    description: "",
   },
 ];

@@ -24,6 +24,37 @@ import { useProposalStore } from "@/store/proposalStore";
 // Runs before any page renders, so no page sees the old database's leftovers.
 freshStart();
 
+/*
+ * After a deploy, a tab that was already open still runs the old version. When
+ * it opens a page it hasn't loaded yet, it asks for that page's old file, which
+ * the deploy replaced, and the page fails ("Failed to fetch dynamically imported
+ * module"). Reloading picks up the new version. Done once per page per minute,
+ * so a real network problem doesn't reload in a loop.
+ */
+const isOldVersionError = (message: string) =>
+  /dynamically imported module|Importing a module script failed|error loading dynamically imported|Loading chunk/i.test(message);
+
+function reloadForNewVersion(): boolean {
+  if (typeof window === "undefined") return false;
+  const key = `es_reloaded:${window.location.pathname}`;
+  try {
+    const last = Number(sessionStorage.getItem(key) ?? 0);
+    if (Date.now() - last < 60_000) return false; // just tried: show the error instead
+    sessionStorage.setItem(key, String(Date.now()));
+  } catch {
+    /* storage blocked: reload anyway */
+  }
+  window.location.reload();
+  return true;
+}
+
+if (typeof window !== "undefined") {
+  // Vite reports a page file that failed to load before the page errors.
+  window.addEventListener("vite:preloadError", (event) => {
+    if (reloadForNewVersion()) event.preventDefault();
+  });
+}
+
 
 function NotFoundComponent() {
   return (
@@ -41,7 +72,22 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => { console.error(error); }, [error]);
+  const oldVersion = isOldVersionError(error.message);
+  useEffect(() => {
+    console.error(error);
+    if (oldVersion) reloadForNewVersion();
+  }, [error, oldVersion]);
+  if (oldVersion) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="neo-surface max-w-md rounded-3xl px-10 py-10 text-center es-pop-in">
+          <h1 className="text-xl font-bold text-slate-800">A new version of the app is available</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Reloading to get it…</p>
+          <button onClick={() => window.location.reload()} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 hover:brightness-110"><RotateCcw className="h-4 w-4" />Reload now</button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="neo-surface max-w-md rounded-3xl px-10 py-10 text-center es-pop-in">

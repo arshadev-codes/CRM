@@ -3,6 +3,7 @@ import { makeMoney } from "@/data/currency";
 import type { Project } from "@/store/proposalStore";
 import {
   freightLogisticsDefaults,
+  resolveDestination,
   type FreightLogisticsData,
 } from "@/data/freightLogisticsData";
 
@@ -58,7 +59,6 @@ export function CommercialTermsPdf({
 
   const fl: FreightLogisticsData = project.data.freightLogistics ?? {
     ...freightLogisticsDefaults,
-    destination: project.data.customer.city || "Site location",
   };
 
   const pricing = project.data.pricing;
@@ -174,7 +174,7 @@ export function CommercialTermsPdf({
           <table className="ct-table" style={{ width: "100%", fontSize: 11, borderCollapse: "collapse" }}>
             <tbody>
               <Row k="Freight Charges" v={fl.freightCharges} />
-              <Row k="Destination" v={fl.destination} />
+              <Row k="Destination" v={resolveDestination(fl, project.data.customer)} />
               <Row k="Source (Dispatch Location)" v={resolvePreset(fl.source, fl.sourceCustom)} />
               <Row k="Mode of Transport" v={resolvePreset(fl.modeOfTransport, fl.modeOfTransportCustom)} />
               <Row k="Incoterms" v={resolvePreset(fl.incoterms, fl.incotermsCustom)} />
