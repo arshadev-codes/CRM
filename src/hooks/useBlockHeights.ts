@@ -11,62 +11,37 @@ import { createPortal } from "react-dom";
 // ─────────────────────────────────────────────────────────────────────────────
 //  useBlockHeights
 //
-//  Measures the real rendered pixel height of content blocks for PDF
-//  pagination. Uses a React portal into a hidden <div> on <body> so
-//  measurement happens inside the normal React tree — no second createRoot,
-//  no flushSync, React 19 + SSR safe.
+//  Measures the real rendered height of each content block (in a hidden
+//  portal on <body>) so PDF sections can be split into pages without clipping.
 //
-//  INFINITE LOOP FIX:
-//  The previous version had useLayoutEffect with no dependency array, so it
-//  ran after every commit. measure() called setHeightsMm + setMeasuring,
-//  which triggered a re-render → commit → useLayoutEffect → measure() again
-//  → infinite loop. Fixed by:
-//    1. A `measuredRef` boolean that flips true after the first successful
-//       measure and prevents measure() from firing again until items change.
-//    2. useLayoutEffect depends on [itemCount, host] so it only re-runs when
-//       the item list or host element actually changes.
-//    3. The reset effect (on items.length change) flips measuredRef back to
-//       false so the next change triggers a fresh measurement pass.
+//  Measurement is keyed on a SIGNATURE of the items, not just their count:
+//  whenever the content changes (a subsystem ticked, a variant switched, the
+//  shared library arriving from the database, text edited), the blocks are
+//  measured again. The previous version only re-measured when the number of
+//  items changed and, after the first change, never finished measuring again,
+//  so the section (e.g. the Scope of Supply pricing table) stayed hidden until
+//  the page was reloaded.
 //
-//  HYDRATION-MISMATCH FIX:
-//  getOrCreateHost() used to be called directly inside the useState
-//  initializer — i.e. during the render phase. That calls
-//  document.body.appendChild() before React has finished reconciling /
-//  hydrating the rest of the tree, which can desync React's hydration walk
-//  for *unrelated* sibling subtrees lower in <body> (symptom: "A tree
-//  hydrated but some attributes ... didn't match" on a completely different
-//  component). DOM mutations outside React's own tree must only happen
-//  after mount, inside an effect — never during render. Fixed by:
-//    1. useState now starts as `null` on both server and client — no DOM
-//       access during render, so server and first-client-render markup
-//       are identical (host div doesn't exist in either yet).
-//    2. A `useEffect` (not the render body) creates/attaches the host on
-//       mount and calls setHost(...), which is the React-sanctioned way to
-//       perform a DOM side effect in response to mounting.
-//    3. Because the host doesn't exist for that one extra commit, every
-//       effect/measurement step below already guards on `if (!host) return`,
-//       so nothing else needed to change — they simply run one tick later.
+//  While a new measurement is running, the last heights are reused when the
+//  item count still matches, so the section never blinks out.
 //
-//  Public API — unchanged:
-//    items          – array of data items to measure
-//    renderItem     – (item, index) => ReactElement
-//    contentWidthMm – PDF content area width in mm (default 182 for A4)
-//
-//  Returns { heightsMm, measuring, MeasurementPortal }
-//    heightsMm         – parallel array of heights in mm (empty while measuring)
-//    measuring         – true until all heights captured
-//    MeasurementPortal – MUST be rendered somewhere in the same component's
-//                        return value at all times (even after measuring=false)
+//  Returns { heightsMm, measuring, settled, MeasurementPortal }
+//    heightsMm         – heights in mm, one per item (empty while measuring)
+//    measuring         – true while no usable heights exist yet
+//    settled           – true once the heights match the current items
+//    MeasurementPortal – must always be rendered by the calling component
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MM_PER_PX = 25.4 / 96;
+/** Images that never fire load/error must not block the PDF forever. */
+const IMAGE_WAIT_MS = 4000;
 
 const isClient = typeof window !== "undefined";
 
 let sharedHost: HTMLDivElement | null = null;
 
 function getOrCreateHost(widthPx: number): HTMLDivElement {
-  if (!sharedHost) {
+  if (!sharedHost || !sharedHost.isConnected) {
     sharedHost = document.createElement("div");
     sharedHost.setAttribute("data-measurement-host", "true");
     sharedHost.setAttribute("aria-hidden", "true");
@@ -76,19 +51,34 @@ function getOrCreateHost(widthPx: number): HTMLDivElement {
     "position:absolute",
     "top:-99999px",
     "left:-99999px",
-    `width:${widthPx}px`,
     "visibility:hidden",
     "pointer-events:none",
     "z-index:-1",
     "font-size:16px",
     "line-height:1.5",
   ].join(";");
+  void widthPx;
   return sharedHost;
+}
+
+/**
+ * Cheap, stable fingerprint of the items. Long strings (images as data URLs)
+ * are shortened to their length and ends, so this stays fast.
+ */
+export function itemsSignature(items: unknown): string {
+  try {
+    return JSON.stringify(items, (_k, v) =>
+      typeof v === "string" && v.length > 200 ? `${v.length}:${v.slice(0, 60)}:${v.slice(-60)}` : v,
+    );
+  } catch {
+    return String(Math.random());
+  }
 }
 
 export interface BlockHeightsResult {
   heightsMm: number[];
   measuring: boolean;
+  settled: boolean;
   MeasurementPortal: ReactElement | null;
 }
 
@@ -96,135 +86,102 @@ export function useBlockHeights<T>(
   items: T[],
   renderItem: (item: T, index: number) => ReactElement,
   contentWidthMm = 182,
+  /** Pass when the rendering depends on more than the items (e.g. the currency). */
+  extraSignature = "",
 ): BlockHeightsResult {
   const widthPx = (contentWidthMm / 25.4) * 96;
+  const sig = `${contentWidthMm}|${extraSignature}|${itemsSignature(items)}`;
 
-  // Always starts as null — identical on server and on the very first
-  // client render, so hydration has nothing to mismatch on. The real host
-  // div is created post-mount, below, inside a useEffect.
+  // null on the server and on the first client render (no DOM access during render).
   const [host, setHost] = useState<HTMLDivElement | null>(null);
+  const [measured, setMeasured] = useState<{ sig: string; heights: number[] } | null>(null);
 
-  const [heightsMm, setHeightsMm] = useState<number[]>([]);
-  const [measuring, setMeasuring] = useState(items.length > 0);
+  const blockDivRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const pendingSig = useRef<string | null>(null);
 
-  // Per-block div refs populated by React callback refs in the portal.
-  const blockDivRefs = useRef<(HTMLDivElement | null)[]>(
-    new Array(items.length).fill(null),
-  );
-
-  // Guard: flips true after a successful measure; reset to false when
-  // items.length changes so the next change triggers a fresh pass.
-  const measuredRef = useRef(false);
-
-  const renderItemRef = useRef(renderItem);
-  renderItemRef.current = renderItem;
-
-  // ── Create the host AFTER mount, never during render ──────────────────────
-  // This is the one-time DOM side effect (document.body.appendChild) that
-  // previously ran inside the useState initializer during render. Moving it
-  // here means it only ever runs once hydration of the surrounding tree has
-  // already completed, so it can no longer desync React's hydration walk.
   useEffect(() => {
     if (!isClient) return;
-    const h = getOrCreateHost(widthPx);
-    setHost(h);
+    setHost(getOrCreateHost(widthPx));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Sync host width ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (host) host.style.width = `${widthPx}px`;
-  }, [host, widthPx]);
-
-  // ── Reset when items list length changes ───────────────────────────────────
-  // Deliberately depends on [items.length] ONLY — not [items.length, host].
-  // host transitions once from null -> div shortly after mount (see the
-  // host-creation effect above). If this reset effect also depended on
-  // `host`, it would fire again in that same transition and wipe out
-  // (setMeasuring(true) / setHeightsMm([])) whatever the measurement
-  // useLayoutEffect had just computed in that very same commit — putting
-  // measuring into a permanent true/[] state with no further trigger to
-  // ever re-measure (items.length never changes again on its own). Keying
-  // only on items.length avoids that race: this effect runs once on mount
-  // (items.length state already reflects the initial array) and again only
-  // when the actual list length changes later.
-  useEffect(() => {
-    measuredRef.current = false;
-    blockDivRefs.current = new Array(items.length).fill(null);
-    if (items.length === 0) {
-      setHeightsMm([]);
-      setMeasuring(false);
-    } else {
-      setHeightsMm([]);
-      setMeasuring(true);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items.length]);
-
-  // ── Measure after React commits the portal children ───────────────────────
-  // Depends on [items.length, host] — only re-runs when something meaningful
-  // changed, not after every commit. measuredRef prevents measure() from
-  // firing more than once per items-change even if the effect re-runs.
+  // Runs after every commit, but does work only when the items changed since
+  // the last measurement and the portal for them is in the page.
   useLayoutEffect(() => {
     if (!isClient || !host) return;
     if (items.length === 0) return;
-    if (measuredRef.current) return; // already measured this batch — stop
+    if (measured?.sig === sig || pendingSig.current === sig) return;
 
-    const allReady = blockDivRefs.current
-      .slice(0, items.length)
-      .every((el) => el !== null);
-    if (!allReady) return;
+    const els = blockDivRefs.current.slice(0, items.length);
+    if (els.length < items.length || els.some((el) => !el)) return;
 
-    const measure = () => {
-      if (measuredRef.current) return; // double-guard for the async image path
-      measuredRef.current = true;
-      const mm = blockDivRefs.current
-        .slice(0, items.length)
-        .map((div) => {
-          if (!div) return 0;
-          const h = div.getBoundingClientRect().height;
-          return parseFloat((h * MM_PER_PX).toFixed(3));
-        });
-      setHeightsMm(mm);
-      setMeasuring(false);
+    pendingSig.current = sig;
+    const capture = () => {
+      if (pendingSig.current !== sig) return; // items changed again meanwhile
+      pendingSig.current = null;
+      const heights = blockDivRefs.current.slice(0, items.length).map((div) => {
+        if (!div) return 0;
+        return parseFloat((div.getBoundingClientRect().height * MM_PER_PX).toFixed(3));
+      });
+      setMeasured({ sig, heights });
     };
 
-    const imgs = Array.from(
-      host.querySelectorAll<HTMLImageElement>("img"),
-    ).filter((img) => !img.complete);
-
+    const imgs = els.flatMap((el) => Array.from(el!.querySelectorAll("img"))).filter((img) => !img.complete);
     if (imgs.length === 0) {
-      measure();
-    } else {
-      let remaining = imgs.length;
-      const onDone = () => { if (--remaining === 0) measure(); };
-      imgs.forEach((img) => {
-        img.addEventListener("load", onDone, { once: true });
-        img.addEventListener("error", onDone, { once: true });
-      });
+      capture();
+      return;
     }
-  // items.length and host are the only real triggers; measuredRef is a ref
-  // (not state) so it doesn't need to be in deps.
-  }, [items.length, host]);
+    let remaining = imgs.length;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      capture();
+    };
+    const timer = setTimeout(finish, IMAGE_WAIT_MS);
+    const onDone = () => { if (--remaining <= 0) finish(); };
+    imgs.forEach((img) => {
+      img.addEventListener("load", onDone, { once: true });
+      img.addEventListener("error", onDone, { once: true });
+    });
+  });
 
-  // ── Build portal with createElement (no JSX → valid in .ts) ──────────────
+  const fresh = measured?.sig === sig;
+  const usable =
+    items.length === 0
+      ? []
+      : fresh
+        ? measured!.heights
+        : measured && measured.heights.length === items.length
+          ? measured.heights
+          : null;
+
   let MeasurementPortal: ReactElement | null = null;
-
   if (host) {
-    const wrappers = items.map((item, i) =>
-      createElement(
-        "div",
-        {
-          key: i,
-          ref: (el: HTMLDivElement | null) => {
-            blockDivRefs.current[i] = el;
+    const wrappers = createElement(
+      "div",
+      { style: { width: `${widthPx}px` } },
+      items.map((item, i) =>
+        createElement(
+          "div",
+          {
+            key: i,
+            ref: (el: HTMLDivElement | null) => {
+              blockDivRefs.current[i] = el;
+            },
           },
-        },
-        renderItemRef.current(item, i),
+          renderItem(item, i),
+        ),
       ),
     );
     MeasurementPortal = createPortal(wrappers, host) as ReactElement;
   }
 
-  return { heightsMm, measuring, MeasurementPortal };
+  return {
+    heightsMm: usable ?? [],
+    measuring: usable === null,
+    settled: items.length === 0 || fresh,
+    MeasurementPortal,
+  };
 }

@@ -1,22 +1,23 @@
 import { isQuotationPerson } from "@/data/employeesData";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   Project, ProposalData, CustomizationItem, ProprietaryCustomItem,
   PriceEntry, PricingData,
 } from "@/store/proposalStore";
-import { useProposalStore } from "@/store/proposalStore";
+import { useProposalStore, mergedPaymentTemplates } from "@/store/proposalStore";
 import { systemTypesData, type SystemType } from "@/data/systemTypesData";
 import {
   CUSTOMER_SCOPE_ID, COMPANION_SUBSYSTEMS, getMajorSubsystems, isCompanionSubsystem,
-  quotationSubsystems, resolveSubsystemTitle,
+  hasRating, withRating,
+  TEST_BENCH_ID, REDUNDANT_BENCH_ID, offersRedundantBench, CUSTOM_SUBSYSTEM_PREFIX, type SubsystemContent,
 } from "@/data/proposalContent";
+import { SubsystemForm, blankSubsystem, isBlankSubsystem } from "@/components/settings/SubsystemForm";
 import { useLibrary, useDeliveryDurations } from "@/hooks/useLibrary";
 import { autoSubject } from "@/data/proposalSubject";
 import { CurrencyPanel } from "@/components/wizard/CurrencyPanel";
-import { getOnSiteServiceRows } from "@/data/scopeOfServiceRows";
-import { defaultLayoutImages } from "@/lib/defaultLayoutImages";
 import { lineTotal } from "@/data/pricingHelpers";
+import { installationDefaultPrice, namedEquipment, namedInstruments, quotationTotals, supplyRows } from "@/data/quotationPricing";
 import { CompanyAutocomplete } from "@/components/wizard/CompanyAutocomplete";
 import { CatalogPickerDialog } from "@/components/wizard/CatalogPickerDialog";
 import type { CatalogKind } from "@/data/catalogFamilies";
@@ -28,7 +29,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import {
@@ -211,7 +212,7 @@ export function Step1ProjectSetup({ project, update }: { project: Project; updat
             );
           })}
         </div>
-        <p className="text-xs text-muted-foreground mt-3">⚠ Changing system type resets tests, major subsystems, instruments, equipment and proprietary items to that type's defaults. Everything else is kept.</p>
+        <p className="text-xs text-muted-foreground mt-3">⚠ Changing system type resets tests, major subsystems and proprietary items to that type's defaults. Everything else is kept.</p>
       </NeoSection>
 
       <Dialog open={pendingType !== null} onOpenChange={open => { if (!open) setPendingType(null); }}>
@@ -221,8 +222,8 @@ export function Step1ProjectSetup({ project, update }: { project: Project; updat
               Switch to {systemTypesData.find(t => t.id === pendingType)?.label ?? pendingType}?
             </DialogTitle>
             <DialogDescription>
-              Tests, major subsystems, instruments, equipment and proprietary items go back to that system's
-              defaults. Customer details, prices, delivery, exclusions, makes and payment terms are kept.
+              Tests, major subsystems and proprietary items go back to that system's defaults. Customer details,
+              ticked instruments and equipment, prices, delivery, exclusions, makes and payment terms are kept.
               You can undo it right after.
             </DialogDescription>
           </DialogHeader>
@@ -296,13 +297,68 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
   const { selectedSubsystems, systemType } = project.data;
   const subsystemVariants = project.data.subsystemVariants ?? {};
   const proposalCustomizations = project.data.proposalCustomizations ?? [];
+  const customSubsystems = project.data.customSubsystems ?? [];
   const cmsOverrides = useProposalStore(s => s.cmsOverrides);
-  // RIO Panel isn't ticked on its own: it comes with Machine Room Control Desk.
+  const makesLibrary = useLibrary("makes");
   const allItems = getMajorSubsystems(systemType, cmsOverrides);
-  const items = allItems.filter(s => !isCompanionSubsystem(s.id));
+  // RIO Panel isn't ticked on its own, and the redundant bench is asked for in a dialog.
+  const items = allItems.filter(s => !isCompanionSubsystem(s.id) && s.id !== REDUNDANT_BENCH_ID);
+  const hasRedundantOption = offersRedundantBench(allItems);
+  const benchSelected = selectedSubsystems.includes(TEST_BENCH_ID);
+  const redundantIncluded = selectedSubsystems.includes(REDUNDANT_BENCH_ID);
+  const redundantTitle = allItems.find(s => s.id === REDUNDANT_BENCH_ID)?.title ?? "Redundant / Conventional Test Bench";
+  const rioTitle = allItems.find(s => s.id === COMPANION_SUBSYSTEMS[REDUNDANT_BENCH_ID])?.title ?? "RIO Panel";
+  const [askRedundant, setAskRedundant] = useState(false);
+  // A new quotation (redundantBench === null) asks straight away when the bench is ticked.
+  useEffect(() => {
+    if (hasRedundantOption && benchSelected && project.data.redundantBench === null) setAskRedundant(true);
+  }, [hasRedundantOption, benchSelected, project.data.redundantBench]);
+
   const customerScope = project.data.customerScopeHardware ?? "";
-  const toggle = (id: string) =>
-    update({ selectedSubsystems: selectedSubsystems.includes(id) ? selectedSubsystems.filter(x => x !== id) : [...selectedSubsystems, id] });
+  const ratings = project.data.subsystemRatings ?? {};
+  const setRating = (id: string, value: string) => update({ subsystemRatings: { ...ratings, [id]: value } });
+
+  /** Makes of Supply rows that follow a subsystem (HT / LT Capacitor Bank, Power Panel). */
+  const makesFor = (nextSelected: string[]) => {
+    const linked = makesLibrary.filter(r => r.subsystemIds?.length);
+    if (!linked.length) return project.data.makes;
+    let makes = project.data.makes;
+    for (const row of linked) {
+      const enabled = row.subsystemIds!.some(id => nextSelected.includes(id));
+      const was = makes.find(m => m.id === row.id);
+      const wasEnabled = !!was?.enabled;
+      const relevant = row.subsystemIds!.some(id => nextSelected.includes(id) !== selectedSubsystems.includes(id));
+      if (!relevant || wasEnabled === enabled) continue;
+      makes = was
+        ? makes.map(m => (m.id === row.id ? { ...m, enabled } : m))
+        : [...makes, { id: row.id, enabled, make: row.defaultMake }];
+    }
+    return makes;
+  };
+  const setSelected = (next: string[], extra: Partial<ProposalData> = {}) =>
+    update({ selectedSubsystems: next, makes: makesFor(next), ...extra });
+
+  const toggle = (id: string) => {
+    const on = !selectedSubsystems.includes(id);
+    if (!on) {
+      // No automatic bench: no redundant bench either.
+      if (id === TEST_BENCH_ID && hasRedundantOption) {
+        setSelected(selectedSubsystems.filter(x => x !== id && x !== REDUNDANT_BENCH_ID), { redundantBench: null });
+        return;
+      }
+      setSelected(selectedSubsystems.filter(x => x !== id));
+      return;
+    }
+    setSelected([...selectedSubsystems, id]);
+    if (id === TEST_BENCH_ID && hasRedundantOption) setAskRedundant(true);
+  };
+
+  const chooseRedundant = (keep: boolean) => {
+    const base = selectedSubsystems.filter(x => x !== REDUNDANT_BENCH_ID);
+    setSelected(keep ? [...base, REDUNDANT_BENCH_ID] : base, { redundantBench: keep });
+    setAskRedundant(false);
+    toast.success(keep ? `${redundantTitle} and ${rioTitle} added (${rioTitle} is item 2 in the PDF).` : `${redundantTitle} left out.`);
+  };
 
   const setVariant = (subsystemId: string, key: string) =>
     update({ subsystemVariants: { ...subsystemVariants, [subsystemId]: key } });
@@ -312,6 +368,36 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
     const activeKey = subsystemVariants[s.id] ?? s.variants.default;
     const active = s.variants.options.find(o => o.key === activeKey);
     return active?.title ?? s.title;
+  };
+
+  // ── Subsystems added for this quotation only ──
+  const [customDraft, setCustomDraft] = useState<SubsystemContent | null>(null);
+  const [editingCustom, setEditingCustom] = useState<string | null>(null);
+  const saveCustom = (s: SubsystemContent, isNew: boolean) => {
+    if (isBlankSubsystem(s) || !s.title.trim()) {
+      if (isNew) {
+        setCustomDraft(null);
+        toast.info("Nothing was entered, so no subsystem was added.");
+      } else toast.error("Give the subsystem a title.");
+      return;
+    }
+    if (isNew) {
+      update({ customSubsystems: [...customSubsystems, s], selectedSubsystems: [...selectedSubsystems, s.id] });
+      setCustomDraft(null);
+      toast.success(`"${s.title}" added to this quotation.`);
+    } else {
+      update({ customSubsystems: customSubsystems.map(c => (c.id === s.id ? s : c)) });
+      setEditingCustom(null);
+      toast.success("Saved");
+    }
+  };
+  const removeCustom = (s: SubsystemContent) => {
+    const before = { customSubsystems, selectedSubsystems };
+    update({
+      customSubsystems: customSubsystems.filter(c => c.id !== s.id),
+      selectedSubsystems: selectedSubsystems.filter(id => id !== s.id),
+    });
+    toast.success(`"${s.title}" removed`, { duration: 10000, action: { label: "Undo", onClick: () => update(before) } });
   };
 
   const addCustItem = () =>
@@ -332,7 +418,8 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
         Select the subsystems to include. Titles, descriptions and images are managed in <strong>Settings → Major Sub Systems</strong>
-        {" "}and are inserted automatically into the PDF — you do not see or edit that content here.
+        {" "}and are inserted automatically into the PDF. Items marked <em>Pricing only</em> get a row in the pricing table but no
+        description block.
       </p>
       <div className="space-y-2">
         {items.map(s => {
@@ -343,16 +430,41 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
               <button type="button" onClick={() => toggle(s.id)} className="w-full text-left p-3 flex items-start gap-3">
                 <Checkbox checked={sel} onCheckedChange={() => toggle(s.id)} className="mt-1" />
                 <div>
-                  <div className="font-semibold text-sm">{resolveTitle(s)}</div>
+                  <div className="font-semibold text-sm">
+                    {hasRating(s.id) ? withRating(resolveTitle(s), ratings[s.id]) : resolveTitle(s)}
+                    {s.pricingOnly && (
+                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">Pricing only</span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground mt-0.5">{s.preview}</div>
-                  {COMPANION_SUBSYSTEMS[s.id] && (
-                    <div className="text-xs text-blue-700 mt-1">
-                      + {allItems.find(x => x.id === COMPANION_SUBSYSTEMS[s.id])?.title ?? "RIO Panel"} is added
-                      automatically, as item 2 in the PDF.
-                    </div>
-                  )}
                 </div>
               </button>
+              {sel && s.id === TEST_BENCH_ID && hasRedundantOption && (
+                <div className="px-3 pb-3 pt-2 border-t border-blue-100 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="text-slate-600">{redundantTitle} + {rioTitle}:</span>
+                  {redundantIncluded ? (
+                    <span className="inline-flex items-center gap-1 font-semibold text-emerald-700"><Check className="h-3.5 w-3.5" />Included ({rioTitle} is item 2 in the PDF)</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 font-semibold text-slate-500"><X className="h-3.5 w-3.5" />Not included</span>
+                  )}
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setAskRedundant(true)}>Change</Button>
+                </div>
+              )}
+              {sel && hasRating(s.id) && (
+                <div
+                  className="px-3 pb-3 pt-2 border-t border-blue-100 flex items-center gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Label className="text-xs text-slate-600 shrink-0">Rating:</Label>
+                  <Input
+                    value={ratings[s.id] ?? ""}
+                    onChange={e => setRating(s.id, e.target.value)}
+                    placeholder="e.g. 1500 kVAR, 440 V"
+                    className="h-8 text-xs w-64"
+                  />
+                  <span className="text-xs text-muted-foreground">Printed in brackets after the title.</span>
+                </div>
+              )}
               {sel && s.id === CUSTOMER_SCOPE_ID && (
                 <div className="px-3 pb-3 pt-2 border-t border-blue-100 space-y-1">
                   <Label className="text-xs text-slate-600">
@@ -392,6 +504,71 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
       </div>
 
       <div className="rounded border-2 border-slate-200 bg-white p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+          <div className="font-semibold text-sm">Subsystems for this quotation only</div>
+          <Button size="sm" variant="outline" disabled={!!customDraft} onClick={() => { setEditingCustom(null); setCustomDraft(blankSubsystem(`${CUSTOM_SUBSYSTEM_PREFIX}${crypto.randomUUID()}`)); }}>
+            <Plus className="h-3 w-3 mr-1" />Add a subsystem
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          A Major Subsystem with its own title, description and images, used only in this quotation (it is not added to
+          Settings). It is printed after the subsystems above and gets its own row in the pricing table.
+        </p>
+        <div className="space-y-2">
+          {customDraft && (
+            <div className="rounded border-2 border-blue-500 bg-blue-50/40 p-3">
+              <div className="text-xs font-semibold text-blue-700 mb-2">New subsystem</div>
+              <SubsystemForm
+                initial={customDraft}
+                autoFocus
+                actions={(s, busy) => (
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => setCustomDraft(null)}>Cancel</Button>
+                    <Button size="sm" disabled={busy} onClick={() => saveCustom(s, true)}><Plus className="h-3 w-3 mr-1" />Add to this quotation</Button>
+                  </div>
+                )}
+              />
+            </div>
+          )}
+          {customSubsystems.map(c => {
+            const sel = selectedSubsystems.includes(c.id);
+            return (
+              <div key={c.id} className={`rounded border-2 p-3 ${sel ? "border-blue-600 bg-blue-50/50" : "border-slate-200"}`}>
+                {editingCustom === c.id ? (
+                  <SubsystemForm
+                    initial={c}
+                    actions={(s, busy) => (
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setEditingCustom(null)}>Cancel</Button>
+                        <Button size="sm" disabled={busy} onClick={() => saveCustom(s, false)}>Save</Button>
+                      </div>
+                    )}
+                  />
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <Checkbox checked={sel} onCheckedChange={() => toggle(c.id)} className="mt-1" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm">
+                        {c.title}
+                        {c.pricingOnly && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">Pricing only</span>}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{c.preview || c.description.slice(0, 140)}</div>
+                      {!!c.images?.length && <div className="text-[11px] text-slate-500 mt-0.5">{c.images.length} image(s)</div>}
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => { setCustomDraft(null); setEditingCustom(c.id); }}>Edit</Button>
+                    <Button size="sm" variant="ghost" onClick={() => removeCustom(c)} title="Remove"><Trash2 className="h-3 w-3" /></Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {!customDraft && customSubsystems.length === 0 && (
+            <p className="text-xs italic text-slate-400">None added.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded border-2 border-slate-200 bg-white p-3">
         <div className="font-semibold text-sm mb-1">Proposed Customizations</div>
         <p className="text-xs text-muted-foreground mb-3">
           These appear as their own block at the end of the Major Subsystems section in the PDF.
@@ -415,16 +592,38 @@ export function Step3Subsystems({ project, update }: { project: Project; update:
           </Button>
         </div>
       </div>
+
+      <Dialog open={askRedundant} onOpenChange={open => {
+        // Closing without answering counts as "No" for a new quotation, so it doesn't ask again and again.
+        if (!open) { if (project.data.redundantBench === null) chooseRedundant(false); else setAskRedundant(false); }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add a {redundantTitle}?</DialogTitle>
+            <DialogDescription>
+              A standalone manual control desk that can run every test even when the automatic test bench is unavailable.
+              It comes with the <strong>{rioTitle}</strong>, which is printed as item 2 of the Major Subsystems.
+              Both are priced in the Scope of Supply.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => chooseRedundant(false)}>
+              <X className="h-4 w-4 mr-1 text-red-600" />No, leave it out
+            </Button>
+            <Button onClick={() => chooseRedundant(true)}>
+              <Check className="h-4 w-4 mr-1" />Yes, include it
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 export function Step3bSystemLayout({ project, update }: { project: Project; update: Update }) {
   const layout = project.data.systemLayout ?? {};
-  // defaultLayoutImages imported at top of file
-  const defaultImage = defaultLayoutImages[project.data.systemType];
-  const displayedImage = layout.imageUrl || defaultImage;
-  const isUsingDefault = !layout.imageUrl;
+  const displayedImage = layout.imageUrl;
+  const nothingUploaded = !layout.imageUrl && !layout.designPdfUrl;
   const onFile = (file: File | null, key: "imageUrl" | "designPdfUrl") => {
     if (!file) return;
     const reader = new FileReader();
@@ -440,30 +639,34 @@ export function Step3bSystemLayout({ project, update }: { project: Project; upda
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        The <strong>Schematic of Offered System</strong> page text is fixed and not editable. A default schematic
-        image is pre-loaded for each system type — use <strong>Change Image</strong> to swap it out with your own
-        drawing for this specific project.
+        The <strong>Schematic of Offered System</strong> page text is fixed and not editable. Upload this project's
+        layout image and/or design PDF here.
       </p>
+      {nothingUploaded && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+          Nothing uploaded: the Schematic of Offered System page is left out of the PDF.
+        </p>
+      )}
       <Section title="Layout Image">
         <div className="flex items-start gap-4">
           <div className="w-64 h-48 border rounded grid place-items-center overflow-hidden bg-slate-50 shrink-0">
-            <img src={displayedImage} alt="Layout" className="max-w-full max-h-full object-contain" />
+            {displayedImage
+              ? <img src={displayedImage} alt="Layout" className="max-w-full max-h-full object-contain" />
+              : <span className="text-xs text-muted-foreground">No image</span>}
           </div>
           <div className="space-y-2">
             <div className="text-xs text-slate-600">
-              {isUsingDefault
-                ? <>Using default image for <strong>{project.data.systemType}</strong>.</>
-                : <>Custom image uploaded for this project.</>}
+              {displayedImage ? <>Image uploaded for this project.</> : <>No layout image uploaded.</>}
             </div>
             <label className="inline-flex items-center gap-2 px-3 py-2 rounded border cursor-pointer bg-white hover:bg-slate-50 text-sm">
               <Plus className="h-3 w-3" />
-              Change Image
+              {displayedImage ? "Change Image" : "Upload Image"}
               <input type="file" accept="image/*" className="hidden"
                 onChange={e => onFile(e.target.files?.[0] ?? null, "imageUrl")} />
             </label>
-            {!isUsingDefault && (
+            {displayedImage && (
               <Button size="sm" variant="ghost" onClick={() => update({ systemLayout: { ...layout, imageUrl: undefined } })}>
-                <Trash2 className="h-3 w-3 mr-1" />Revert to default
+                <Trash2 className="h-3 w-3 mr-1" />Remove image
               </Button>
             )}
           </div>
@@ -498,12 +701,16 @@ export function Step4InstrumentsEquipment({ project, update }: { project: Projec
   const { instruments, equipment } = project.data;
   const instrumentsData = useLibrary("instruments");
   const equipmentData = useLibrary("equipment");
-  // Only the equipment in the quotation is listed. Older quotations also hold
-  // every unticked library row; those are left out here and dropped on the
-  // first edit (they never reached the PDF or pricing anyway).
-  const includedEquipment = equipment.filter(e => e.included);
+  // Shown: ticked rows and the main items suggested for the system type (unticked).
+  // Older quotations also hold every unticked library row; those stay hidden and
+  // are dropped on the first edit (they never reached the PDF or pricing).
+  const visibleEquipment = equipment.filter(e => e.included || e.suggested);
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Tick (✓) the rows to include. Only ticked rows are printed and priced. The main items for this system type are
+        listed unticked; add more with <strong>Add from list</strong> or <strong>Add custom</strong>.
+      </p>
       <Section title="Instruments">
         <SpecTable
           kind="instruments"
@@ -517,10 +724,9 @@ export function Step4InstrumentsEquipment({ project, update }: { project: Projec
       <Section title="Equipment">
         <SpecTable
           kind="equipment"
-          rows={includedEquipment as unknown as AnyRow[]}
+          rows={visibleEquipment as unknown as AnyRow[]}
           onChange={rows => update({ equipment: rows as unknown as typeof equipment })}
           firstCol={{ key: "equipment", label: "Equipment" }}
-          markIncluded
           library={equipmentData as unknown as AnyRow[]}
         />
       </Section>
@@ -531,77 +737,104 @@ export function Step4InstrumentsEquipment({ project, update }: { project: Projec
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRow = Record<string, any> & { id: string };
 
-function SpecTable({ kind, rows, onChange, firstCol, extraCols = [], markIncluded = false, library }: {
+/** A row counts (PDF, pricing) when ticked. Instrument rows from before the tick column have no flag: ticked. */
+const isTicked = (r: AnyRow) => r.included !== false;
+
+function SpecTable({ kind, rows, onChange, firstCol, extraCols = [], library }: {
   kind: CatalogKind;
   rows: AnyRow[];
   onChange: (rows: AnyRow[]) => void;
   firstCol: { key: string; label: string };
   extraCols?: { key: string; label: string }[];
-  /** Equipment rows carry `included: true` (the PDF and pricing list only those). */
-  markIncluded?: boolean;
   library: AnyRow[];
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const update = (i: number, patch: Partial<AnyRow>) => onChange(rows.map((r, idx) => idx === i ? { ...r, ...patch } : r));
-  const remove = (i: number) => onChange(rows.filter((_, idx) => idx !== i));
+  const remove = (i: number) => {
+    const before = rows;
+    onChange(rows.filter((_, idx) => idx !== i));
+    toast.success("Row removed", { duration: 8000, action: { label: "Undo", onClick: () => onChange(before) } });
+  };
+  // Row order here is the order in the PDF and the pricing table.
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= rows.length) return;
+    const next = [...rows];
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next);
+  };
   const addBlank = () => {
-    const blank: AnyRow = { id: crypto.randomUUID(), spec1: "", spec2: "", spec3: "", spec4: "", spec5: "" };
+    const blank: AnyRow = { id: crypto.randomUUID(), included: true, spec1: "", spec2: "", spec3: "", spec4: "", spec5: "" };
     blank[firstCol.key] = "";
     extraCols.forEach(c => (blank[c.key] = ""));
-    if (markIncluded) blank.included = true;
     onChange([...rows, blank]);
   };
   // Each added row gets its own id (pricing is keyed by row id, and the same
   // variant may be added twice); sourceId remembers which library item it was.
+  // A suggested (unticked) row of the same item is ticked instead of added again.
   const addFromLib = (items: AnyRow[]) => {
     if (!items.length) return;
-    onChange([
-      ...rows,
-      ...items.map(item => ({ ...item, id: crypto.randomUUID(), sourceId: item.id, ...(markIncluded ? { included: true } : {}) })),
-    ]);
+    let next = [...rows];
+    for (const item of items) {
+      const suggested = next.findIndex(r => String(r.sourceId ?? r.id) === item.id && !isTicked(r));
+      if (suggested >= 0) next[suggested] = { ...next[suggested], included: true };
+      else next = [...next, { ...item, id: crypto.randomUUID(), sourceId: item.id, included: true, suggested: undefined }];
+    }
+    onChange(next);
   };
-  const addedIds = new Set(rows.map(r => String(r.sourceId ?? r.id)));
+  const addedIds = new Set(rows.filter(isTicked).map(r => String(r.sourceId ?? r.id)));
+  const tickedCount = rows.filter(isTicked).length;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs border">
         <thead className="bg-slate-100">
           <tr>
+            <th className="border p-1.5 w-8 text-center" title="Include">✓</th>
             <th className="border p-1.5 text-left">{firstCol.label}</th>
             {extraCols.map(c => <th key={c.key} className="border p-1.5 text-left">{c.label}</th>)}
             {[1, 2, 3, 4, 5].map(n => <th key={n} className="border p-1.5 text-left">Spec-{n}</th>)}
-            <th className="border p-1.5 w-10"></th>
+            <th className="border p-1.5 w-24"></th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => (
-            <tr key={r.id}>
-              <td className="border p-0.5"><Input className="h-7 text-xs" value={String(r[firstCol.key] ?? "")} onChange={e => update(i, { [firstCol.key]: e.target.value })} /></td>
-              {extraCols.map(c => (
-                <td key={c.key} className="border p-0.5">
-                  <Input className="h-7 text-xs" value={String(r[c.key] ?? "")} onChange={e => update(i, { [c.key]: e.target.value })} />
+          {rows.map((r, i) => {
+            const on = isTicked(r);
+            return (
+              <tr key={r.id} className={on ? "bg-blue-50/50" : "text-slate-500"}>
+                <td className="border p-0.5 text-center">
+                  <Checkbox checked={on} onCheckedChange={v => update(i, { included: !!v })} aria-label="Include" />
                 </td>
-              ))}
-              {[1, 2, 3, 4, 5].map(n => {
-                const key = `spec${n}`;
-                return <td key={n} className="border p-0.5"><Input className="h-7 text-xs" value={String(r[key] ?? "")} onChange={e => update(i, { [key]: e.target.value })} /></td>;
-              })}
-              <td className="border p-0.5 text-center">
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => remove(i)}><Trash2 className="h-3 w-3" /></Button>
-              </td>
-            </tr>
-          ))}
+                <td className="border p-0.5"><Input className="h-7 text-xs" value={String(r[firstCol.key] ?? "")} onChange={e => update(i, { [firstCol.key]: e.target.value })} /></td>
+                {extraCols.map(c => (
+                  <td key={c.key} className="border p-0.5">
+                    <Input className="h-7 text-xs" value={String(r[c.key] ?? "")} onChange={e => update(i, { [c.key]: e.target.value })} />
+                  </td>
+                ))}
+                {[1, 2, 3, 4, 5].map(n => {
+                  const key = `spec${n}`;
+                  return <td key={n} className="border p-0.5"><Input className="h-7 text-xs" value={String(r[key] ?? "")} onChange={e => update(i, { [key]: e.target.value })} /></td>;
+                })}
+                <td className="border p-0.5 text-center whitespace-nowrap">
+                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Move up" disabled={i === 0} onClick={() => move(i, -1)}>↑</Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Move down" disabled={i === rows.length - 1} onClick={() => move(i, 1)}>↓</Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Remove" onClick={() => remove(i)}><Trash2 className="h-3 w-3" /></Button>
+                </td>
+              </tr>
+            );
+          })}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={1 + extraCols.length + 6} className="border p-3 text-center text-muted-foreground">
+              <td colSpan={2 + extraCols.length + 6} className="border p-3 text-center text-muted-foreground">
                 Nothing added yet — use “Add from list”.
               </td>
             </tr>
           )}
         </tbody>
       </table>
-      <div className="flex items-center gap-2 mt-2">
+      <div className="flex flex-wrap items-center gap-2 mt-2">
         <Button size="sm" onClick={() => setPickerOpen(true)}><Plus className="h-3 w-3 mr-1" />Add from list</Button>
         <Button size="sm" variant="outline" onClick={addBlank}><Plus className="h-3 w-3 mr-1" />Add custom {firstCol.label.toLowerCase()}</Button>
+        <span className="text-xs text-muted-foreground ml-auto">{tickedCount} ticked · printed and priced</span>
       </div>
       <CatalogPickerDialog
         open={pickerOpen}
@@ -1164,9 +1397,12 @@ export function Step6Delivery({ project, update }: { project: Project; update: U
             <Select value={fl.freightCharges} onValueChange={v => setFl({ freightCharges: v })}>
               <SelectTrigger className="neo-inset !shadow-none border-0 h-[42px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {freightChargesOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                {freightChargesOptions.map(o => <SelectItem key={o} value={o}>{o === "Custom" ? "Custom (enter amount in Pricing)" : o}</SelectItem>)}
               </SelectContent>
             </Select>
+            {fl.freightCharges === "Custom" && (
+              <p className="mt-1 text-[11px] text-blue-700">Enter the freight amount in the Pricing step.</p>
+            )}
           </Field>
 
           <Field className="col-span-6" label="Destination">
@@ -1345,7 +1581,12 @@ export function Step7ExclusionsMakes({ project, update }: { project: Project; up
                   <td className="border p-1 text-center">
                     <Checkbox checked={sel.enabled} onCheckedChange={v => updMake(row.id, { enabled: !!v })} />
                   </td>
-                  <td className="border p-1">{row.item}</td>
+                  <td className="border p-1">
+                    {row.item}
+                    {!!row.subsystemIds?.length && (
+                      <div className="text-[10px] text-muted-foreground">Ticked automatically with the Major Subsystem</div>
+                    )}
+                  </td>
                   <td className="border p-1 space-y-1">
                     <Select
                       value={isCustom ? CUSTOM_MAKE : sel.make}
@@ -1405,6 +1646,7 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
     instruments: project.data.pricing?.instruments ?? {},
     equipment: project.data.pricing?.equipment ?? {},
     scopeOfServices: project.data.pricing?.scopeOfServices ?? {},
+    freight: project.data.pricing?.freight ?? "",
   };
 
   const setEntry = (section: "scopeOfSupply" | "instruments" | "equipment", key: string, patch: Partial<PriceEntry>) => {
@@ -1426,51 +1668,22 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
     });
   };
 
-  // ── Scope of Supply rows: subsystems (title resolved through the ACTIVE
-  // variant — Manual/Cloud/etc — not the default) + the 2 in-scope
-  // proprietary items only. Instruments/Equipment are priced in their own
-  // sections below, not mixed into this one.
+  // Scope of Supply rows: the ticked Major Subsystems (title through the active
+  // variant) + proprietary items flagged for Scope of Supply. Instruments and
+  // Equipment are priced in their own sections below.
   const cmsOverrides = useProposalStore(s => s.cmsOverrides);
-  const allSubs = getMajorSubsystems(project.data.systemType, cmsOverrides);
-  const subsystemRows = quotationSubsystems(allSubs, project.data);
-  const subsystemVariants = project.data.subsystemVariants ?? {};
-
   const proprietaryItemsData = useLibrary("proprietary");
-  const selectedProprietaryIds = new Set(project.data.proprietary);
-  const scopeProprietaryRows = proprietaryItemsData.filter(
-    p => p.inScopeOfSupply && selectedProprietaryIds.has(p.id)
-  );
-
-  const serviceRows = getOnSiteServiceRows(project, proprietaryItemsData);
+  const supply = supplyRows(project, cmsOverrides, proprietaryItemsData);
+  const totals = quotationTotals(project, cmsOverrides, proprietaryItemsData);
+  const serviceRows = totals.serviceRows;
+  const installationDefault = installationDefaultPrice(project);
 
   const specsOf = (row: { spec1?: string; spec2?: string; spec3?: string; spec4?: string; spec5?: string }) =>
     [row.spec1, row.spec2, row.spec3, row.spec4, row.spec5].filter((v): v is string => !!v && v.trim().length > 0);
 
-  // Installation price auto-fills from whatever was configured in the
-  // Proprietary/Installation step (lump sum for Full, days×perDay for
-  // Supervision), but the user can still type over it here — typing
-  // ALWAYS wins over this computed default, and only the price is editable
-  // (there's no separate field for it in this table).
-  const installationDefaultPrice = (() => {
-    if (!project.data.installationType) return null;
-    const ip = project.data.installationPricing;
-    if (!ip || ip.pricingType === "inclusive") return null;
-    if (project.data.installationType === "full" && ip.lumpSum) {
-      return Number(ip.lumpSum);
-    }
-    if (project.data.installationType === "supervision" && ip.days && ip.perDayCost) {
-      return Number(ip.days) * Number(ip.perDayCost);
-    }
-    return null;
-  })();
-
-  const installationRowKey = "installation"; // ⚠ confirm this matches the key used in scopeOfServiceRows.ts
-
-  const sumEntries = (entries: Record<string, PriceEntry>) =>
-    Object.values(entries).reduce((sum, e) => sum + (Number(e.unitPrice) || 0) * (Number(e.qty) || 0), 0);
-  const totalInr =
-    sumEntries(pricing.scopeOfSupply) + sumEntries(pricing.instruments) + sumEntries(pricing.equipment) +
-    Object.values(pricing.scopeOfServices).reduce((sum, v) => sum + (Number(v) || 0), 0);
+  // Only rows still in the quotation count (a price typed for an item later unticked doesn't).
+  const totalInr = totals.supply + totals.instruments + totals.equipment + totals.services;
+  const freightOption = (project.data.freightLogistics ?? freightLogisticsDefaults).freightCharges;
 
   return (
     <div className="space-y-8">
@@ -1482,10 +1695,7 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
       <CurrencyPanel project={project} update={update} totalInr={totalInr} />
       <PricingSection title="Scope of Supply">
         <PricingTable
-          rows={[
-            ...subsystemRows.map(s => ({ key: s.id, label: resolveSubsystemTitle(s, subsystemVariants) })),
-            ...scopeProprietaryRows.map(p => ({ key: p.id, label: p.title })),
-          ]}
+          rows={supply.map(r => ({ key: r.key, label: r.title }))}
           entries={pricing.scopeOfSupply}
           onChangeEntry={(key, patch) => setEntry("scopeOfSupply", key, patch)}
         />
@@ -1493,7 +1703,7 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
 
       <PricingSection title="Testing Instruments">
         <PricingTable
-          rows={project.data.instruments.map(i => ({
+          rows={namedInstruments(project).map(i => ({
             key: i.id,
             label: `${i.instrument}${i.make ? ` — ${i.make} ${i.model}` : ""}`,
             specs: specsOf(i),
@@ -1505,7 +1715,7 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
 
       <PricingSection title="Other Equipment">
         <PricingTable
-          rows={project.data.equipment.filter(e => e.included).map(e => ({
+          rows={namedEquipment(project).map(e => ({
             key: e.id,
             label: e.equipment,
             specs: specsOf(e),
@@ -1537,9 +1747,7 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
                       className="h-8 text-sm text-right"
                       value={
                         pricing.scopeOfServices[r.key] ??
-                        (r.key === installationRowKey && installationDefaultPrice != null
-                          ? String(installationDefaultPrice)
-                          : "")
+                        (r.key === "installation" && installationDefault != null ? String(installationDefault) : "")
                       }
                       onChange={e => setServicePrice(r.key, e.target.value)}
                       placeholder="0"
@@ -1549,6 +1757,32 @@ export function StepPricing({ project, update }: { project: Project; update: Upd
               ))}
             </tbody>
           </table>
+        )}
+      </PricingSection>
+
+      <PricingSection title="Freight Charges">
+        {freightOption === "Custom" ? (
+          <div className="flex items-center gap-3">
+            <Input
+              type="number"
+              min="0"
+              className="h-8 text-sm text-right w-40"
+              value={pricing.freight ?? ""}
+              onChange={e => update({ pricing: { ...pricing, freight: e.target.value } })}
+              placeholder="0"
+            />
+            <span className="text-xs text-muted-foreground">
+              Freight Charges is set to <strong>Custom</strong> in the Delivery step: this amount is printed under the
+              total in Commercial Terms.
+            </span>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-700">
+            <strong>{freightOption}</strong>
+            <span className="text-xs text-muted-foreground ml-2">
+              (chosen in the Delivery step and printed as is). Choose <strong>Custom</strong> there to enter an amount.
+            </span>
+          </p>
         )}
       </PricingSection>
     </div>
@@ -1627,7 +1861,9 @@ function PricingTable({
 
 export function Step8Payment({ project, update }: { project: Project; update: Update }) {
   const { payment } = project.data;
-  const templates = useProposalStore(s => s.paymentTemplates);
+  const localTemplates = useProposalStore(s => s.paymentTemplates);
+  const cmsOverrides = useProposalStore(s => s.cmsOverrides);
+  const templates = mergedPaymentTemplates(localTemplates, cmsOverrides);
   const saveTpl = useProposalStore(s => s.savePaymentTemplate);
   const total = payment.reduce((s, m) => s + Number(m.percent || 0), 0);
   const updRow = (i: number, patch: Partial<typeof payment[number]>) =>
@@ -1699,7 +1935,7 @@ export function Step9Review({ project }: { project: Project; update: Update }) {
           <div><strong>System Type:</strong> {d.systemType}</div>
           <div><strong>Tests selected:</strong> {d.selectedTests.length}</div>
           <div><strong>Subsystems selected:</strong> {d.selectedSubsystems.length}</div>
-          <div><strong>Instruments:</strong> {d.instruments.length}</div>
+          <div><strong>Instruments (ticked):</strong> {d.instruments.filter(i => i.included !== false).length}</div>
           <div><strong>Equipment (included):</strong> {d.equipment.filter(e => e.included).length}</div>
           <div><strong>Proprietary items:</strong> {d.proprietary.length + proprietaryCustom.length}</div>
           <div><strong>Installation:</strong> {d.installationType

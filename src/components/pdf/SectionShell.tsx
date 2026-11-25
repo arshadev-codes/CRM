@@ -11,12 +11,15 @@ import type { ReactNode } from "react";
  */
 export function SectionShell({
   id,
+  anchorId,
   overrideHtml,
   editable = false,
   onCommit,
   children,
 }: {
   id: string;
+  /** Element id the contents page links to. */
+  anchorId?: string;
   overrideHtml?: string;
   editable?: boolean;
   onCommit?: (html: string) => void;
@@ -24,6 +27,7 @@ export function SectionShell({
 }) {
   const common = {
     "data-pdf-section": id,
+    id: anchorId,
     contentEditable: editable || undefined,
     suppressContentEditableWarning: true,
     onBlur: editable

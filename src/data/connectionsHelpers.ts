@@ -8,10 +8,12 @@ export const CMS_CONNECTIONS_KEY = "connections:mapping";
 
 export type ConnectionsMap = Record<string, ConnectionGroup>;
 
-export function resolveConnectionsMap(override?: unknown): ConnectionsMap {
+/** Built-in mapping, then the global changes (every user), then this browser's own. */
+export function resolveConnectionsMap(override?: unknown, shared?: unknown): ConnectionsMap {
   const base: ConnectionsMap = { ...testToConnection };
-  if (override && typeof override === "object") {
-    for (const [k, v] of Object.entries(override as Record<string, string>)) {
+  for (const layer of [shared, override]) {
+    if (!layer || typeof layer !== "object") continue;
+    for (const [k, v] of Object.entries(layer as Record<string, string>)) {
       if (v === "A" || v === "B" || v === "C" || v === "Other") base[k] = v;
       else if (v === "__unset__") delete base[k];
     }
@@ -21,7 +23,8 @@ export function resolveConnectionsMap(override?: unknown): ConnectionsMap {
 
 export function useConnectionsMap(): ConnectionsMap {
   const ov = useProposalStore(s => s.cmsOverrides[CMS_CONNECTIONS_KEY]);
-  return resolveConnectionsMap(ov);
+  const shared = useProposalStore(s => s.cmsOverrides[`shared:${CMS_CONNECTIONS_KEY}`]);
+  return resolveConnectionsMap(ov, shared);
 }
 
 export { connectionLabels };

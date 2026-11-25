@@ -8,9 +8,9 @@ export interface ProprietaryItem {
   systemTypes: SystemType[];
   /**
    * If true, this item (when selected) appears as its own row in the
-   * Scope of Supply table/PDF with an editable unit price + qty. Only
-   * Power Panel and LV Test Trolley are flagged this way — every other
-   * proprietary item, when selected, instead appears in Scope of
+   * Scope of Supply table/PDF with an editable unit price + qty (none of the
+   * built-in items: Power Panel and LV Test Trolley are Major Subsystems now).
+   * Every other proprietary item, when selected, appears in Scope of
    * Services (on-site table) with a single direct price, no qty.
    */
   inScopeOfSupply?: boolean;
@@ -24,34 +24,6 @@ export interface ProprietaryItem {
 }
 
 export const proprietaryItemsData: ProprietaryItem[] = [
-  {
-    id: "power-panel",
-    title: "Power Panel",
-    description:
-      "Main power distribution and control panel supplying regulated HV and LV feeds to all test stations. Includes MCBs, contactors, energy meters, surge protection, and interlocked emergency-stop provisions.",
-    systemTypes: [],
-    inScopeOfSupply: true,
-    scopeSummary:
-      "Centralized power distribution and control panel feeding regulated supply to the complete test setup.",
-  },
-  {
-    id: "lv-trolley",
-    title: "LV Test Trolley",
-    description:
-      "Motorised low-voltage test trolley for manoeuvring and connecting large power transformers at the test bay. Features adjustable clamping arms, cable reels, and a locking mechanism rated for safe handling of transformers up to the specified MVA rating.",
-    systemTypes: [],
-    inScopeOfSupply: true,
-    scopeSummary:
-      "Mobile trolley assembly for safely positioning and connecting the transformer during low-voltage testing.",
-  },
-  {
-    id: "report-sw",
-    title: "Report Software",
-    description:
-      "Dedicated test-report generation software with auto-population of measured values, tolerance checks, and formatted output compliant with IEC 60076 reporting requirements. Supports PDF, Excel, and XML export formats.",
-    systemTypes: [],
-    scopeSummary: "Supply of dedicated test-report generation software with automated, IEC-compliant output.",
-  },
   {
     id: "commissioning",
     title: "Commissioning",

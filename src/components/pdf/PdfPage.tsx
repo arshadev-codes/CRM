@@ -1,5 +1,6 @@
 import logoUrl from "@/assets/electrosoft-logo.png";
 import { createContext, useContext, type ReactNode } from "react";
+import { offerInfo, useOfferType } from "./offerType";
 
 const TotalPagesContext = createContext<number | undefined>(undefined);
 export function TotalPagesProvider({ value, children }: { value: number; children: ReactNode }) {
@@ -70,13 +71,14 @@ export function PdfPage({ pageNumber, totalPages, header, footer, children }: Pr
 }
 
 export function PdfHeader({ children }: { children?: ReactNode }) {
+  const offerType = useOfferType();
   return (
     <div className="flex items-center justify-between border-b-2 border-blue-700 pb-2">
       <img src={logoUrl} alt="Electrosoft Automation Pvt. Ltd." style={{ height: "12mm" }} />
       <div className="text-right text-[10px] text-slate-700">
         {children ?? (
           <>
-            <div className="font-semibold">Techno-commercial</div>
+            <div className="font-semibold">{offerInfo(offerType).short}</div>
             <div>Proposal</div>
           </>
         )}

@@ -3,15 +3,23 @@ import { useProposalStore } from "@/store/proposalStore";
 import { AllPages } from "@/components/pdf/AllPages";
 import { useEffect, useState } from "react";
 import { Printer, X } from "lucide-react";
+import { offerInfo, parseOfferType, type OfferType } from "@/components/pdf/offerType";
 
 export const Route = createFileRoute("/print/$id")({
+  // ?offer=techno | technical | commercial (see GenerateOfferDialog)
+  validateSearch: (search: Record<string, unknown>): { offer?: OfferType } =>
+    search.offer ? { offer: parseOfferType(search.offer) } : {},
   component: Print,
 });
 
 function Print() {
   const { id } = Route.useParams();
+  const offerType = parseOfferType(Route.useSearch().offer);
   const project = useProposalStore(s => s.projects.find(p => p.id === id));
-  const [settled, setSettled] = useState(false);
+  const [pagesSettled, setSettled] = useState(false);
+  // Global settings must be in before printing, or they'd be missing from the PDF.
+  const sharedLoaded = useProposalStore(s => s.sharedSettingsLoaded);
+  const settled = pagesSettled && sharedLoaded;
 
   useEffect(() => {
     document.body.classList.add("print-mode");
@@ -19,10 +27,10 @@ function Print() {
   }, []);
 
   // "Save as PDF" names the file after the page title: use the offer number,
-  // e.g. Q001/2026-27/Neo/TTS-R0 -> Q001-2026-27-Neo-TTS-R0.pdf ("/" can't be in a file name).
-  const fileName = (project?.data.meta.offerNumber || project?.name || "Quotation")
+  // e.g. SQ001/2026-27/Neo/TTS/R0 -> "SQ001-2026-27-Neo-TTS-R0 Commercial Offer.pdf" ("/" can't be in a file name).
+  const fileName = `${(project?.data.meta.offerNumber || project?.name || "Quotation")
     .replace(/[\\/:*?"<>|]+/g, "-")
-    .trim();
+    .trim()} ${offerInfo(offerType).label}`;
   useEffect(() => {
     const before = document.title;
     document.title = fileName;
@@ -87,7 +95,7 @@ function Print() {
       </div>
 
       <div className="bg-white">
-        <AllPages project={project} />
+        <AllPages project={project} offerType={offerType} />
       </div>
     </>
   );

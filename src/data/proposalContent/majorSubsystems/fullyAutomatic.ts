@@ -114,6 +114,17 @@ export const fullyAutomaticMajorSubsystems: SubsystemContent[] = [
     // images: [powerPanelImg],
   },
   {
+    // Was a proprietary item; now a Major Subsystem. Pricing only by default
+    // (switch "Show title & description in the PDF" in Settings).
+    id: "main-power-panel",
+    title: "Power Panel",
+    preview: "Centralized power distribution and control panel feeding regulated supply to the complete test setup.",
+    description:
+      "Main power distribution and control panel supplying regulated HV and LV feeds to all test stations. Includes MCBs, contactors, energy meters, surge protection, and interlocked emergency-stop provisions.",
+    images: [powerPanelImg],
+    pricingOnly: true,
+  },
+  {
     id: "lv-trolley",
     title: "Fully Automatic LV Test Trolley",
     preview: "Portable LV test trolley with touch-screen interface.",
@@ -156,14 +167,22 @@ export const fullyAutomaticMajorSubsystems: SubsystemContent[] = [
       "This motorized isolator switch is dedicated to safely isolating the high-voltage loading circuit used during temperature-rise testing. Motorized actuation allows the isolator to be operated remotely through software logic, preventing manual intervention in high-risk zones. Mechanical and electrical interlocks work in coordination with the control system to prevent incorrect operation and guarantee compliance with safe test procedures.",
     // images: [htIsolatorTrhImg],
   },
-  // {
-  //   id: "machine-room",
-  //   title: "Machine Room Control Desk & RIO Panel (Redundant / Conventional Test Bench)",
-  //   preview: "Standalone manual control desk that runs the system without the SCADA console.",
-  //   description:
-  //     "The Machine room control desk is a dedicated manual-control test bench that houses all essential meters, selector switches, push buttons, and indication lamps required for conventional transformer testing. It is designed to provide a complete alternative method of conducting tests in situations where the PLC/SCADA-based automated system is unavailable or if the operator prefers manual control for specific tests. Every function managed through the Advanced 43\" Interface will also be accessible through this Machine room control desk via RIO Panel, ensuring complete manual control of the system whenever needed. The operator can seamlessly switch to manual mode at any time, allowing flexibility during testing or maintenance. The Machine room control desk is designed to operate as a fully independent test bench. Even if the Advanced Desk is completely disconnected or unavailable, all tests and operations can still be carried out without interruption using the standalone manual panel. This ensures maximum reliability, redundancy, and operational continuity for your test setup.",
-  //  // images: [machineRoomImg],
-  // },
+  {
+    // Not in the wizard's tick list: asked about in a dialog when the automatic
+    // test bench is selected. Brings the RIO Panel with it, at position 2.
+    id: "machine-room",
+    title: "Redundant / Conventional Test Bench",
+    preview: "Standalone manual control desk that runs the system without the automatic test bench.",
+    description:
+      "The Machine room control desk is a dedicated manual-control test bench that houses all essential meters, selector switches, push buttons, and indication lamps required for conventional transformer testing. It is designed to provide a complete alternative method of conducting tests in situations where the PLC/SCADA-based automated system is unavailable or if the operator prefers manual control for specific tests. The operator can seamlessly switch to manual mode at any time, allowing flexibility during testing or maintenance. The Machine room control desk is designed to operate as a fully independent test bench. Even if the automatic test bench is completely disconnected or unavailable, all tests and operations can still be carried out without interruption using the standalone manual panel. This ensures maximum reliability, redundancy, and operational continuity for your test setup.",
+  },
+  {
+    id: "rio-panel",
+    title: "RIO Panel",
+    preview: "Connects the Machine room control desk to the system for full manual control.",
+    description:
+      "Every function managed through the automatic test bench will also be accessible through the Machine room control desk via the RIO Panel, ensuring complete manual control of the system whenever needed.",
+  },
   {
     id: "instruments",
     title: "Equipment and Instruments",
@@ -208,7 +227,7 @@ export const fullyAutomaticMajorSubsystems: SubsystemContent[] = [
   },
   {
     id: "dimmer",
-    title: "Motorized Oil-Cooled Dimmer (Voltage Regulator)",
+    title: "Motorized Dimmer (Voltage Regulator)",
     preview: "Smooth, stepless control of test voltage – 100 A to 2000 A ratings.",
     description:
       "The Dimmer is a 3-phase, motorized, oil-cooled variable voltage regulator for smooth and precise adjustment of the voltage applied to the test circuit, typically over a 0–470 V, 50 Hz range. Its motorized raise/lower mechanism is driven from the test bench, with the output voltage and current monitored throughout the test. The oil-cooled design ensures efficient heat dissipation, extended duty cycles and reliable operation under high-current conditions, with stable output, long service life and good protection against thermal stress and contact wear. Ratings are available from 100 A up to 2000 A (for example 100 A, 250 A, 600 A, 800 A, 900 A, 1200 A and 2000 A), so the right size can be selected for the transformer rating and test type. An independent dimmer (for example 800 A, 0–460 V, 2 phase) can also be supplied dedicated to HV testing.",
@@ -247,11 +266,30 @@ export const fullyAutomaticMajorSubsystems: SubsystemContent[] = [
   },
   {
     id: "ct-pt-selection",
-    title: "CT / PT Rack & Ratio Selection",
+    title: "CT / PT Rack with Manually Operated Knife Switches",
     preview: "CT/PT rack with switches to select the correct CT and PT ratios.",
     description:
       "The CT/PT rack houses the current and potential transformers used for measurement, together with the knife switches that select the required CT or PT ratio for each test — pneumatically operated under system control in the automated version, or hand-operated where preferred. The selected ratio is wired to the test bench metering and the power analyzer. Multi-ratio CTs (for example 5-10-25-50-100/5 A or 75-150-225-300/5 A, class 0.1 or 0.2) and multi-ratio PTs (for example 0.55-1.1-2.2-3.3 kV/110 V or 6.6-11 kV/110 V) are supplied to cover a wide range of transformer ratings.",
     images: [ctPtRackImg, ctPtRackFrontViewImg, ctPtRackKnifeSwitchesImg],
+    variants: {
+      default: "manual",
+      options: [
+        {
+          key: "manual",
+          label: "Manually Operated",
+          title: "CT / PT Rack with Manually Operated Knife Switches",
+          description:
+            "The CT/PT rack houses the current and potential transformers used for measurement, together with manually operated knife switches that let the operator select the required CT or PT ratio for each test. The selected ratio is wired to the test bench metering and the power analyzer. Multi-ratio CTs (for example 5-10-25-50-100/5 A or 75-150-225-300/5 A, class 0.1 or 0.2) and multi-ratio PTs (for example 0.55-1.1-2.2-3.3 kV/110 V or 6.6-11 kV/110 V) are supplied to cover a wide range of transformer ratings.",
+        },
+        {
+          key: "pneumatic",
+          label: "Pneumatically Operated",
+          title: "CT / PT Rack with Pneumatically Operated Knife Switches",
+          description:
+            "The CT/PT rack houses the current and potential transformers used for measurement, together with pneumatically operated knife switches that select the required CT or PT ratio for each test under system control, without manual intervention. The selected ratio is wired to the test bench metering and the power analyzer. Multi-ratio CTs (for example 5-10-25-50-100/5 A or 75-150-225-300/5 A, class 0.1 or 0.2) and multi-ratio PTs (for example 0.55-1.1-2.2-3.3 kV/110 V or 6.6-11 kV/110 V) are supplied to cover a wide range of transformer ratings.",
+        },
+      ],
+    },
   },
   {
     id: "rtd-temperature",

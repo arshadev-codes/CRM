@@ -15,7 +15,11 @@ import {
   Search,
   RefreshCw,
   PackageCheck,
+  Send,
+  Loader2,
+  ArchiveRestore,
 } from "lucide-react";
+import { GenerateOfferDialog } from "@/components/GenerateOfferDialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { toast } from "sonner";
@@ -75,6 +79,7 @@ function Dashboard() {
   const revise = useProposalStore((s) => s.reviseProject);
   const remove = useProposalStore((s) => s.deleteProject);
   const archive = useProposalStore((s) => s.archiveProject);
+  const unarchive = useProposalStore((s) => s.unarchiveProject);
   const hydrateFromCloud = useProposalStore((s) => s.hydrateFromCloud);
   const navigate = useNavigate();
   const canQuote = useCan("quotation");
@@ -82,6 +87,9 @@ function Dashboard() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("All");
   const [moveProject, setMoveProject] = useState<Project | null>(null);
+  const [printId, setPrintId] = useState<string | null>(null);
+  // Quotations being deleted right now: their card shows "Deleting…" and its buttons are off.
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   useEffect(() => { void hydrateFromCloud(); }, [hydrateFromCloud]);
 
@@ -118,12 +126,24 @@ function Dashboard() {
     return qq ? matched : matched.slice(0, 10);
   }, [projects, q, filter]);
 
-  const handleDelete = (id: string, label: string) => {
+  const handleDelete = async (id: string, label: string) => {
+    if (deletingIds.has(id)) return;
     const pwd = window.prompt(`Enter password to permanently delete "${label}":`);
     if (pwd == null) return;
     if (pwd !== DELETE_PASSWORD) { toast.error("Incorrect password. Deletion cancelled."); return; }
-    remove(id);
-    toast.success("Offer deleted from database and dashboard.");
+    setDeletingIds((prev) => new Set(prev).add(id));
+    const t = toast.loading(`Deleting "${label}"…`);
+    try {
+      const ok = await remove(id);
+      if (ok) toast.success("Offer deleted from database and dashboard.", { id: t });
+      else toast.error("Could not delete it. Check the internet connection and try again.", { id: t });
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   };
 
   const gridRef = useRef<HTMLDivElement>(null);
@@ -144,6 +164,7 @@ function Dashboard() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <NewProjectDialog open={newOpen} onOpenChange={setNewOpen} onCreate={handleCreate} />
+      <GenerateOfferDialog projectId={printId} open={!!printId} onOpenChange={(open) => { if (!open) setPrintId(null); }} />
       <MoveToInwardOrderDialog
         project={moveProject}
         open={Boolean(moveProject)}
@@ -262,12 +283,14 @@ function Dashboard() {
         <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((p) => {
             const status = STATUS[p.status as keyof typeof STATUS];
+            const deleting = deletingIds.has(p.id);
             return (
               <div
                 key={p.id}
                 data-neo-card
-                className={`neo-surface p-5 rounded-2xl transition-all duration-300
-                            hover:-translate-y-1 ${status?.glow ?? ""}`}
+                aria-busy={deleting}
+                className={`neo-surface p-5 rounded-2xl transition-all duration-300 relative
+                            hover:-translate-y-1 ${status?.glow ?? ""} ${deleting ? "opacity-60 pointer-events-none" : ""}`}
                 onMouseMove={(e) => {
                   const el = e.currentTarget;
                   const r = el.getBoundingClientRect();
@@ -289,13 +312,30 @@ function Dashboard() {
                   <div className="font-mono font-semibold text-sm truncate text-slate-800" title={p.data.meta.offerNumber || p.name}>
                     {p.data.meta.offerNumber || p.name}
                   </div>
-                  <span
-                    className={`shrink-0 text-[10px] font-semibold uppercase tracking-wide
-                                px-2.5 py-1 rounded-full ${status?.chip ?? "bg-slate-100 text-slate-600"}`}
-                  >
-                    {p.status}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {p.data.sentAt && (
+                      <span
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full bg-blue-50 text-blue-700"
+                        title={`Sent on ${new Date(p.data.sentAt).toLocaleString()}`}
+                      >
+                        <Send className="h-3 w-3" />Sent
+                      </span>
+                    )}
+                    <span
+                      className={`text-[10px] font-semibold uppercase tracking-wide
+                                  px-2.5 py-1 rounded-full ${status?.chip ?? "bg-slate-100 text-slate-600"}`}
+                    >
+                      {p.status}
+                    </span>
+                  </div>
                 </div>
+                {deleting && (
+                  <div className="absolute inset-0 grid place-items-center rounded-2xl bg-white/60">
+                    <span className="inline-flex items-center gap-2 text-sm font-semibold text-red-600">
+                      <Loader2 className="h-4 w-4 animate-spin" />Deleting…
+                    </span>
+                  </div>
+                )}
 
                 {p.name && p.data.meta.offerNumber && (
                   <p className="text-xs text-slate-600 truncate">{p.name}</p>
@@ -362,7 +402,8 @@ function Dashboard() {
                     variant="ghost"
                     className="neo-pop !bg-transparent h-9 w-9 p-0
                                transition-transform active:scale-90 active:shadow-inner"
-                    onClick={() => window.open(`/print/${p.id}`, "_blank")}
+                    onClick={() => setPrintId(p.id)}
+                    title="Generate PDF"
                   >
                     <Printer className="h-3.5 w-3.5" />
                   </Button>
@@ -371,8 +412,12 @@ function Dashboard() {
                     variant="ghost"
                     className="neo-pop !bg-transparent h-9 w-9 p-0
                                transition-transform active:scale-90 active:shadow-inner"
-                    onClick={() => duplicate(p.id)}
+                    onClick={() => {
+                      const copy = duplicate(p.id);
+                      if (copy) toast.success(`Copy created: ${copy.data.meta.offerNumber || copy.name}`);
+                    }}
                     hidden={!canQuote}
+                    title="Duplicate"
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </Button>
@@ -381,20 +426,31 @@ function Dashboard() {
                     variant="ghost"
                     className="neo-pop !bg-transparent h-9 w-9 p-0
                                transition-transform active:scale-90 active:shadow-inner"
-                    onClick={() => archive(p.id)}
+                    onClick={() => {
+                      if (p.status === "Archived") {
+                        unarchive(p.id);
+                        toast.success("Unarchived");
+                      } else {
+                        archive(p.id);
+                        toast.success("Archived", { duration: 10000, action: { label: "Undo", onClick: () => unarchive(p.id) } });
+                      }
+                    }}
                     hidden={!canQuote}
+                    title={p.status === "Archived" ? "Unarchive" : "Archive"}
                   >
-                    <Archive className="h-3.5 w-3.5" />
+                    {p.status === "Archived" ? <ArchiveRestore className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
                   </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     className="neo-pop !bg-transparent !text-red-500 h-9 w-9 p-0 ml-auto
                                transition-transform active:scale-90 active:shadow-inner"
-                    onClick={() => handleDelete(p.id, p.data.meta.offerNumber || p.name)}
+                    onClick={() => void handleDelete(p.id, p.data.meta.offerNumber || p.name)}
                     hidden={!canQuote}
+                    disabled={deleting}
+                    title="Delete"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                   </Button>
                 </div>
               </div>

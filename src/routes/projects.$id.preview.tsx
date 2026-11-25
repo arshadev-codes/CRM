@@ -6,8 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft, ArrowUp, ArrowDown, Eye, EyeOff, Pencil, RotateCcw, Check, Save } from "lucide-react";
 import { resolveLayout, SECTION_BY_ID, type ProposalLayout } from "@/data/proposalLayout";
 import { toast } from "sonner";
+import { OFFER_TYPES, parseOfferType, type OfferType } from "@/components/pdf/offerType";
+import { openOfferPdf } from "@/components/GenerateOfferDialog";
 
 export const Route = createFileRoute("/projects/$id/preview")({
+  validateSearch: (search: Record<string, unknown>): { offer?: OfferType } =>
+    search.offer ? { offer: parseOfferType(search.offer) } : {},
   component: Preview,
 });
 
@@ -18,6 +22,7 @@ function Preview() {
   const saveProjectTemplate = useProposalStore(s => s.saveProjectTemplate);
   const [arranging, setArranging] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+  const [offer, setOffer] = useState<OfferType>(parseOfferType(Route.useSearch().offer));
 
   const layout = useMemo(() => resolveLayout(project?.data.layout), [project?.data.layout]);
 
@@ -58,10 +63,22 @@ function Preview() {
         <div className="flex-1 text-sm font-medium truncate">
           {project.data.meta.offerNumber || project.name} — Preview ({activeCount} sections)
         </div>
-        <Button size="sm" variant={arranging ? "default" : "outline"} onClick={() => { setArranging(a => !a); setEditing(null); }}>
+        <div className="flex rounded-md border bg-slate-50 p-0.5">
+          {OFFER_TYPES.map(o => (
+            <button
+              key={o.id}
+              onClick={() => { setOffer(o.id); if (o.id !== "techno") { setArranging(false); setEditing(null); } }}
+              className={`px-2.5 py-1 text-xs rounded font-medium transition ${offer === o.id ? "bg-white shadow text-blue-700" : "text-slate-500 hover:text-slate-800"}`}
+              title={o.description}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <Button size="sm" variant={arranging ? "default" : "outline"} disabled={offer !== "techno"} title={offer !== "techno" ? "Arrange & Edit works on the Techno-Commercial Offer" : undefined} onClick={() => { setArranging(a => !a); setEditing(null); }}>
           {arranging ? <><Check className="h-3 w-3 mr-1" />Done arranging</> : <><Pencil className="h-3 w-3 mr-1" />Arrange & Edit</>}
         </Button>
-        <Button size="sm" onClick={() => window.open(`/print/${id}`, "_blank")}><Printer className="h-3 w-3 mr-1" />Print View</Button>
+        <Button size="sm" onClick={() => openOfferPdf(id, offer)}><Printer className="h-3 w-3 mr-1" />Print View</Button>
       </div>
 
       <div className="flex gap-4 py-6 px-4">
@@ -119,6 +136,7 @@ function Preview() {
           <AllPages
             project={project}
             layout={layout}
+            offerType={offer}
             editableSectionId={arranging ? editing : null}
             onSectionCommit={onSectionCommit}
           />

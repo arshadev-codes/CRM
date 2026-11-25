@@ -3,6 +3,10 @@ export interface EquipmentRow {
   spec1: string; spec2: string; spec3: string; spec4: string; spec5: string;
   aliases?: string[]; // optional: other names found in old quotations
   family?: string; // optional: groups variants in the wizard's picker (see catalogFamilies.ts)
+  /** In a quotation: listed by default for the system type (unticked until the user ticks it). */
+  suggested?: boolean;
+  /** In a quotation: the library item a row was added from. */
+  sourceId?: string;
 }
 
 const e = (
@@ -25,7 +29,7 @@ export const equipmentData: EquipmentRow[] = [
   { id: "hv-trans", equipment: "HV Transformer", included: true, spec1: "1000 kV", spec2: "300 kVA", spec3: "Oil-filled", spec4: "IEC 60076-3", spec5: "Single phase" },
   { id: "ind-dimmer", equipment: "Independent Dimmer", included: false, spec1: "415 V", spec2: "1000 A", spec3: "Motorized", spec4: "0–110%", spec5: "Remote" },
   { id: "dimmer", equipment: "Dimmer", included: false, spec1: "415 V", spec2: "1000 A", spec3: "Motorized", spec4: "0–110%", spec5: "Remote" },
-  { id: "booster", equipment: "Booster Transformer", included: true, spec1: "500 kV", spec2: "150 kVA", spec3: "Oil-filled", spec4: "Cascade", spec5: "Single phase" },
+  { id: "booster", equipment: "Intermediate Transformer", included: true, spec1: "500 kV", spec2: "150 kVA", spec3: "Oil-filled", spec4: "Cascade", spec5: "Single phase" },
   { id: "gen-panel", equipment: "Generator Control Panels", included: true, spec1: "IP54", spec2: "PLC-based", spec3: "HMI 15\"", spec4: "Modbus TCP", spec5: "MCC integ." },
   { id: "lt-cap", equipment: "LT Capacitor Bank", included: false, spec1: "415 V", spec2: "2 MVAR", spec3: "Indoor", spec4: "APFC", spec5: "Detuned" },
   { id: "ct-pt-rack", equipment: "CT/PT Rack", included: false, spec1: "Modular", spec2: "MS frame", spec3: "Powder coated", spec4: "Cable trays", spec5: "Earthed" },
@@ -195,8 +199,8 @@ export const equipmentData: EquipmentRow[] = [
  
   // ---------- TRANSFORMERS ----------
   e("intermediate-trafo-2-4mva", "Intermediate Transformer 2.4 MVA, 11 kV", "2.4 MVA", "11 kV"),
-  e("booster-500kva", "3-Phase Booster Transformer 500 kVA", "500 kVA", "440 V / 800-2200-3300-6600-11000 V", "3 Phase"),
-  e("booster-100kva", "3-Phase Booster Transformer 100 kVA", "100 kVA", "440 V / 400-800-1200 V", "3 Phase"),
+  e("booster-500kva", "3-Phase Intermediate Transformer 500 kVA", "500 kVA", "440 V / 800-2200-3300-6600-11000 V", "3 Phase"),
+  e("booster-100kva", "3-Phase Intermediate Transformer 100 kVA", "100 kVA", "440 V / 400-800-1200 V", "3 Phase"),
   e("hv-100kv-500ma", "HV Transformer 100 kV, 500 mA", "100 kV", "500 mA"),
   e("hv-500kv-1000ma", "HV Transformer 500 kV, 1000 mA", "500 kV", "1000 mA"),
   e("hv-80kv-300ma", "HV Transformer 80 kV, 300 mA", "80 kV", "300 mA"),

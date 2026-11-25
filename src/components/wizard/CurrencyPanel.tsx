@@ -45,7 +45,7 @@ export function CurrencyPanel({ project, update, totalInr }: {
     update({ currency: { code, rate: r?.[code] ? Number(r[code].toFixed(4)) : 0 } });
   };
 
-  const useTodaysRate = async () => {
+  const applyTodaysRate = async () => {
     const r = await loadRates();
     if (r?.[current.code]) {
       update({ currency: { code: current.code, rate: Number(r[current.code].toFixed(4)) } });
@@ -82,7 +82,7 @@ export function CurrencyPanel({ project, update, totalInr }: {
                 onChange={e => update({ currency: { code: current.code, rate: Number(e.target.value) } })}
               />
             </div>
-            <Button variant="outline" onClick={() => void useTodaysRate()} disabled={loading}>
+            <Button variant="outline" onClick={() => void applyTodaysRate()} disabled={loading}>
               <RefreshCw className={`h-3 w-3 mr-1 ${loading ? "animate-spin" : ""}`} />Use today's rate
             </Button>
           </>

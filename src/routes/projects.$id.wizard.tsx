@@ -6,7 +6,9 @@ import { useSaveStatus } from "@/lib/projectSave";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { ChevronLeft, ChevronRight, Save, Eye, Printer, RefreshCw, Lock, CloudOff, Loader2, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Eye, Printer, RefreshCw, Lock, CloudOff, Loader2, Check, CheckCircle2, Send } from "lucide-react";
+import { AsyncButton } from "@/components/ui/async-button";
+import { GenerateOfferDialog } from "@/components/GenerateOfferDialog";
 import { useCan } from "@/store/authStore";
 import {
   Step1ProjectSetup, Step2Tests, Step3Subsystems, Step3bSystemLayout, Step4InstrumentsEquipment,
@@ -16,6 +18,10 @@ import { toast } from "sonner";
 import { resolveLayout } from "@/data/proposalLayout";
 
 export const Route = createFileRoute("/projects/$id/wizard")({
+  // The open step is kept in the address (?step=pricing), so going to Settings
+  // and pressing Back returns to the same step.
+  validateSearch: (search: Record<string, unknown>): { step?: string } =>
+    typeof search.step === "string" ? { step: search.step } : {},
   component: Wizard,
 });
 
@@ -40,9 +46,10 @@ function Wizard() {
   const updateProject = useProposalStore(s => s.updateProject);
   const reviseProject = useProposalStore(s => s.reviseProject);
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
+  const { step: stepKey } = Route.useSearch();
   const canQuote = useCan("quotation");
   const saveStatus = useSaveStatus(s => s.byId[id]);
+  const [generateOpen, setGenerateOpen] = useState(false);
 
   // Warn before closing the tab while changes are still on their way to the cloud.
   useEffect(() => {
@@ -62,7 +69,11 @@ function Wizard() {
     .map(k => ALL_STEPS.find(s => s.key === k))
     .filter((s): s is (typeof ALL_STEPS)[number] => Boolean(s));
   const STEPS = picked.length ? picked : ALL_STEPS;
-  const stepIndex = Math.min(step, STEPS.length - 1);
+  const stepIndex = Math.max(0, STEPS.findIndex(s => s.key === stepKey));
+  const setStep = (i: number) => {
+    const next = STEPS[Math.min(Math.max(i, 0), STEPS.length - 1)];
+    void navigate({ to: "/projects/$id/wizard", params: { id }, search: { step: next.key }, replace: true });
+  };
 
   if (!project) return (
     <div className="p-8 text-center">
@@ -87,10 +98,19 @@ function Wizard() {
   const Current = STEPS[stepIndex].Comp;
   const update = (patch: Parameters<typeof updateProjectData>[1]) => updateProjectData(project.id, patch);
 
-  const markCompletedAndGenerate = () => {
+  const isCompleted = project.status === "Completed" || project.status === "Converted";
+  const sentAt = project.data.sentAt;
+
+  const markComplete = () => {
+    const before = { status: project.status, data: project.data };
     updateProject(project.id, { status: "Completed" });
-    toast.success("Marked as Completed");
-    window.open(`/print/${project.id}`, "_blank");
+    toast.success("Marked as Complete", { duration: 10000, action: { label: "Undo", onClick: () => updateProject(project.id, before) } });
+  };
+  // Sent = Completed + sent to the customer.
+  const markSent = () => {
+    const before = { status: project.status, data: project.data };
+    updateProject(project.id, { status: isCompleted ? project.status : "Completed", data: { ...project.data, sentAt: new Date().toISOString() } });
+    toast.success("Marked as Complete and Sent", { duration: 10000, action: { label: "Undo", onClick: () => updateProject(project.id, before) } });
   };
 
   // Sends any change still waiting straight away. Does not change the status.
@@ -115,19 +135,40 @@ function Wizard() {
           />
           <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
             <SaveIndicator state={saveStatus?.state} at={saveStatus?.at ?? project.updatedAt} error={saveStatus?.error} />
-            {project.status === "Completed" && <span className="text-emerald-600 font-semibold">· Completed</span>}
+            {isCompleted && <span className="text-emerald-600 font-semibold">· Completed</span>}
+            {sentAt && <span className="text-blue-600 font-semibold">· Sent {new Date(sentAt).toLocaleDateString()}</span>}
           </div>
         </div>
-        <div className="flex gap-2 shrink-0">
-          {project.status === "Completed" && (
+        <div className="flex flex-wrap justify-end gap-2 shrink-0">
+          {isCompleted && (
             <Button size="sm" variant="outline" onClick={() => {
               const p = reviseProject(project.id);
               if (p) { toast.success(`Created R${p.revision}`); navigate({ to: "/projects/$id/wizard", params: { id: p.id } }); }
             }}><RefreshCw className="h-3 w-3 mr-1" />Revise Offer</Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => void saveNow()}><Save className="h-3 w-3 mr-1" />Save Draft</Button>
+          <AsyncButton size="sm" variant="outline" pendingText="Saving…" onClick={saveNow}><Save className="h-3 w-3 mr-1" />Save Draft</AsyncButton>
           <Button size="sm" variant="outline" onClick={() => navigate({ to: "/projects/$id/preview", params: { id: project.id } })}><Eye className="h-3 w-3 mr-1" />Preview</Button>
-          <Button size="sm" onClick={markCompletedAndGenerate}><Printer className="h-3 w-3 mr-1" />Generate</Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isCompleted}
+            className={isCompleted ? "!opacity-100 border-emerald-300 text-emerald-700" : ""}
+            onClick={markComplete}
+            title={isCompleted ? "Already complete" : "Mark this quotation as complete"}
+          >
+            <CheckCircle2 className="h-3 w-3 mr-1" />{isCompleted ? "Completed" : "Mark as Complete"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!!sentAt}
+            className={sentAt ? "!opacity-100 border-blue-300 text-blue-700" : ""}
+            onClick={markSent}
+            title={sentAt ? `Sent on ${new Date(sentAt).toLocaleString()}` : "Mark as complete and sent to the customer"}
+          >
+            <Send className="h-3 w-3 mr-1" />{sentAt ? "Sent" : "Mark as Sent"}
+          </Button>
+          <Button size="sm" onClick={() => setGenerateOpen(true)}><Printer className="h-3 w-3 mr-1" />Generate PDF</Button>
         </div>
       </div>
 
@@ -172,9 +213,10 @@ function Wizard() {
         {stepIndex < STEPS.length - 1 ? (
           <Button onClick={() => setStep(stepIndex + 1)}>Next<ChevronRight className="h-4 w-4 ml-1" /></Button>
         ) : (
-          <Button onClick={markCompletedAndGenerate}><Printer className="h-4 w-4 mr-1" />Generate PDF</Button>
+          <Button onClick={() => setGenerateOpen(true)}><Printer className="h-4 w-4 mr-1" />Generate PDF</Button>
         )}
       </div>
+      <GenerateOfferDialog projectId={project.id} open={generateOpen} onOpenChange={setGenerateOpen} />
     </div>
   );
 }
