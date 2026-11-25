@@ -114,6 +114,17 @@ export const fullyAutomaticMajorSubsystems: SubsystemContent[] = [
     // images: [powerPanelImg],
   },
   {
+    // Was a proprietary item; now a Major Subsystem. Pricing only by default
+    // (switch "Show title & description in the PDF" in Settings).
+    id: "main-power-panel",
+    title: "Power Panel",
+    preview: "Centralized power distribution and control panel feeding regulated supply to the complete test setup.",
+    description:
+      "Main power distribution and control panel supplying regulated HV and LV feeds to all test stations. Includes MCBs, contactors, energy meters, surge protection, and interlocked emergency-stop provisions.",
+    images: [powerPanelImg],
+    pricingOnly: true,
+  },
+  {
     id: "lv-trolley",
     title: "Fully Automatic LV Test Trolley",
     preview: "Portable LV test trolley with touch-screen interface.",
@@ -156,14 +167,22 @@ export const fullyAutomaticMajorSubsystems: SubsystemContent[] = [
       "This motorized isolator switch is dedicated to safely isolating the high-voltage loading circuit used during temperature-rise testing. Motorized actuation allows the isolator to be operated remotely through software logic, preventing manual intervention in high-risk zones. Mechanical and electrical interlocks work in coordination with the control system to prevent incorrect operation and guarantee compliance with safe test procedures.",
     // images: [htIsolatorTrhImg],
   },
-  // {
-  //   id: "machine-room",
-  //   title: "Machine Room Control Desk & RIO Panel (Redundant / Conventional Test Bench)",
-  //   preview: "Standalone manual control desk that runs the system without the SCADA console.",
-  //   description:
-  //     "The Machine room control desk is a dedicated manual-control test bench that houses all essential meters, selector switches, push buttons, and indication lamps required for conventional transformer testing. It is designed to provide a complete alternative method of conducting tests in situations where the PLC/SCADA-based automated system is unavailable or if the operator prefers manual control for specific tests. Every function managed through the Advanced 43\" Interface will also be accessible through this Machine room control desk via RIO Panel, ensuring complete manual control of the system whenever needed. The operator can seamlessly switch to manual mode at any time, allowing flexibility during testing or maintenance. The Machine room control desk is designed to operate as a fully independent test bench. Even if the Advanced Desk is completely disconnected or unavailable, all tests and operations can still be carried out without interruption using the standalone manual panel. This ensures maximum reliability, redundancy, and operational continuity for your test setup.",
-  //  // images: [machineRoomImg],
-  // },
+  {
+    // Not in the wizard's tick list: asked about in a dialog when the automatic
+    // test bench is selected. Brings the RIO Panel with it, at position 2.
+    id: "machine-room",
+    title: "Redundant / Conventional Test Bench",
+    preview: "Standalone manual control desk that runs the system without the automatic test bench.",
+    description:
+      "The Machine room control desk is a dedicated manual-control test bench that houses all essential meters, selector switches, push buttons, and indication lamps required for conventional transformer testing. It is designed to provide a complete alternative method of conducting tests in situations where the PLC/SCADA-based automated system is unavailable or if the operator prefers manual control for specific tests. The operator can seamlessly switch to manual mode at any time, allowing flexibility during testing or maintenance. The Machine room control desk is designed to operate as a fully independent test bench. Even if the automatic test bench is completely disconnected or unavailable, all tests and operations can still be carried out without interruption using the standalone manual panel. This ensures maximum reliability, redundancy, and operational continuity for your test setup.",
+  },
+  {
+    id: "rio-panel",
+    title: "RIO Panel",
+    preview: "Connects the Machine room control desk to the system for full manual control.",
+    description:
+      "Every function managed through the automatic test bench will also be accessible through the Machine room control desk via the RIO Panel, ensuring complete manual control of the system whenever needed.",
+  },
   {
     id: "instruments",
     title: "Equipment and Instruments",

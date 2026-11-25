@@ -1,7 +1,7 @@
 import type React from "react";
 import { PdfPage } from "../PdfPage";
 import { useProposalStore, type Project, type CustomizationItem } from "@/store/proposalStore";
-import { getMajorSubsystems, quotationSubsystems, type SubsystemContent, type SubsystemImageSize } from "@/data/proposalContent";
+import { getMajorSubsystems, subsystemPageBlocks, type SubsystemContent, type SubsystemImageSize } from "@/data/proposalContent";
 import { paginateByHeights, paginateBlocks, weightSubsystem } from "@/data/paginationHelpers";
 import { useBlockHeights } from "@/hooks/useBlockHeights";
 import { useEffect } from "react";
@@ -50,8 +50,9 @@ export function SubsystemsPdf({
 }): React.ReactElement | null {
   const cmsOverrides = useProposalStore((s) => s.cmsOverrides);
   const all = getMajorSubsystems(project.data.systemType, cmsOverrides);
-  // Ticked items in order, RIO Panel added with Machine Room (see quotationSubsystems).
-  const blocks: SubsystemContent[] = quotationSubsystems(all, project.data);
+  // Ticked items in order, RIO Panel added with the redundant bench, then the ones
+  // added for this quotation only. "Pricing only" items are left out here.
+  const blocks: SubsystemContent[] = subsystemPageBlocks(all, project.data);
   // Only what was ticked in the wizard. Nothing ticked = no subsystem pages.
   const subsystemList = blocks;
   // Per-subsystem selected variant key (e.g. "manual", "pneumatic"). Falls
@@ -73,6 +74,8 @@ export function SubsystemsPdf({
     flow,
     (item, i) => <FlowBlockBody item={item} variantKey={item.kind === "subsystem" ? variants[item.id] : undefined} index={i} />,
     182,
+    // The chosen variant changes a block's text and photo: measure again when it changes.
+    JSON.stringify(variants),
   );
 
   // Reduced capacities by ~10mm to leave headroom for the space-y-4 gaps

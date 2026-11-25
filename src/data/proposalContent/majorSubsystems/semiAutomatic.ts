@@ -10,6 +10,7 @@ import htIsolatorTrhImg from "@/assets/ht-isolator-temp-rise.png";
 import instrumentsImg from "@/assets/instruments.png";
 import safetyInterlockImg from "@/assets/safety-interlock.png";
 import type { SubsystemContent } from "./advanced";
+import ReportingSoftwareImg from "@/assets/Reporting-Software.png";
 // ---------- Hardware also listed in the Conventional system ----------
 import htCapacitorUnitsImg from "@/assets/ht-capacitor-units.png";
 import htLtCapacitorBankPanelImg from "@/assets/ht-lt-capacitor-bank-panel.png";
@@ -56,6 +57,15 @@ export const semiAutomaticMajorSubsystems: SubsystemContent[] = [ {
   //     " The Report Generation Module of Electrosoft X'mer Edge™ is a web-based application that allows users to generate customised transformer test reports. It accesses logged data from the test bench and produces neatly formatted PDF reports according to user-defined templates. This module ensures that all test results are documented accurately and professionally, facilitating easy sharing and record-keeping.",
   //   images: [xmerEdgeImg],
   // },
+  {
+    // Was the "Report Software" proprietary item: priced here when ticked.
+    id: "xmer-edge-report",
+    title: "Electrosoft X'mer Edge™ — Report Generation Software",
+    preview: "Optional software that turns recorded test data into formatted test reports.",
+    description:
+      "The Report Generation Software of Electrosoft X'mer Edge™ lets operators import downloaded or recorded test data and produce professionally formatted transformer test reports in standard or custom templates. It ensures that all test results are documented accurately and consistently, facilitating easy sharing and record-keeping.",
+    images: [ReportingSoftwareImg],
+  },
    {
     id: "power-panel",
     title: "Generator Panels.",
@@ -87,6 +97,17 @@ export const semiAutomaticMajorSubsystems: SubsystemContent[] = [ {
     description:
       "These panels are heavy-duty assemblies designed to manage and distribute the electrical power required for all major transformer tests. They house ACBs, MCCBs, contactors, protective relays, and suitably rated aluminium busbars engineered for the required thermal and fault withstand levels. They incorporate the necessary switching arrangements for DVDF and induced-voltage withstand tests, along with properly segregated circuits dedicated to no-load loss, load loss, high-voltage testing, and IOVT operations. All incoming and outgoing feeders are mapped to the test bench to facilitate fully automatic routing and switching under software control. Excitation panels offer Coarse and Fine controls for generators.",
     // images: [powerPanelImg],
+  },
+  {
+    // Was a proprietary item; now a Major Subsystem. Pricing only by default
+    // (switch "Show title & description in the PDF" in Settings).
+    id: "main-power-panel",
+    title: "Power Panel",
+    preview: "Centralized power distribution and control panel feeding regulated supply to the complete test setup.",
+    description:
+      "Main power distribution and control panel supplying regulated HV and LV feeds to all test stations. Includes MCBs, contactors, energy meters, surge protection, and interlocked emergency-stop provisions.",
+    images: [powerPanelImg],
+    pricingOnly: true,
   },
   {
     id: "lv-trolley",

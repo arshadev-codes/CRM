@@ -1,17 +1,12 @@
 import { useState } from "react";
-import { useProposalStore } from "@/store/proposalStore";
-import {
-  LIBRARIES, getLibrary, type LibraryItem, type LibraryName, type LibraryOverride,
-} from "@/data/libraries";
+import { LIBRARIES, type LibraryItem, type LibraryName } from "@/data/libraries";
+import { useLayeredLibrary } from "@/hooks/useLayeredLibrary";
+import { LayeredListEditor, SaveButtons, type ItemFormProps } from "./LayeredListEditor";
 import { systemTypesData, type SystemType } from "@/data/systemTypesData";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, RotateCcw } from "lucide-react";
-import { toast } from "sonner";
-import { requireAdminPassword } from "@/lib/passwordGate";
 
 export type LibraryField =
   | { key: string; label: string; type: "text" | "textarea"; placeholder?: string }
@@ -26,8 +21,8 @@ export type LibraryField =
 type AnyItem = Record<string, any> & { id: string };
 
 /**
- * Add / edit / delete for one library in src/data/libraries.ts. Built-in items
- * can be edited or deleted too; "Reset" brings back the built-in list.
+ * Add / edit / delete for one library in src/data/libraries.ts, with
+ * Save locally (this browser) / Save globally (every user) on each item.
  */
 export function LibraryEditor<N extends LibraryName>({
   library, fields, titleKey, subtitle, newItem, filter, itemLabel = "item",
@@ -45,95 +40,35 @@ export function LibraryEditor<N extends LibraryName>({
   itemLabel?: string;
 }) {
   const { key, base } = LIBRARIES[library];
-  const cmsOverrides = useProposalStore(s => s.cmsOverrides);
-  const setCms = useProposalStore(s => s.setCms);
-  const override = (cmsOverrides[key] as LibraryOverride<AnyItem> | undefined) ?? { items: [], deleted: [] };
-  const all = getLibrary(library, cmsOverrides);
-  const shown = filter ? all.filter(filter) : all;
-  const baseIds = new Set((base as readonly AnyItem[]).map(b => b.id));
-  const [editing, setEditing] = useState<string | null>(null);
-
-  const save = (next: LibraryOverride<AnyItem>) => setCms(key, next);
-
-  const upsert = (item: AnyItem) => {
-    if (!requireAdminPassword("settings")) return;
-    const items = override.items.some(i => i.id === item.id)
-      ? override.items.map(i => i.id === item.id ? item : i)
-      : [...override.items, item];
-    const deleted = baseIds.has(item.id) ? Array.from(new Set([...override.deleted, item.id])) : override.deleted;
-    save({ items, deleted });
-    setEditing(null);
-    toast.success("Saved");
-  };
-
-  const remove = (id: string) => {
-    if (!requireAdminPassword("settings")) return;
-    save({
-      items: override.items.filter(i => i.id !== id),
-      deleted: baseIds.has(id) ? Array.from(new Set([...override.deleted, id])) : override.deleted,
-    });
-    toast.success("Deleted");
-  };
-
-  const add = () => {
-    if (!requireAdminPassword("settings")) return;
-    const item = { ...newItem, id: crypto.randomUUID() } as AnyItem;
-    save({ ...override, items: [...override.items, item] });
-    setEditing(item.id);
-  };
-
-  const reset = () => {
-    if (!requireAdminPassword("settings")) return;
-    if (!window.confirm("Bring back the built-in list? Every change made on this page will be lost.")) return;
-    save({ items: [], deleted: [] });
-    setEditing(null);
-    toast.success("Reset to built-in list");
-  };
-
-  const changed = override.items.length + override.deleted.length > 0;
+  const lib = useLayeredLibrary<AnyItem>(key, base as unknown as AnyItem[]);
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap justify-between items-center gap-2">
-        <div className="text-sm text-muted-foreground">{shown.length} {itemLabel}(s)</div>
-        <div className="flex gap-2">
-          {changed && (
-            <Button size="sm" variant="ghost" onClick={reset}><RotateCcw className="h-3 w-3 mr-1" />Reset</Button>
-          )}
-          <Button size="sm" onClick={add}><Plus className="h-3 w-3 mr-1" />Add {itemLabel}</Button>
+    <LayeredListEditor<AnyItem>
+      lib={lib}
+      itemLabel={itemLabel}
+      filter={filter as ((item: AnyItem) => boolean) | undefined}
+      newItem={() => ({ ...(newItem as object), id: crypto.randomUUID() }) as AnyItem}
+      isBlank={item => !String(item[titleKey] ?? "").trim()}
+      renderSummary={item => (
+        <div className="min-w-0">
+          <div className="font-semibold text-sm">{String(item[titleKey] || "(no name)")}</div>
+          {subtitle && <div className="text-xs text-muted-foreground mt-0.5">{subtitle(item as unknown as LibraryItem[N])}</div>}
         </div>
-      </div>
-
-      {shown.map(raw => {
-        const item = raw as unknown as AnyItem;
-        return (
-          <div key={item.id} className="border rounded p-3">
-            {editing === item.id ? (
-              <ItemForm initial={item} fields={fields} onCancel={() => setEditing(null)} onSave={upsert} />
-            ) : (
-              <div className="flex justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm">{String(item[titleKey] || "(no name)")}</div>
-                  {subtitle && <div className="text-xs text-muted-foreground mt-0.5">{subtitle(raw)}</div>}
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  <Button size="sm" variant="outline" onClick={() => setEditing(item.id)}>Edit</Button>
-                  <Button size="sm" variant="ghost" onClick={() => remove(item.id)} title="Delete"><Trash2 className="h-3 w-3" /></Button>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
+      )}
+      renderForm={props => <ItemForm {...props} fields={fields} />}
+    />
   );
 }
 
-function ItemForm({ initial, fields, onSave, onCancel }: {
-  initial: AnyItem; fields: LibraryField[]; onSave: (item: AnyItem) => void; onCancel: () => void;
-}) {
-  const [v, setV] = useState<AnyItem>(initial);
+function ItemForm({ initial, isNew, fields, onSaveLocal, onSaveGlobal, onCancel }: ItemFormProps<AnyItem> & { fields: LibraryField[] }) {
+  // A new item starts with empty text fields, so nothing has to be cleared first.
+  const [v, setV] = useState<AnyItem>(() =>
+    isNew
+      ? Object.fromEntries(Object.entries(initial).map(([k, val]) => [k, typeof val === "string" && k !== "id" && fields.some(f => f.key === k && (f.type === "text" || f.type === "textarea")) ? "" : val])) as AnyItem
+      : initial,
+  );
   const set = (key: string, value: unknown) => setV(prev => ({ ...prev, [key]: value }));
+  const firstText = fields.find(f => f.type === "text" || f.type === "textarea");
 
   return (
     <div className="space-y-3">
@@ -143,25 +78,22 @@ function ItemForm({ initial, fields, onSave, onCancel }: {
           return (
             <div key={f.key} className={wide ? "md:col-span-2" : ""}>
               {f.type !== "checkbox" && <label className="text-xs font-medium">{f.label}</label>}
-              <FieldInput field={f} value={v[f.key]} onChange={val => set(f.key, val)} />
+              <FieldInput field={f} value={v[f.key]} onChange={val => set(f.key, val)} autoFocus={isNew && f === firstText} />
             </div>
           );
         })}
       </div>
-      <div className="flex gap-2 justify-end">
-        <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
-        <Button size="sm" onClick={() => onSave(v)}>Save</Button>
-      </div>
+      <SaveButtons onCancel={onCancel} onSaveLocal={() => onSaveLocal(v)} onSaveGlobal={() => onSaveGlobal(v)} />
     </div>
   );
 }
 
-function FieldInput({ field: f, value, onChange }: { field: LibraryField; value: unknown; onChange: (v: unknown) => void }) {
+function FieldInput({ field: f, value, onChange, autoFocus }: { field: LibraryField; value: unknown; onChange: (v: unknown) => void; autoFocus?: boolean }) {
   switch (f.type) {
     case "text":
-      return <Input value={String(value ?? "")} placeholder={f.placeholder} onChange={e => onChange(e.target.value)} />;
+      return <Input autoFocus={autoFocus} value={String(value ?? "")} placeholder={f.placeholder} onChange={e => onChange(e.target.value)} />;
     case "textarea":
-      return <Textarea rows={4} value={String(value ?? "")} placeholder={f.placeholder} onChange={e => onChange(e.target.value)} />;
+      return <Textarea autoFocus={autoFocus} rows={4} value={String(value ?? "")} placeholder={f.placeholder} onChange={e => onChange(e.target.value)} />;
     case "checkbox":
       return (
         <label className="flex items-start gap-2 text-sm cursor-pointer pt-1">

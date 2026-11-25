@@ -1,6 +1,7 @@
 // The app's one Supabase client (database, login, files and Edge Functions).
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import { isTrackedRequest, trackRequest } from '@/lib/networkActivity';
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
@@ -22,7 +23,11 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     }
 
     headers.set('apikey', supabaseKey);
-    return fetch(input, { ...init, headers });
+    const request = fetch(input, { ...init, headers });
+    // Saves and deletes show the app-wide "Working…" indicator while they run.
+    const method = init?.method ?? (typeof Request !== 'undefined' && input instanceof Request ? input.method : 'GET');
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    return isTrackedRequest(method, url) ? trackRequest(request) : request;
   };
 }
 

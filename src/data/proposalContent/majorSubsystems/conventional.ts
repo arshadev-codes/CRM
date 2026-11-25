@@ -9,6 +9,7 @@ import htIsolatorTrhImg from "@/assets/ht-isolator-temp-rise.png";
 import instrumentsImg from "@/assets/instruments.png";
 import safetyInterlockImg from "@/assets/safety-interlock.png";
 import type { SubsystemContent } from "./advanced";
+import ReportingSoftwareImg from "@/assets/Reporting-Software.png";
 import ConventionalTestBenchImg from "@/assets/Conventional-test-bench.png";
 // ---------- Images extracted from Federal techno-commercial offer ----------
 import excitationControlPanelImg from "@/assets/excitation-control-panel.png";
@@ -55,6 +56,16 @@ export const conventionalMajorSubsystems: SubsystemContent[] = [
     images: [ConventionalTestBenchImg],
   },
   {
+    // Was the "Report Software" proprietary item: priced here when ticked.
+    id: "xmer-edge-report",
+    title: "Electrosoft X'mer Edge™ — Report Generation Software",
+    preview: "Optional software that turns recorded test data into formatted test reports.",
+    description:
+      "The Report Generation Software of Electrosoft X'mer Edge™ lets operators import downloaded or recorded test data and produce professionally formatted transformer test reports in standard or custom templates. It ensures that all test results are documented accurately and consistently, facilitating easy sharing and record-keeping.",
+    images: [ReportingSoftwareImg],
+    offByDefault: true,
+  },
+  {
     id: "power-panel",
     title: "Generator Panels.",
     preview: "Heavy-duty power distribution & switching panels, manually operated.",
@@ -85,6 +96,17 @@ export const conventionalMajorSubsystems: SubsystemContent[] = [
     description:
       "These panels are heavy-duty assemblies designed to manage and distribute the electrical power required for all major transformer tests. They house ACBs, MCCBs, contactors, protective relays, and suitably rated aluminium busbars engineered for the required thermal and fault withstand levels. They incorporate the necessary switching arrangements for DVDF and induced-voltage withstand tests, along with properly segregated circuits dedicated to no-load loss, load loss, high-voltage testing, and IOVT operations. All incoming and outgoing feeders are routed to the control desk for manual switching and operation by the operator.",
     images: [ltBreakerPanelImg],
+  },
+  {
+    // Was a proprietary item; now a Major Subsystem. Pricing only by default
+    // (switch "Show title & description in the PDF" in Settings).
+    id: "main-power-panel",
+    title: "Power Panel",
+    preview: "Centralized power distribution and control panel feeding regulated supply to the complete test setup.",
+    description:
+      "Main power distribution and control panel supplying regulated HV and LV feeds to all test stations. Includes MCBs, contactors, energy meters, surge protection, and interlocked emergency-stop provisions.",
+    images: [powerPanelImg],
+    pricingOnly: true,
   },
   {
     id: "lv-trolley",

@@ -1,10 +1,15 @@
-export interface MakeRow { id: string; item: string; defaultMake: string; options: string[]; defaultEnabled?: boolean; }
+export interface MakeRow {
+  id: string; item: string; defaultMake: string; options: string[]; defaultEnabled?: boolean;
+  /** Major Subsystem ids this row follows: ticking / unticking one in the wizard ticks / unticks this row. */
+  subsystemIds?: string[];
+}
 const standardMakes = ["ABB","Siemens","Schneider","Electrosoft","Delta","Moonlight","Customer Specified","Custom Entry"];
 export const makesOfSupplyData: MakeRow[] = [
   { id: "switchgear", item: "Switchgear & VFD", defaultMake: "Siemens", options: standardMakes, defaultEnabled: true },
   { id: "test-bench", item: "Test Bench", defaultMake: "Electrosoft", options: standardMakes, defaultEnabled: true },
-  { id: "power-panel", item: "Power Panel", defaultMake: "Electrosoft", options: standardMakes, defaultEnabled: true },
-  { id: "cap-panel", item: "Capacitor Panel", defaultMake: "ABB", options: standardMakes, defaultEnabled: true },
+  { id: "power-panel", item: "Power Panel", defaultMake: "Electrosoft", options: standardMakes, defaultEnabled: true, subsystemIds: ["main-power-panel"] },
+  { id: "ht-cap-bank", item: "HT Capacitor Bank", defaultMake: "ABB", options: standardMakes, defaultEnabled: true, subsystemIds: ["ht-cap"] },
+  { id: "lt-cap-bank", item: "LT Capacitor Bank", defaultMake: "ABB", options: standardMakes, defaultEnabled: true, subsystemIds: ["lt-cap"] },
   { id: "enclosure", item: "Enclosure", defaultMake: "Rittal", options: [...standardMakes, "Rittal"], defaultEnabled: true },
   { id: "software", item: "Software", defaultMake: "Electrosoft", options: standardMakes, defaultEnabled: true },
   { id: "plc", item: "PLC", defaultMake: "Siemens", options: standardMakes, defaultEnabled: true },

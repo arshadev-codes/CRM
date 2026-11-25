@@ -2,9 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SettingsShell } from "@/components/settings/SettingsShell";
 import { useLibrary } from "@/hooks/useLibrary";
 import { connectionLabels, type ConnectionGroup } from "@/data/connectionsData";
+import { useEffect, useState } from "react";
 import { useProposalStore } from "@/store/proposalStore";
 import { CMS_CONNECTIONS_KEY, resolveConnectionsMap } from "@/data/connectionsHelpers";
 import { Button } from "@/components/ui/button";
+import { AsyncButton } from "@/components/ui/async-button";
+import { SaveButtons } from "@/components/settings/LayeredListEditor";
+import { clearSharedValue, saveSharedValue, sharedKey } from "@/lib/sharedSettings";
+import { requireAdminPassword } from "@/lib/passwordGate";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
@@ -16,20 +21,57 @@ export const Route = createFileRoute("/settings/connections")({
 
 function ConnectionsSettings() {
   const override = useProposalStore(s => s.cmsOverrides[CMS_CONNECTIONS_KEY]);
+  const shared = useProposalStore(s => s.cmsOverrides[sharedKey(CMS_CONNECTIONS_KEY)]);
   const setCms = useProposalStore(s => s.setCms);
-  const map = resolveConnectionsMap(override);
+  const loadSharedSettings = useProposalStore(s => s.loadSharedSettings);
+  const saved = resolveConnectionsMap(override, shared);
   const testsData = useLibrary("tests");
+  // Changes are collected here and saved with Save locally / Save globally.
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const map = resolveConnectionsMap({ ...((override as Record<string, string>) ?? {}), ...draft }, shared);
+  const dirty = Object.keys(draft).length > 0;
+  const hasLocal = !!override && Object.keys(override as object).length > 0;
+  const hasGlobal = !!shared && Object.keys(shared as object).length > 0;
+  useEffect(() => { void loadSharedSettings(); }, [loadSharedSettings]);
 
-  const setGroup = (testId: string, group: ConnectionGroup | "__unset__") => {
-    const current = (override as Record<string, string>) ?? {};
-    const next = { ...current, [testId]: group };
-    setCms(CMS_CONNECTIONS_KEY, next);
-  };
+  const setGroup = (testId: string, group: ConnectionGroup | "__unset__") =>
+    setDraft(d => ({ ...d, [testId]: group }));
 
-  const reset = () => {
-    setCms(CMS_CONNECTIONS_KEY, {});
-    toast.success("Reset to defaults");
+  const saveLocal = async () => {
+    if (!requireAdminPassword("settings")) return;
+    if (!dirty) { toast.info("No changes to save."); return; }
+    setCms(CMS_CONNECTIONS_KEY, { ...((override as Record<string, string>) ?? {}), ...draft });
+    setDraft({});
+    toast.success("Saved locally (this browser only).");
   };
+  const saveGlobal = async () => {
+    if (!requireAdminPassword("settings")) return;
+    // The whole mapping as shown, so every user gets exactly this.
+    const full: Record<string, string> = {};
+    for (const t of testsData) full[t.id] = map[t.id] ?? "__unset__";
+    if (!(await saveSharedValue(CMS_CONNECTIONS_KEY, full))) {
+      toast.error("Could not save globally. Check the internet connection and try again.");
+      return;
+    }
+    setCms(CMS_CONNECTIONS_KEY, undefined);
+    setDraft({});
+    await loadSharedSettings();
+    toast.success("Saved globally: every user now uses this mapping.");
+  };
+  const resetLocal = () => {
+    if (!requireAdminPassword("settings")) return;
+    setCms(CMS_CONNECTIONS_KEY, undefined);
+    setDraft({});
+    toast.success("Local changes removed");
+  };
+  const resetGlobal = async () => {
+    if (!requireAdminPassword("settings")) return;
+    if (!window.confirm("Bring back the built-in mapping for every user?")) return;
+    if (!(await clearSharedValue(CMS_CONNECTIONS_KEY))) { toast.error("Could not reset. Try again."); return; }
+    await loadSharedSettings();
+    toast.success("Built-in mapping restored for every user");
+  };
+  void saved;
 
   // Group tests by current assignment for an at-a-glance view
   const grouped: Record<string, string[]> = { A: [], B: [], C: [], Other: [], Unmapped: [] };
@@ -58,9 +100,14 @@ function ConnectionsSettings() {
         ))}
       </div>
 
-      <div className="flex justify-end mb-2">
-        <Button size="sm" variant="outline" onClick={reset}>Reset to defaults</Button>
+      <div className="flex flex-wrap items-center justify-end gap-2 mb-2">
+        {hasLocal && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">Local changes in this browser</span>}
+        {hasGlobal && <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">Global mapping</span>}
+        {hasLocal && <Button size="sm" variant="ghost" onClick={resetLocal}>Undo local changes</Button>}
+        {hasGlobal && <AsyncButton size="sm" variant="ghost" onClick={resetGlobal}>Reset for everyone</AsyncButton>}
+        <SaveButtons onCancel={() => setDraft({})} onSaveLocal={saveLocal} onSaveGlobal={saveGlobal} />
       </div>
+      {dirty && <p className="text-xs text-amber-700 mb-2 text-right">Unsaved changes: press Save locally or Save globally.</p>}
 
       <table className="w-full text-sm border">
         <thead className="bg-slate-100">

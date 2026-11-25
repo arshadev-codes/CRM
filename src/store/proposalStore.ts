@@ -6,9 +6,12 @@ import type { InstrumentRow } from "@/data/instrumentsData";
 import type { EquipmentRow } from "@/data/equipmentData";
 import type { DeliveryRow } from "@/data/deliveryData";
 import { paymentTemplatesData, type PaymentMilestone, type PaymentTemplate } from "@/data/paymentTermsData";
-import { getLibrary } from "@/data/libraries";
+import { applyLibraryOverride, getLibrary, type LibraryOverride } from "@/data/libraries";
 import type { QuoteCurrency } from "@/data/currency";
-import { getMajorSubsystems, fixSubsystemIdsInData, isOffByDefault } from "@/data/proposalContent";
+import {
+  getMajorSubsystems, fixSubsystemIdsInData, isOffByDefault, offersRedundantBench, type SubsystemContent,
+} from "@/data/proposalContent";
+import { fetchSharedSettings, SHARED_CMS_PREFIX, sharedKey } from "@/lib/sharedSettings";
 import { employeesData, type Employee, type EmployeeRating, type RatingRule } from "@/data/employeesData";
 import { companiesData, type Company } from "@/data/companiesData";
 import { supabase } from "@/lib/supabaseClient";
@@ -83,8 +86,9 @@ export interface PriceEntry {
  * (Pricing) and every PDF page that needs a price reads from the same
  * source of truth instead of each table owning its own qty/price fields.
  *
- *   scopeOfSupply   -> keyed by subsystem id, plus the 2 in-scope
- *                      proprietary item ids ("power-panel", "lv-trolley")
+ *   scopeOfSupply   -> keyed by subsystem id (Power Panel and LV Trolley
+ *                      are Major Subsystems), plus any proprietary item
+ *                      flagged inScopeOfSupply in Settings
  *   instruments     -> keyed by instrument row id
  *   equipment       -> keyed by equipment row id
  *   scopeOfServices -> keyed by proprietary item id (everything except the
@@ -153,6 +157,17 @@ export interface ProposalData {
   freightLogistics?: FreightLogisticsData;
   /** Which wizard steps / proposal sections this project uses, plus edited section HTML */
   layout?: ProposalLayout;
+  /** Major Subsystems added in the wizard for this quotation only (ids start with "custom-sub-"). */
+  customSubsystems?: SubsystemContent[];
+  /**
+   * Redundant / Conventional Test Bench with RIO Panel, asked in a dialog when the
+   * automatic test bench is selected. null = not asked yet; undefined = older quotation.
+   */
+  redundantBench?: boolean | null;
+  /** When the quotation was marked as sent to the customer (ISO). Sent implies Completed. */
+  sentAt?: string;
+  /** Status it had before it was archived, given back by Unarchive. */
+  statusBeforeArchive?: "Draft" | "Completed" | "Converted";
 }
 
 /**
@@ -218,20 +233,22 @@ type DefaultsSource = { cmsOverrides?: Record<string, unknown>; paymentTemplates
 function defaultsForSystem(systemType: SystemType, src: DefaultsSource = {}): ProposalData {
   const cfg = systemConfiguration[systemType];
   const { cmsOverrides } = src;
-  const firstTemplate = src.paymentTemplates?.[0] ?? paymentTemplatesData[0];
+  const firstTemplate = mergedPaymentTemplates(src.paymentTemplates, cmsOverrides)[0] ?? paymentTemplatesData[0];
+  const library = getMajorSubsystems(systemType, cmsOverrides);
+  const selectedSubsystems = library.filter(s => !isOffByDefault(s.id) && !s.offByDefault).map(s => s.id);
   return {
     systemType,
     customer: emptyCustomer(),
     meta: emptyMeta(),
     transformer: emptyTransformer(),
     selectedTests: [...cfg.defaultTests],
-    selectedSubsystems: getMajorSubsystems(systemType, cmsOverrides).filter(s => !isOffByDefault(s.id)).map(s => s.id),
+    selectedSubsystems,
+    redundantBench: offersRedundantBench(library) ? null : undefined,
     proposalCustomizations: [],
+    customSubsystems: [],
     subsystemVariants: {},
     systemLayout: {},
-    instruments: getLibrary("instruments", cmsOverrides).filter(i => cfg.defaultInstruments.includes(i.id)).map(i => ({ ...i })),
-    // Only the defaults; the rest is added from the wizard's "Add from list".
-    equipment: getLibrary("equipment", cmsOverrides).filter(e => cfg.defaultEquipment.includes(e.id)).map(e => ({ ...e, included: true })),
+    ...suggestedInstrumentsAndEquipment(systemType, cmsOverrides),
     proprietary: [...cfg.defaultProprietary],
     proprietaryCustom: [],
     installationType: null,
@@ -239,11 +256,126 @@ function defaultsForSystem(systemType: SystemType, src: DefaultsSource = {}): Pr
     pricing: emptyPricing(),
     delivery: getLibrary("delivery", cmsOverrides).map(d => ({ ...d })),
     exclusions: getLibrary("exclusions", cmsOverrides).filter(e => e.defaultIncluded).map(e => e.id),
-    makes: getLibrary("makes", cmsOverrides).map(m => ({ id: m.id, enabled: !!m.defaultEnabled, make: m.defaultMake })),
+    // Rows that follow a subsystem (HT / LT Capacitor Bank, Power Panel) start ticked only with it.
+    makes: getLibrary("makes", cmsOverrides).map(m => ({
+      id: m.id,
+      enabled: !!m.defaultEnabled && (!m.subsystemIds?.length || m.subsystemIds.some(id => selectedSubsystems.includes(id))),
+      make: m.defaultMake,
+    })),
     payment: firstTemplate.milestones.map(m => ({ ...m })),
     freightLogistics: { ...freightLogisticsDefaults },
     layout: defaultLayout(),
   };
+}
+
+/**
+ * The main instruments and equipment of a system type, listed in a new quotation
+ * UNTICKED: the user ticks the ones offered and adds others from the list.
+ */
+function suggestedInstrumentsAndEquipment(systemType: SystemType, cmsOverrides?: Record<string, unknown>) {
+  const cfg = systemConfiguration[systemType];
+  const row = <T extends { id: string }>(item: T) => ({ ...item, id: crypto.randomUUID(), sourceId: item.id, included: false, suggested: true });
+  return {
+    instruments: getLibrary("instruments", cmsOverrides).filter(i => cfg.defaultInstruments.includes(i.id)).map(row),
+    equipment: getLibrary("equipment", cmsOverrides).filter(e => cfg.defaultEquipment.includes(e.id)).map(row),
+  };
+}
+
+/** Global key for payment templates saved for every user (see src/lib/sharedSettings.ts). */
+export const PAYMENT_TEMPLATES_KEY = "paymentTemplates";
+
+/** This browser's payment templates with the global ones (every user) applied. */
+/** Templates hidden in this browser only (cmsOverrides key, list of ids). */
+export const PAYMENT_HIDDEN_KEY = "paymentTemplates:hidden";
+export function mergedPaymentTemplates(local: PaymentTemplate[] | undefined, cmsOverrides?: Record<string, unknown>): PaymentTemplate[] {
+  const shared = cmsOverrides?.[sharedKey(PAYMENT_TEMPLATES_KEY)] as LibraryOverride<PaymentTemplate> | undefined;
+  const hidden = new Set((cmsOverrides?.[PAYMENT_HIDDEN_KEY] as string[] | undefined) ?? []);
+  return applyLibraryOverride(local ?? paymentTemplatesData, shared).filter(t => !hidden.has(t.id));
+}
+
+/**
+ * Brings a saved quotation up to date with changes to the app:
+ *  - Power Panel, LV Test Trolley and Report Software moved from Proprietary Items to Major Subsystems
+ *  - Makes of Supply "Capacitor Panel" split into HT and LT Capacitor Bank
+ * Returns the same object when nothing needed changing.
+ */
+export function normalizeProjectData(data: ProposalData): ProposalData {
+  if (!data) return data;
+  let out = data;
+  if ((data.proprietary ?? []).includes("report-sw")) {
+    // Report Software is priced as the Report Generation Module subsystem
+    // (Advanced / Fully Automatic; quotationSubsystems ignores ids a library doesn't have).
+    const selected = data.selectedSubsystems ?? [];
+    out = {
+      ...out,
+      proprietary: out.proprietary.filter(id => id !== "report-sw"),
+      selectedSubsystems: selected.includes("xmer-edge-report") ? selected : [...selected, "xmer-edge-report"],
+    };
+  }
+  const proprietary = out.proprietary ?? [];
+  if (proprietary.includes("power-panel") || proprietary.includes("lv-trolley")) {
+    const selected = new Set(out.selectedSubsystems ?? []);
+    const supply = { ...(out.pricing?.scopeOfSupply ?? {}) };
+    if (proprietary.includes("lv-trolley")) selected.add("lv-trolley"); // same price key as before
+    if (proprietary.includes("power-panel")) {
+      // "power-panel" is also the Generator Panels subsystem in Semi-automatic / Conventional:
+      // move its price only when that subsystem isn't the one priced under the key.
+      if (!selected.has("power-panel") && supply["power-panel"] && !supply["main-power-panel"]) {
+        supply["main-power-panel"] = supply["power-panel"];
+        delete supply["power-panel"];
+      }
+      selected.add("main-power-panel");
+    }
+    out = {
+      ...out,
+      proprietary: proprietary.filter(id => id !== "power-panel" && id !== "lv-trolley"),
+      selectedSubsystems: Array.from(selected),
+      pricing: { ...(out.pricing ?? { scopeOfSupply: {}, instruments: {}, equipment: {}, scopeOfServices: {} }), scopeOfSupply: supply },
+    };
+  }
+  const oldCap = (out.makes ?? []).find(m => m.id === "cap-panel");
+  if (oldCap && !out.makes.some(m => m.id === "ht-cap-bank" || m.id === "lt-cap-bank")) {
+    const sel = new Set(out.selectedSubsystems ?? []);
+    const neither = !sel.has("ht-cap") && !sel.has("lt-cap");
+    const copy = (id: string, sub: string): MakeSelection => ({
+      id, make: oldCap.make, custom: oldCap.custom, enabled: oldCap.enabled && (neither || sel.has(sub)),
+    });
+    out = {
+      ...out,
+      makes: out.makes.flatMap(m => (m.id === "cap-panel" ? [copy("ht-cap-bank", "ht-cap"), copy("lt-cap-bank", "lt-cap")] : [m])),
+    };
+  }
+  return out;
+}
+
+/**
+ * Draft quotations made before the tick column: the instruments / equipment that
+ * were added automatically (library id as row id, never re-added by hand) and
+ * have no price typed become unticked suggestions, like on a new quotation.
+ * The `suggested` flag marks them, so a row the user ticks later stays ticked.
+ * Completed / sent quotations are left exactly as they are.
+ */
+export function untickOldDefaults(p: Project): Project {
+  if (p.status !== "Draft") return p;
+  const cfg = systemConfiguration[p.data.systemType];
+  if (!cfg) return p;
+  const convert = <T extends { id: string; included?: boolean; suggested?: boolean; sourceId?: string }>(
+    rows: T[] | undefined, defaults: string[], prices: Record<string, PriceEntry> | undefined,
+  ): T[] | undefined => {
+    if (!rows) return rows;
+    let changed = false;
+    const next = rows.map(r => {
+      const auto = defaults.includes(r.id) && r.sourceId === undefined && r.suggested === undefined;
+      if (!auto || r.included === false || prices?.[r.id]?.unitPrice) return r;
+      changed = true;
+      return { ...r, included: false, suggested: true };
+    });
+    return changed ? next : rows;
+  };
+  const instruments = convert(p.data.instruments, cfg.defaultInstruments, p.data.pricing?.instruments);
+  const equipment = convert(p.data.equipment, cfg.defaultEquipment, p.data.pricing?.equipment);
+  if (instruments === p.data.instruments && equipment === p.data.equipment) return p;
+  return { ...p, data: { ...p.data, instruments: instruments ?? [], equipment: equipment ?? [] } };
 }
 
 /** True for an order made without a quotation. */
@@ -276,10 +408,17 @@ interface ProposalStore {
   setSystemType: (id: string, systemType: SystemType) => void;
   duplicateProject: (id: string) => Project | null;
   reviseProject: (id: string) => Project | null;
-  deleteProject: (id: string) => void;
+  /** Deletes from the database first, then from this computer. False when the database delete failed. */
+  deleteProject: (id: string) => Promise<boolean>;
   archiveProject: (id: string) => void;
+  /** Brings an archived quotation back with the status it had before. */
+  unarchiveProject: (id: string) => void;
   getProject: (id: string) => Project | undefined;
   setCms: (key: string, value: unknown) => void;
+  /** True once the global settings (saved for every user) were loaded, or failed to load. */
+  sharedSettingsLoaded: boolean;
+  /** Loads the global settings (every user) into cmsOverrides under "shared:" keys. */
+  loadSharedSettings: () => Promise<void>;
   savePaymentTemplate: (name: string, milestones: PaymentMilestone[]) => void;
   updatePaymentTemplate: (id: string, patch: Partial<Omit<PaymentTemplate, "id">>) => void;
   deletePaymentTemplate: (id: string) => void;
@@ -419,9 +558,15 @@ async function pushInwardOrder(o: InwardOrder) {
     if (error) console.warn("[supabase] inward upsert failed:", error.message);
   } catch (e) { console.warn("[supabase] inward push error:", e); }
 }
-async function removeProject(id: string) {
-  try { await supabase.from("projects").delete().eq("id", id); }
-  catch (e) { console.warn("[supabase] delete error:", e); }
+async function removeProject(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if (error) { console.warn("[supabase] delete error:", error.message); return false; }
+    return true;
+  } catch (e) {
+    console.warn("[supabase] delete error:", e);
+    return false;
+  }
 }
 
 /** Recompute meta.offerNumber from project's offerSeq/fy/companyShort/revision. */
@@ -444,6 +589,7 @@ export const useProposalStore = create<ProposalStore>()(
     (set, get) => ({
       projects: [],
       cmsOverrides: {},
+      sharedSettingsLoaded: false,
       paymentTemplates: paymentTemplatesData,
       employees: employeesData,
       ratings: [],
@@ -562,17 +708,28 @@ export const useProposalStore = create<ProposalStore>()(
           if (p.id !== id || p.data.systemType === systemType) return p;
           const fresh = defaultsForSystem(systemType, s);
           // Only what depends on the system type goes back to that type's defaults
-          // (tests, subsystems, instruments, equipment, proprietary items).
-          // Everything else typed in so far is kept, prices included: they are
+          // (tests, subsystems, proprietary items). Everything else typed in so far
+          // is kept, ticked instruments / equipment and prices included: prices are
           // stored per item id, and most items exist in every system type.
+          // Subsystems added for this quotation only stay, still ticked.
+          // Unticked suggestions are replaced by the new type's; ticked rows stay.
+          const keepTicked = <T extends { included?: boolean }>(rows: T[]) => rows.filter(r => r.included !== false);
+          // A suggestion already in the list (ticked) isn't listed a second time.
+          const withSuggestions = <T extends { id: string; sourceId?: string }>(kept: T[], suggested: T[]) => {
+            const have = new Set(kept.map(r => r.sourceId ?? r.id));
+            return [...kept, ...suggested.filter(r => !have.has(r.sourceId ?? r.id))];
+          };
+          const custom = (p.data.customSubsystems ?? []).map(c => c.id);
+          const keptCustom = (p.data.selectedSubsystems ?? []).filter(id => custom.includes(id));
           const merged: Project = { ...p, updatedAt: Date.now(), data: {
             ...p.data,
             systemType,
             selectedTests: fresh.selectedTests,
-            selectedSubsystems: fresh.selectedSubsystems,
+            selectedSubsystems: [...fresh.selectedSubsystems, ...keptCustom],
+            redundantBench: fresh.redundantBench,
+            instruments: withSuggestions(keepTicked(p.data.instruments ?? []), fresh.instruments),
+            equipment: withSuggestions(keepTicked(p.data.equipment ?? []), fresh.equipment),
             subsystemVariants: fresh.subsystemVariants,
-            instruments: fresh.instruments,
-            equipment: fresh.equipment,
             proprietary: fresh.proprietary,
             layout: p.data.layout ?? fresh.layout,
           }};
@@ -589,7 +746,7 @@ export const useProposalStore = create<ProposalStore>()(
           ...src, id: crypto.randomUUID(), name: src.name + " (Copy)",
           status: "Draft", createdAt: Date.now(), updatedAt: Date.now(),
           fy, offerSeq: nextSeq, revision: 0, parentId: null,
-          data: JSON.parse(JSON.stringify(src.data)),
+          data: { ...JSON.parse(JSON.stringify(src.data)), sentAt: undefined, statusBeforeArchive: undefined },
         };
         copy = recomputeOfferNumber(copy);
         set(s => ({ projects: [copy, ...s.projects] }));
@@ -624,21 +781,34 @@ export const useProposalStore = create<ProposalStore>()(
           companyShort: root.companyShort,
           revision: nextRev,
           parentId: root.id,
-          data: JSON.parse(JSON.stringify(src.data)),
+          data: { ...JSON.parse(JSON.stringify(src.data)), sentAt: undefined, statusBeforeArchive: undefined },
         };
         copy = recomputeOfferNumber(copy);
         set(s => ({ projects: [copy, ...s.projects] }));
         projectSaves.queue(copy);
         return copy;
       },
-      deleteProject: (id) => {
-        set(s => ({ projects: s.projects.filter(p => p.id !== id) }));
+      deleteProject: async (id) => {
+        // Stop pending saves first, so a late save can't bring it back.
         projectSaves.cancel(id);
-        void removeProject(id);
+        const ok = await removeProject(id);
+        if (!ok) return false;
+        set(s => ({ projects: s.projects.filter(p => p.id !== id) }));
+        return true;
       },
       archiveProject: (id) => set(s => ({ projects: s.projects.map(p => {
-        if (p.id !== id) return p;
-        const merged = { ...p, status: "Archived" as const, updatedAt: Date.now() };
+        if (p.id !== id || p.status === "Archived") return p;
+        const merged: Project = {
+          ...p, status: "Archived", updatedAt: Date.now(),
+          data: { ...p.data, statusBeforeArchive: p.status },
+        };
+        projectSaves.queue(merged);
+        return merged;
+      }) })),
+      unarchiveProject: (id) => set(s => ({ projects: s.projects.map(p => {
+        if (p.id !== id || p.status !== "Archived") return p;
+        const status = p.data.statusBeforeArchive ?? (p.data.sentAt ? "Completed" : "Draft");
+        const merged: Project = { ...p, status, updatedAt: Date.now(), data: { ...p.data, statusBeforeArchive: undefined } };
         projectSaves.queue(merged);
         return merged;
       }) })),
@@ -688,6 +858,15 @@ export const useProposalStore = create<ProposalStore>()(
       deleteRatingRule: (id) => {
         set(s => ({ ratingRules: s.ratingRules.filter(r => r.id !== id) }));
         void removeRatingRule(id);
+      },
+      loadSharedSettings: async () => {
+        const shared = await fetchSharedSettings();
+        if (!shared) { set({ sharedSettingsLoaded: true }); return; } // offline: built-in lists only
+        set(s => {
+          const cms = Object.fromEntries(Object.entries(s.cmsOverrides).filter(([k]) => !k.startsWith(SHARED_CMS_PREFIX)));
+          for (const [key, value] of Object.entries(shared)) cms[sharedKey(key)] = value;
+          return { cmsOverrides: cms, sharedSettingsLoaded: true };
+        });
       },
       hydrateEmployees: async () => {
         void loadRatingRules().then(rules => rules && set({ ratingRules: rules }));
@@ -763,10 +942,10 @@ export const useProposalStore = create<ProposalStore>()(
           // Saved quotations may still hold renamed subsystem ids; map them to the current ones.
           // Offer numbers made before the switch to "SQ" (Q001/…) get the new prefix.
           const fixed = Array.from(map.values()).map(p => {
-            let data = fixSubsystemIdsInData(p.data);
+            let data = normalizeProjectData(fixSubsystemIdsInData(p.data));
             const offer = data.meta?.offerNumber ?? "";
             if (/^Q\d{3}\//.test(offer)) data = { ...data, meta: { ...data.meta, offerNumber: `S${offer}` } };
-            return data === p.data ? p : { ...p, data };
+            return untickOldDefaults(data === p.data ? p : { ...p, data });
           });
           set({ projects: fixed.sort((a, b) => b.updatedAt - a.updatedAt) });
         } catch (e) { console.warn("[supabase] hydrate error:", e); }
@@ -779,9 +958,15 @@ export const useProposalStore = create<ProposalStore>()(
     }),
     {
       name: "electrosoft-proposal-store-v1",
-      version: 2,
+      version: 4,
       storage: createJSONStorage(() => safeLocalStorage),
-      partialize: (s) => ({ ...s, projects: s.projects.map(withoutFiles) }) as ProposalStore,
+      // Global settings come from the database on every start, so they aren't kept here.
+      partialize: (s) => ({
+        ...s,
+        projects: s.projects.map(withoutFiles),
+        cmsOverrides: Object.fromEntries(Object.entries(s.cmsOverrides).filter(([k]) => !k.startsWith(SHARED_CMS_PREFIX))),
+        sharedSettingsLoaded: false,
+      }) as ProposalStore,
       migrate: (persisted, version) => {
         const state = (persisted ?? {}) as Partial<ProposalStore>;
         // v0 -> v1: bring in the seed employees added since this browser first saved.
@@ -800,6 +985,10 @@ export const useProposalStore = create<ProposalStore>()(
             scope: e.scope ?? (workshopIds.has(e.id) ? "workshop" : "quotation"),
           }));
         }
+        // v2 -> v3: Power Panel / LV Trolley became subsystems, capacitor makes were split.
+        if (version < 3) state.projects = (state.projects ?? []).map(p => ({ ...p, data: normalizeProjectData(p.data) }));
+        // v3 -> v4: Draft quotations list their automatic instruments / equipment unticked.
+        if (version < 4) state.projects = (state.projects ?? []).map(untickOldDefaults);
         return state as ProposalStore;
       },
     }

@@ -9,6 +9,7 @@ import appCss from "../styles.css?url";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { BusyIndicator } from "@/components/BusyIndicator";
 import { PageTransition } from "@/components/PageTransition";
 import { RouteProgress } from "@/components/RouteProgress";
 import { DemoModeBadge } from "@/components/DemoModeBadge";
@@ -166,6 +167,8 @@ function RootComponent() {
   const userId = user?.id;
   useEffect(() => {
     if (userId) void useProposalStore.getState().hydrateEmployees();
+    // Settings saved globally (for every user).
+    void useProposalStore.getState().loadSharedSettings();
   }, [userId]);
   // Field staff only use the app; the office website is not theirs.
   const fieldOnly = Boolean(user && isFieldUser(user)) && !isApp && !isLogin && !isPrint;
@@ -183,6 +186,7 @@ function RootComponent() {
   if (needsLogin || fieldOnly || (authMode === "checking" && !isPrint)) return null;
   return (
     <QueryClientProvider client={queryClient}>
+      {!isPrint && <BusyIndicator />}
       {isPrint || isLogin || isApp ? <><Outlet /><Toaster position={isApp ? "top-center" : undefined} /></> : (
         <SidebarProvider>
           <RouteProgress />

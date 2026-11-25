@@ -3,6 +3,10 @@ export interface EquipmentRow {
   spec1: string; spec2: string; spec3: string; spec4: string; spec5: string;
   aliases?: string[]; // optional: other names found in old quotations
   family?: string; // optional: groups variants in the wizard's picker (see catalogFamilies.ts)
+  /** In a quotation: listed by default for the system type (unticked until the user ticks it). */
+  suggested?: boolean;
+  /** In a quotation: the library item a row was added from. */
+  sourceId?: string;
 }
 
 const e = (

@@ -68,6 +68,13 @@ export interface SubsystemContent {
   // width = % of the page's text width, height = mm. When absent, the
   // default layout above is used.
   imageSizes?: SubsystemImageSize[];
+  /**
+   * Settings switch "Show title & description in the PDF". When true the item
+   * is only a priced row in Scope of Supply: no block in the Major Subsystems pages.
+   */
+  pricingOnly?: boolean;
+  /** Not ticked on a new quotation (the user ticks it when it's offered). */
+  offByDefault?: boolean;
   // Optional — when present, the wizard shows a dropdown for this subsystem
   // and the selected option's title/description are used in the PDF instead
   // of the defaults above. `default` is the option `key` used when the
@@ -155,6 +162,17 @@ export const advancedMajorSubsystems: SubsystemContent[] = [
     description:
       "These panels are heavy-duty assemblies designed to manage and distribute the electrical power required for all major transformer tests. They house ACBs, MCCBs, contactors, protective relays, and suitably rated aluminium busbars engineered for the required thermal and fault withstand levels. They incorporate the necessary switching arrangements for DVDF and induced-voltage withstand tests, along with properly segregated circuits dedicated to no-load loss, load loss, high-voltage testing, and IOVT operations. All incoming and outgoing feeders are mapped to the test bench to facilitate fully automatic routing and switching under software control. Excitation panels offer Coarse and Fine controls for generators.",
     // images: [powerPanelImg],
+  },
+  {
+    // Was a proprietary item; now a Major Subsystem. Pricing only by default
+    // (switch "Show title & description in the PDF" in Settings).
+    id: "main-power-panel",
+    title: "Power Panel",
+    preview: "Centralized power distribution and control panel feeding regulated supply to the complete test setup.",
+    description:
+      "Main power distribution and control panel supplying regulated HV and LV feeds to all test stations. Includes MCBs, contactors, energy meters, surge protection, and interlocked emergency-stop provisions.",
+    images: [powerPanelImg],
+    pricingOnly: true,
   },
   {
     id: "lv-trolley",

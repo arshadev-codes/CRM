@@ -71,7 +71,7 @@ export const CUSTOMER_SCOPE_ID = "customer-scope-hardware";
 
 /**
  * Subsystems that are never ticked on their own: they come with another one.
- * Ticking Machine Room Control Desk brings in the RIO Panel, at position 2.
+ * The Redundant / Conventional Test Bench (machine-room) brings in the RIO Panel, at position 2.
  */
 export const COMPANION_SUBSYSTEMS: Record<string, string> = { "machine-room": "rio-panel" };
 const COMPANION_IDS = new Set(Object.values(COMPANION_SUBSYSTEMS));
@@ -79,22 +79,49 @@ export const isCompanionSubsystem = (id: string) => COMPANION_IDS.has(id);
 /** Position a companion is put at in the list (0-based: 1 = second). */
 const COMPANION_POSITION = 1;
 
-/** Not ticked in a new quotation: companions, and items filled in per quotation. */
-export const isOffByDefault = (id: string) => isCompanionSubsystem(id) || id === CUSTOMER_SCOPE_ID;
+/**
+ * The automatic test bench and its optional Redundant / Conventional Test Bench
+ * (with the RIO Panel). The redundant bench isn't in the tick list: the wizard
+ * asks about it in a dialog when the automatic test bench is selected.
+ */
+export const TEST_BENCH_ID = "test-bench";
+export const REDUNDANT_BENCH_ID = "machine-room";
+/** True when this library offers the redundant bench (Advanced, Fully Automatic). */
+export const offersRedundantBench = (all: SubsystemContent[]) => all.some(s => s.id === REDUNDANT_BENCH_ID);
+
+/** Not ticked in a new quotation: companions, the redundant bench (asked for), items filled in per quotation. */
+export const isOffByDefault = (id: string) =>
+  isCompanionSubsystem(id) || id === CUSTOMER_SCOPE_ID || id === REDUNDANT_BENCH_ID;
+
+/** Ids of subsystems added in the wizard for one quotation only. */
+export const CUSTOM_SUBSYSTEM_PREFIX = "custom-sub-";
+export const isCustomSubsystem = (id: string) => id.startsWith(CUSTOM_SUBSYSTEM_PREFIX);
+
+type QuotationSubsystemData = {
+  selectedSubsystems: string[];
+  customerScopeHardware?: string;
+  subsystemRatings?: Record<string, string>;
+  /** Subsystems added in the wizard for this quotation only. */
+  customSubsystems?: SubsystemContent[];
+};
 
 /**
- * The subsystems a quotation shows, in PDF order: the ticked ones, plus each
- * ticked item's companion (RIO Panel) at position 2. The customer-scope item
- * gets the text typed for it in the wizard as its description.
+ * The subsystems a quotation shows, in PDF order: the ticked ones from the
+ * library, then the ones added for this quotation only, plus each ticked item's
+ * companion (RIO Panel) at position 2. The customer-scope item gets the text
+ * typed for it in the wizard as its description.
+ *
+ * Includes "pricing only" items: use subsystemPageBlocks for the PDF pages.
  */
-export function quotationSubsystems(
-  all: SubsystemContent[],
-  data: { selectedSubsystems: string[]; customerScopeHardware?: string; subsystemRatings?: Record<string, string> },
-): SubsystemContent[] {
+export function quotationSubsystems(all: SubsystemContent[], data: QuotationSubsystemData): SubsystemContent[] {
   const ids = new Set(data.selectedSubsystems);
-  const list = all.filter(s => (ids.has(s.id) || ids.has(s.title)) && !isCompanionSubsystem(s.id));
-  for (const [owner, companionId] of Object.entries(COMPANION_SUBSYSTEMS)) {
-    if (!list.some(s => s.id === owner)) continue;
+  const list = [
+    ...all.filter(s => (ids.has(s.id) || ids.has(s.title)) && !isCompanionSubsystem(s.id)),
+    ...(data.customSubsystems ?? []).filter(s => ids.has(s.id)),
+  ];
+  // The companion (RIO Panel) goes in as item 2; the Redundant bench keeps its own place.
+  for (const [ownerId, companionId] of Object.entries(COMPANION_SUBSYSTEMS)) {
+    if (!list.some(s => s.id === ownerId)) continue;
     const companion = all.find(s => s.id === companionId);
     if (companion) list.splice(Math.min(COMPANION_POSITION, list.length), 0, companion);
   }
@@ -111,6 +138,10 @@ export function quotationSubsystems(
     };
   });
 }
+
+/** The blocks printed in the Major Subsystems pages: everything except "pricing only" items. */
+export const subsystemPageBlocks = (all: SubsystemContent[], data: QuotationSubsystemData) =>
+  quotationSubsystems(all, data).filter(s => !s.pricingOnly);
 
 /**
  * Shown in the Major Sub Systems pages (title, description, images) but not
@@ -139,20 +170,30 @@ export function withRating(title: string, rating?: string) {
   return r ? `${title} (${r})` : title;
 }
 
-// Settings → Major Sub Systems stores its edits in cmsOverrides under this key.
+// Settings → Major Sub Systems stores this browser's ("local") edits in cmsOverrides
+// under this key; edits saved globally (every user) come from the database under
+// `shared:` + this key (see src/lib/sharedSettings.ts).
 // `deleted` holds base ids that were removed OR replaced by an edited copy in `items`.
 export type SubsystemOverride = LibraryOverride<SubsystemContent>;
 export const subsystemsCmsKey = (st: SystemType) => `subsystems:${st}`;
+export const sharedSubsystemsCmsKey = (st: SystemType) => `shared:${subsystemsCmsKey(st)}`;
 
 /** Library with Settings edits applied: edited items stay in place, new ones go at the end. */
 export const applySubsystemOverride = (base: SubsystemContent[], ov?: SubsystemOverride) => applyLibraryOverride(base, ov);
+
+/** The built-in list with the global changes applied: what every user starts from. */
+export function getSharedMajorSubsystems(systemType: SystemType, cmsOverrides?: Record<string, unknown>): SubsystemContent[] {
+  const shared = cmsOverrides?.[sharedSubsystemsCmsKey(systemType)] as SubsystemOverride | undefined;
+  return applySubsystemOverride(getBaseMajorSubsystems(systemType), shared);
+}
 
 /**
  * The library the quotation uses. Pass the store's cmsOverrides so Settings edits
  * show up in the wizard and PDF; without it only the built-in list is returned.
  */
 export function getMajorSubsystems(systemType: SystemType, cmsOverrides?: Record<string, unknown>): SubsystemContent[] {
-  const base = getBaseMajorSubsystems(systemType);
+  // Built-in list -> global changes (all users) -> this browser's own changes.
+  const base = getSharedMajorSubsystems(systemType, cmsOverrides);
   const ov = cmsOverrides?.[subsystemsCmsKey(systemType)] as SubsystemOverride | undefined;
   // Settings edits saved under an old id still apply to the renamed item.
   const fixedOv = ov && {

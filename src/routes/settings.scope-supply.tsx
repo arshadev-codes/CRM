@@ -5,9 +5,9 @@ import { LibraryEditor } from "@/components/settings/LibraryEditor";
 export const Route = createFileRoute("/settings/scope-supply")({ component: () => (
   <SettingsShell title="Scope of Supply">
     <p className="text-sm text-muted-foreground mb-4">
-      The Scope of Supply table is made of the selected{" "}
-      <Link to="/settings/subsystems" className="text-blue-600 underline">Major Sub Systems</Link>, followed by
-      the items below when they are ticked in the wizard's Proprietary step.
+      The Scope of Supply pricing table is made of the selected{" "}
+      <Link to="/settings/subsystems" className="text-blue-600 underline">Major Sub Systems</Link> (Power Panel and
+      LV Test Trolley are there now), followed by any item below when it is ticked in the wizard's Proprietary step.
     </p>
     <LibraryEditor
       library="proprietary"

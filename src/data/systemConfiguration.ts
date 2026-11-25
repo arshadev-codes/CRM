@@ -18,7 +18,7 @@ export const systemConfiguration: Record<SystemType, SystemConfig> = {
     defaultInstruments: ["power-analyzer","vrm","wrm","irm","li-tester","pd-meter"],
     defaultEquipment: ["ht-cap","mg-set","ct-1","pt-1","hv-trans","intermediate-trafo-100kva","gen-panel"],
     defaultSubsystems: ["control-desk","power-panel","scada","plc","hv-switching","ct-pt-rack","lv-trolley","safety","busbar","cable-mgmt","report-sw"],
-    defaultProprietary: ["test-bench","power-panel","lv-trolley","report-sw","commissioning","training","documentation"],
+    defaultProprietary: ["test-bench","commissioning","training","documentation"],
   },
   FullyAutomatic: {
     software: "Yes", lvTrolley: "Automatic", contentDir: "fullyAutomatic",
@@ -26,7 +26,7 @@ export const systemConfiguration: Record<SystemType, SystemConfig> = {
     defaultInstruments: ["power-analyzer","vrm","wrm","irm","li-tester","pd-meter"],
     defaultEquipment: ["ht-cap","mg-set","ct-1","pt-1","hv-trans","intermediate-trafo-100kva","gen-panel"],
     defaultSubsystems: ["control-desk","power-panel","scada","plc","hv-switching","ct-pt-rack","lv-trolley","safety","report-sw"],
-    defaultProprietary: ["test-bench","power-panel","lv-trolley","report-sw","commissioning","training","documentation"],
+    defaultProprietary: ["test-bench","commissioning","training","documentation"],
   },
   SemiAutomatic: {
     software: "Report Generation Only", lvTrolley: "Manual", contentDir: "semiAutomatic",
@@ -34,7 +34,7 @@ export const systemConfiguration: Record<SystemType, SystemConfig> = {
     defaultInstruments: ["power-analyzer","vrm","wrm","irm","li-tester"],
     defaultEquipment: ["ht-cap","mg-set","ct-1","pt-1","hv-trans","intermediate-trafo-100kva"],
     defaultSubsystems: ["control-desk","power-panel","hv-switching","ct-pt-rack","safety","report-sw"],
-    defaultProprietary: ["test-bench","power-panel","report-sw","commissioning","training","documentation"],
+    defaultProprietary: ["test-bench","commissioning","training","documentation"],
   },
   Conventional: {
     software: "No", lvTrolley: "Manual", contentDir: "conventional",
@@ -42,6 +42,6 @@ export const systemConfiguration: Record<SystemType, SystemConfig> = {
     defaultInstruments: ["power-analyzer","vrm","wrm","irm"],
     defaultEquipment: ["ht-cap","mg-set","ct-1","pt-1","hv-trans"],
     defaultSubsystems: ["control-desk","power-panel","hv-switching","ct-pt-rack","safety"],
-    defaultProprietary: ["test-bench","power-panel","commissioning","training","documentation"],
+    defaultProprietary: ["test-bench","commissioning","training","documentation"],
   },
 };
