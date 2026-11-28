@@ -25,6 +25,13 @@ import { useProposalStore } from "@/store/proposalStore";
 // Runs before any page renders, so no page sees the old database's leftovers.
 freshStart();
 
+// The installed app was opened straight onto /my (its old start page).
+let launchedAtAppHome =
+  typeof window !== "undefined" &&
+  window.location.pathname === "/my" &&
+  (window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true);
+
 /*
  * After a deploy, a tab that was already open still runs the old version. When
  * it opens a page it hasn't loaded yet, it asks for that page's old file, which
@@ -175,6 +182,13 @@ function RootComponent() {
   useEffect(() => {
     if (fieldOnly) navigate({ to: "/my", replace: true });
   }, [fieldOnly, navigate]);
+  // Apps installed earlier still open at /my. Office staff get the CRM home instead.
+  const officeAppLaunch = launchedAtAppHome && pathname === "/my" && Boolean(user && !isFieldUser(user));
+  useEffect(() => {
+    if (!officeAppLaunch) return;
+    launchedAtAppHome = false;
+    navigate({ to: "/", replace: true });
+  }, [officeAppLaunch, navigate]);
   // Wait until we know who is signed in before sending anyone to the login page.
   const needsLogin = authMode !== "checking" && !user && !isPrint && !isLogin;
   useEffect(() => {

@@ -150,7 +150,7 @@ function UsersPage() {
                 </span>
               ) : (
                 <>
-                  {!u.viewPermissions.includes("view_all") && (
+                  {!u.viewPermissions.includes("view_all") && u.permissions.length === 0 && (
                     <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
                       Field · own work only
                     </span>

@@ -91,15 +91,16 @@ export const STAGE_PERMISSION: Record<string, Permission> = {
   commissioning: "commissioning",
 };
 
-// What a person can see. Office staff get "view_all"; field staff see only their own
-// orders, panels and tasks, plus what is ticked here. The database enforces the same rules.
+// What a person can see. Office staff get "view_all", and anyone with a "Can change"
+// permission counts as office staff too. Field staff see only their own orders, panels and
+// tasks, plus what is ticked here. The database enforces the same rules.
 export type ViewPermission = "view_all" | "view_design" | "view_equipment";
 
 export const VIEW_PERMISSIONS: { key: ViewPermission; label: string; hint: string }[] = [
   {
     key: "view_all",
     label: "All orders (office)",
-    hint: "Sees every order and the full website. Untick for field staff.",
+    hint: "Sees every order and the full website. Untick for field staff. Anyone given a \"Can change\" permission also gets the full website.",
   },
   {
     key: "view_design",

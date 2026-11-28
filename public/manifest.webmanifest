@@ -1,12 +1,11 @@
 {
   "name": "Electrosoft Work",
   "short_name": "Electrosoft",
-  "description": "Your assigned panels, tasks, drawings and material.",
+  "description": "Your work at Electrosoft: tasks and attendance, or the full CRM for office staff.",
   "id": "/my",
-  "start_url": "/my",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#4f46e5",
   "theme_color": "#4f46e5",
   "icons": [
